@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>聊天对话框</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    #messages { list-style-type: none; padding: 0; max-width: 500px; margin: 0 auto; text-align: left; }
+    #form { display: flex; justify-content: center; margin-top: 20px; }
+    #input { width: 70%; padding: 10px; }
+    #send { padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>对话聊天框</h1>
+  <ul id="messages"></ul>
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="输入消息..." />
+    <button id="send">发送</button>
+  </form>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
