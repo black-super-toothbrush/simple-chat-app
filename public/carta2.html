@@ -26,6 +26,13 @@
   <label for="password">Password:</label>
   <input type="text" id="password" placeholder="请输入WiFi密码">
   <button id="startWifiBtn">🚀 Start WiFi</button>
+
+  <!-- 🌟 新增 OTA 地址输入 -->
+  <div style="margin-top: 1em;">
+  <label for="otaUrl">OTA地址:</label>
+  <input type="text" id="otaUrl" placeholder="请输入OTA下载URL" style="width: 50%;">
+  <button id="startOtaBtn">⬇️ Start Wifi OTA</button>
+  </div>
 </div>
 
 <div class="panel" id="statusPanel">
@@ -60,6 +67,7 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
     const characteristics = await service.getCharacteristics();
 
     for (const char of characteristics) {
+      console.log('特征值 UUID:', char.uuid, 'Properties:', char.properties);
       if (char.properties.notify) {
         await char.startNotifications();
         char.addEventListener('characteristicvaluechanged', event => {
@@ -101,11 +109,13 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
           set('ledPreset', ledPreset);
           set('dryTime', `${dryTime}s`);
           set('gessoTime', `${gessoTime}s`);
+          console.log('找到 Notify 特征值:', char.uuid);
         });
       }
 
-      if (char.properties.write) {
+      if (char.properties.write || char.properties.writeWithoutResponse) {
         characteristicToWrite = char;
+        console.log('找到 Write 特征值:', char.uuid);
       }
     }
 
@@ -137,6 +147,32 @@ document.getElementById('startWifiBtn').addEventListener('click', async () => {
     alert("发送失败: " + e);
   }
 });
+
+// 🌟 新增: 处理 Start OTA 按钮点击
+document.getElementById('startOtaBtn').addEventListener('click', async () => {
+  const otaUrl = document.getElementById('otaUrl').value.trim();
+  if (!otaUrl) {
+    alert("请输入 OTA 下载 URL");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未找到可写特征值，请先连接设备");
+    return;
+  }
+
+  const data = new TextEncoder().encode(`url_${otaUrl}`);
+  try {
+    await characteristicToWrite.writeValue(data);
+    alert("OTA 地址已发送");
+  } catch (e) {
+    alert("发送失败: " + e);
+  }
+});
+
+
+
+
 </script>
 
 </body>
