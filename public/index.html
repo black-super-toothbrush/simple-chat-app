@@ -1,20 +1,36 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8" />
-  <title>语音聊天</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-    #messages { list-style-type: none; padding: 0; max-width: 500px; margin: 0 auto; text-align: left; }
-    button { padding: 10px 20px; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <h1>语音聊天室</h1>
-  <button id="record">🎤 开始录音</button>
-  <ul id="messages"></ul>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>我的主页</title>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
-</body>
+    <!-- Google 字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" />
+
+    <!-- 外部样式表 -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>欢迎来到我的主页</h1>
+      <p>这里将展示我的作品与故事</p>
+      <nav>
+        <ul>
+          <li><a href="ascii-hex.html">ASCII↔HEX</a></li>
+          <li><a href="carta2.html">carta蓝牙连接</a></li>
+          <li><a href="#link3">超链接 3</a></li>
+          <li><a href="#link4">超链接 4</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <!-- 此处无需额外 <img>，背景已在 body 中通过 CSS 设置为全屏展示 -->
+    </main>
+
+    <footer>
+      © 2025 ToothBrush. All Rights Reserved.
+    </footer>
+  </body>
 </html>

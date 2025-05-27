@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASCII ↔ HEX 转换器</title>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>ASCII ↔ HEX 转换器</h1>
+    <p>输入字符或十六进制，点击按钮即可互相转换</p>
+    <nav>
+      <ul>
+        <li><a href="index.html">返回主页</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- ===== 转换器主体 ===== -->
+  <main>
+    <section class="converter">
+      <div class="field">
+        <label for="ascii">ASCII 文本</label>
+        <textarea id="ascii" placeholder="在这里输入普通字符串…"></textarea>
+      </div>
+
+      <div class="btn-group">
+        <button id="toHex">ASCII → HEX</button>
+        <button id="toAscii">HEX → ASCII</button>
+      </div>
+
+      <div class="field">
+        <label for="hex">HEX 文本</label>
+        <textarea id="hex" placeholder="在这里输入十六进制（用空格或换行分隔亦可）…"></textarea>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    © 2025 我的名字 — ASCII ↔ HEX
+  </footer>
+
+  <!-- 功能脚本 -->
+  <script src="asciihex.js"></script>
+</body>
+</html>

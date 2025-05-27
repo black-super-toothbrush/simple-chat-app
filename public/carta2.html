@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>蓝牙设备状态面板</title>
+  <style>
+    body { font-family: sans-serif; background: #f8fbff; padding: 2em; }
+    h2 { margin-bottom: 1em; }
+    .panel { background: #fff; padding: 1em; border-radius: 10px; box-shadow: 0 0 6px #ccc; max-width: 500px; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #ddd; }
+    .row:last-child { border: none; }
+    label { font-weight: bold; }
+    .val { font-family: monospace; }
+    button, input { margin: 0.5em 0; padding: 0.6em; font-size: 1em; }
+    .form { margin-top: 1em; }
+  </style>
+</head>
+<body>
+
+<h2>📡 蓝牙状态面板</h2>
+<button id="connectBtn">🔗 连接蓝牙设备</button>
+
+<div class="form">
+  <label for="ssid">SSID:</label>
+  <input type="text" id="ssid" placeholder="请输入WiFi SSID">
+  <label for="password">Password:</label>
+  <input type="text" id="password" placeholder="请输入WiFi密码">
+  <button id="startWifiBtn">🚀 Start WiFi</button>
+</div>
+
+<div class="panel" id="statusPanel">
+  <div class="row"><label>雾化器类型:</label><span class="val" id="atomizer">--</span></div>
+  <div class="row"><label>Dry Herb Preset:</label><span class="val" id="dryPreset">--</span></div>
+  <div class="row"><label>Gesso Preset:</label><span class="val" id="gessoPreset">--</span></div>
+  <div class="row"><label>倒计时:</label><span class="val" id="countdown">--</span></div>
+  <div class="row"><label>当前温度:</label><span class="val" id="curTemp">--</span></div>
+  <div class="row"><label>预设温度:</label><span class="val" id="presetTemp">--</span></div>
+  <div class="row"><label>电池电量:</label><span class="val" id="battery">--</span></div>
+  <div class="row"><label>LED Preset:</label><span class="val" id="ledPreset">--</span></div>
+  <div class="row"><label>Dry Herb Time:</label><span class="val" id="dryTime">--</span></div>
+  <div class="row"><label>Gesso Time:</label><span class="val" id="gessoTime">--</span></div>
+</div>
+
+<script>
+let characteristicToWrite = null; // 保存可写特征值
+
+function set(id, value) {
+  document.getElementById(id).textContent = value;
+}
+
+document.getElementById('connectBtn').addEventListener('click', async () => {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['1011123e-8535-b5a0-7140-a304d2495cb7']
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService('1011123e-8535-b5a0-7140-a304d2495cb7');
+    const characteristics = await service.getCharacteristics();
+
+    for (const char of characteristics) {
+      if (char.properties.notify) {
+        await char.startNotifications();
+        char.addEventListener('characteristicvaluechanged', event => {
+          const d = new Uint8Array(event.target.value.buffer);
+          if (d.length < 16) return;
+          if (d[0] != 0x99)  return;
+          const byte2 = d[2];
+          const byte3 = d[3];
+          const byte4 = d[4];
+          const byte5 = d[5];
+          const temp = (d[6] << 8) | d[7];
+          const dryTemp = (d[8] << 8) | d[9];
+          const gessoTemp = (d[10] << 8) | d[11];
+          const battery = d[12];
+          const ledPreset = d[13] >> 4;
+          const dryTime = d[14];
+          const gessoTime = d[15];
+          
+          let presetTemp = 0;
+          if(byte2 == 0x40)  presetTemp = dryTemp;
+          if(byte2 == 0x60)  presetTemp = gessoTemp;
+          if(byte2 == 0xA0)  presetTemp = dryTemp;
+          if(byte2 == 0x30)  presetTemp = gessoTemp;
+
+          const atomizerMap = {
+            0x40: 'Gesso', 0x60: 'Gesso', 0xA0: 'Dry Herb', 0x30: 'Gesso Max', 0x00: 'No Atomizer'
+          };
+          const unitMap = {
+            0x11: '℉', 0x22: '℃'
+          };
+
+          set('atomizer', atomizerMap[byte2] || `0x${byte2.toString(16)}`);
+          set('dryPreset', byte4 >> 4);
+          set('gessoPreset', byte4 & 0x0F);
+          set('countdown', `${byte5}s`);
+          set('curTemp', temp + unitMap[byte3]);
+          set('presetTemp', presetTemp + unitMap[byte3]);
+          set('battery', `${battery}%`);
+          set('ledPreset', ledPreset);
+          set('dryTime', `${dryTime}s`);
+          set('gessoTime', `${gessoTime}s`);
+        });
+      }
+
+      if (char.properties.write) {
+        characteristicToWrite = char;
+      }
+    }
+
+    alert("蓝牙设备连接成功！");
+
+  } catch (e) {
+    alert('连接失败: ' + e);
+  }
+});
+
+document.getElementById('startWifiBtn').addEventListener('click', async () => {
+  const ssid = document.getElementById('ssid').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!ssid) {
+    alert("请输入 SSID");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未找到可写特征值，请先连接设备");
+    return;
+  }
+
+  const data = new TextEncoder().encode(`wifi_${ssid} ${password}`);
+  try {
+    await characteristicToWrite.writeValue(data);
+    alert("WiFi 配置已发送");
+  } catch (e) {
+    alert("发送失败: " + e);
+  }
+});
+</script>
+
+</body>
+</html>
