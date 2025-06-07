@@ -27,12 +27,27 @@
   <input type="text" id="password" placeholder="请输入WiFi密码">
   <button id="startWifiBtn">🚀 Start WiFi</button>
 
+  <!--  OTA BIN 发送  -->
+  <div style="margin-top:1em;">
+    <label for="binFile">选择 OTA 固件 (.bin):</label>
+    <input type="file" id="binFile" accept=".bin">
+    <button id="sendBinBtn">📦 发送 OTA BIN</button>
+  </div>
+
   <!-- 🌟 新增 OTA 地址输入 -->
   <div style="margin-top: 1em;">
   <label for="otaUrl">OTA地址:</label>
   <input type="text" id="otaUrl" placeholder="请输入OTA下载URL" style="width: 50%;">
   <button id="startOtaBtn">⬇️ Start Wifi OTA</button>
   </div>
+
+  <div class="form">
+  <label for="hexInput">手动发送十六进制数据:</label>
+  <input type="text" id="hexInput" placeholder="例如: AA 01 FF 00" style="width: 60%;">
+  <button id="sendHexBtn">📤 发送 Hex 数据</button>
+  <button id="sendAsciiBtn">📝 发送 ASCII 字符串</button>
+  </div>
+
 </div>
 
 <div class="panel" id="statusPanel">
@@ -50,6 +65,24 @@
 
 <script>
 let characteristicToWrite = null; // 保存可写特征值
+
+
+let ackResolver = null;    // 保存本轮等待 ACK 的 resolve
+const ACK_TIMEOUT = 6000;  // 毫秒，可按需调整
+
+/* 等待设备返回 AWK（41 57 4B），带超时 */
+function waitForAck() {
+  return new Promise((resolve, reject) => {
+    ackResolver = resolve;                 // 收到 AWK 时会调用 resolve()
+    setTimeout(() => {
+      if (ackResolver) {                   // 超时仍未收到
+        ackResolver = null;
+        reject(new Error('等待 AWK 超时'));
+      }
+    }, ACK_TIMEOUT);
+  });
+}
+
 
 function set(id, value) {
   document.getElementById(id).textContent = value;
@@ -72,6 +105,13 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
         await char.startNotifications();
         char.addEventListener('characteristicvaluechanged', event => {
           const d = new Uint8Array(event.target.value.buffer);
+          /* ---------- AWK 检测 ---------- */
+          if (d.length === 3 && d[0] === 0x41 && d[1] === 0x57 && d[2] === 0x4B) {
+            console.log('收到 AWK');
+            if (ackResolver) { ackResolver(); ackResolver = null; }
+            return;           // 处理完 AWK 后直接返回，下面解析帧可选
+          }
+
           if (d.length < 16) return;
           if (d[0] != 0x99)  return;
           const byte2 = d[2];
@@ -170,8 +210,145 @@ document.getElementById('startOtaBtn').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('sendHexBtn').addEventListener('click', async () => {
+  const hexStr = document.getElementById('hexInput').value.trim();
+  if (!hexStr) {
+    alert("请输入十六进制数据");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未连接蓝牙设备或未找到可写特征值");
+    return;
+  }
+
+  try {
+    // 将字符串转换为 Uint8Array
+    const hexArray = hexStr.split(/\s+/).map(byte => {
+      const num = parseInt(byte, 16);
+      if (isNaN(num)) throw new Error(`无效的十六进制数: ${byte}`);
+      return num;
+    });
+    const data = new Uint8Array(hexArray);
+    await characteristicToWrite.writeValue(data);
+    alert("已发送 Hex 数据");
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
+});
+document.getElementById('sendAsciiBtn').addEventListener('click', async () => {
+  const asciiStr = document.getElementById('hexInput').value.trim();
+  if (!asciiStr) {
+    alert("请输入 ASCII 字符串");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未连接蓝牙设备或未找到可写特征值");
+    return;
+  }
+
+  try {
+    const data = new TextEncoder().encode(asciiStr); // 转成 UTF-8 字节流
+    await characteristicToWrite.writeValue(data);
+    alert("已发送 ASCII 字符串");
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
+});
 
 
+
+/* ---------- 封包：返回 Uint8Array( 518 ) ---------- */
+const PAYLOAD_SIZE = 32;        // 每帧有效数据 32B
+const FRAME_SIZE   = 38;   // 1+2+32+2+1
+const HEADER_BYTE  = 0xAA;
+const TAIL_BYTE    = 0xAA;
+function crc16Modbus(buf) {
+  let crc = 0xFFFF;
+  for (let b of buf) {
+    crc ^= b;
+    for (let i = 0; i < 8; ++i)
+      crc = (crc & 1) ? (crc >>> 1) ^ 0xA001 : crc >>> 1;
+  }
+  return crc & 0xFFFF;
+}
+function buildSmallPacket(seq, payload32) {
+  const frame = new Uint8Array(FRAME_SIZE);
+
+  frame[0] = HEADER_BYTE;           // 帧头
+  frame[1] = seq & 0xFF;           // Seq_L
+  frame[2] = (seq >> 8) & 0xFF;    // Seq_H
+
+  frame.fill(0xFF, 3);             // 先把 32B 区域填 0xFF
+  frame.set(payload32, 3);         // 写入实际数据
+
+  const crc = crc16Modbus(frame.subarray(1, 1 + 2 + PAYLOAD_SIZE)); // Seq+Payload
+  frame[35] = (crc >> 8) & 0xFF;    // CRC 高
+  frame[36] =  crc & 0xFF;          // CRC 低
+  frame[37] = TAIL_BYTE;            // 帧尾
+
+  return frame;
+}
+
+
+
+
+
+/* ---------- 选择 BIN → 分包 → 写入 ---------- */
+document.getElementById('sendBinBtn').addEventListener('click', async () => {
+  const f = document.getElementById('binFile').files[0];
+  if (!f) { alert('请选择 .bin 文件'); return; }
+  if (!characteristicToWrite) { alert('请先连接蓝牙设备'); return; }
+
+  try {
+    const arrayBuf = await f.arrayBuffer();
+    const bin = new Uint8Array(arrayBuf);
+    const totalPkts = Math.ceil(bin.length / PAYLOAD_SIZE);
+
+    let seq = 0;
+    for (let offset = 0; offset < bin.length; offset += PAYLOAD_SIZE, seq++) {
+      const remain = bin.length - offset;                 // 剩余字节数
+      let slice;
+      if (remain >= PAYLOAD_SIZE) {
+        // 正常 512 字节
+        slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
+      } else {
+        // ⭐ 最后一包：创建 512B 缓冲，先全填 0xFF，再拷贝剩余数据
+        slice = new Uint8Array(PAYLOAD_SIZE).fill(0xFF);
+        slice.set(bin.subarray(offset));                  // 把剩余字节拷进去
+      }
+    //  const slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
+   //   const packet = buildPacket(seq, slice);
+
+      /* 如 MTU < 518，可在此再拆小碎片写；此处假设 MTU 足够 */
+     // await characteristicToWrite.writeValue(packet);
+      // === 拆成 32 B 写出 ===
+      for (let offset = 0, seq = 0; offset < bin.length; offset += PAYLOAD_SIZE, ++seq) {
+        /* ---- 取 32B，不足补 0xFF ---- */
+        const remain  = bin.length - offset;
+        const block32 = remain >= PAYLOAD_SIZE
+              ? bin.subarray(offset, offset + PAYLOAD_SIZE)
+              : new Uint8Array(PAYLOAD_SIZE).fill(0xFF)
+                    .map((v, i) => (i < remain ? bin[offset + i] : v));
+
+        const pkt = buildSmallPacket(seq, block32);   // 38 B
+        console.log(`Sending pkt data is, seq=${seq}, size=${pkt.length}, data=${[...pkt]}`);
+        await characteristicToWrite.writeValue(pkt);  // 直接写整帧
+        console.log(`Frame ${seq} sent, wait AWK…`);
+
+        try {
+          await waitForAck();                         // 与前述 ACK 机制相同
+        } catch (e) {
+          alert(e.message); return;
+        }
+      }
+      alert('OTA bin 全部发送完成！');
+    } 
+  } catch (e) {
+    alert('发送失败: ' + e.message);
+  }
+});
 
 </script>
 
