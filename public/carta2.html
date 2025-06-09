@@ -112,6 +112,12 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
             return;           // 处理完 AWK 后直接返回，下面解析帧可选
           }
 
+          if(d[0] != 0x99) {
+            console.log('收到 Notify 数据:', d);
+          }
+          
+
+
           if (d.length < 16) return;
           if (d[0] != 0x99)  return;
           const byte2 = d[2];
@@ -260,8 +266,8 @@ document.getElementById('sendAsciiBtn').addEventListener('click', async () => {
 
 
 /* ---------- 封包：返回 Uint8Array( 518 ) ---------- */
-const PAYLOAD_SIZE = 32;        // 每帧有效数据 32B
-const FRAME_SIZE   = 38;   // 1+2+32+2+1
+const PAYLOAD_SIZE = 16;        // 每帧有效数据 32B
+const FRAME_SIZE   = 22;   // 1+2+16+2+1
 const HEADER_BYTE  = 0xAA;
 const TAIL_BYTE    = 0xAA;
 function crc16Modbus(buf) {
@@ -284,9 +290,9 @@ function buildSmallPacket(seq, payload32) {
   frame.set(payload32, 3);         // 写入实际数据
 
   const crc = crc16Modbus(frame.subarray(1, 1 + 2 + PAYLOAD_SIZE)); // Seq+Payload
-  frame[35] = (crc >> 8) & 0xFF;    // CRC 高
-  frame[36] =  crc & 0xFF;          // CRC 低
-  frame[37] = TAIL_BYTE;            // 帧尾
+  frame[19] = (crc >> 8) & 0xFF;    // CRC 高
+  frame[20] =  crc & 0xFF;          // CRC 低
+  frame[21] = TAIL_BYTE;            // 帧尾
 
   return frame;
 }
@@ -306,18 +312,18 @@ document.getElementById('sendBinBtn').addEventListener('click', async () => {
     const bin = new Uint8Array(arrayBuf);
     const totalPkts = Math.ceil(bin.length / PAYLOAD_SIZE);
 
-    let seq = 0;
-    for (let offset = 0; offset < bin.length; offset += PAYLOAD_SIZE, seq++) {
-      const remain = bin.length - offset;                 // 剩余字节数
-      let slice;
-      if (remain >= PAYLOAD_SIZE) {
-        // 正常 512 字节
-        slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
-      } else {
-        // ⭐ 最后一包：创建 512B 缓冲，先全填 0xFF，再拷贝剩余数据
-        slice = new Uint8Array(PAYLOAD_SIZE).fill(0xFF);
-        slice.set(bin.subarray(offset));                  // 把剩余字节拷进去
-      }
+    // let seq = 0;
+    // for (let offset = 0; offset < bin.length; offset += PAYLOAD_SIZE, seq++) {
+    //   const remain = bin.length - offset;                 // 剩余字节数
+    //   let slice;
+    //   if (remain >= PAYLOAD_SIZE) {
+    //     // 正常 512 字节
+    //     slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
+    //   } else {
+    //     // ⭐ 最后一包：创建 512B 缓冲，先全填 0xFF，再拷贝剩余数据
+    //     slice = new Uint8Array(PAYLOAD_SIZE).fill(0xFF);
+    //     slice.set(bin.subarray(offset));                  // 把剩余字节拷进去
+    //   }
     //  const slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
    //   const packet = buildPacket(seq, slice);
 
@@ -345,7 +351,7 @@ document.getElementById('sendBinBtn').addEventListener('click', async () => {
       }
       alert('OTA bin 全部发送完成！');
     } 
-  } catch (e) {
+  catch (e) {
     alert('发送失败: ' + e.message);
   }
 });

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLE OTA Upload</title>
+</head>
+<body>
+    <h1>BLE OTA Upload</h1>
+    <button id="scanButton">Scan and Connect to BLE Device</button>
+    <ul id="deviceList"></ul>
+    <div id="notifications"></div> <!-- 用于显示通知消息 -->
+    <br><br>
+    <input type="file" id="fileInput" accept=".bin">
+    <button id="uploadButton" disabled>Upload main OTA</button>
+    <button id="uploadBatteryButton" disabled>Upload battery OTA</button>
+    <div id="status"></div>
+    <!-- 输入框和发送按钮
+    <div>
+        <label for="hexInput">Enter Hex Array:</label>
+        <input type="text" id="hexInput" placeholder="e.g. 01 02 03 04">
+        <button id="sendButton">Send</button>
+    </div> -->
+    <script>
+        let characteristicFEC1;
+        let characteristicFEC2;
+        let writeQueue = [];
+        let crc16Array = [];
+        let chunkCounter = 0;
+        let crc_check_block = 0xffff;
+        let okTimeout;
+        let batteryOTAPrecent = 0;
+        let ota_battBoard_flag = 0;
+        const chunkSize = 16;
+        const blockSize = 2048;
+        const CHUNKS_BEFORE_NOTIFY = 128;  // 每128包等待一次响应
+        document.getElementById('scanButton').addEventListener('click', async () => {
+            try {
+                const options = {
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '0000fee7-0000-1000-8000-00805f9b34fb'  // 0xFEE7 Unknown Service
+                    ]
+                };
+                const device = await navigator.bluetooth.requestDevice(options);
+                console.log('Device selected:', device);
+                try {
+                    console.log('Attempting to connect to GATT server...');
+                    const server = await device.gatt.connect();
+                    console.log('Connected to GATT server:', server);
+                    const service = await server.getPrimaryService('0000fee7-0000-1000-8000-00805f9b34fb');
+                    const characteristic = await service.getCharacteristic('0000fec2-0000-1000-8000-00805f9b34fb');
+                    characteristicFEC2 = await service.getCharacteristic('0000fec2-0000-1000-8000-00805f9b34fb');
+                    characteristicFEC1 = await service.getCharacteristic('0000fec1-0000-1000-8000-00805f9b34fb');
+                    // 启用通知
+                    await characteristicFEC2.startNotifications();
+                    console.log('Notifications started for 0xFEC2');
+                    characteristicFEC2.addEventListener('characteristicvaluechanged', handleNotification);
+                    console.log('Listening for notifications...');
+                    document.getElementById('uploadButton').disabled = false;
+                    document.getElementById('uploadBatteryButton').disabled = false;
+                    document.getElementById('status').textContent = "Connected to device. Ready for OTA.";
+                } catch (error) {
+                    console.error('GATT connection failed:', error);
+                }
+
+            } catch (error) {
+                console.error('Error scanning for devices:', error);
+            }
+        });
+        document.getElementById('uploadButton').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert('Please select a file first.');
+                return;
+            }
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            startOTA(data);
+        });
+
+        document.getElementById('uploadBatteryButton').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert('Please select a file first.');
+                return;
+            }
+            const file = fileInput.files[0];
+            const arrayBuffer = await file.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            startBatteryOTA(data);
+        });
+        function startBatteryOTA(data) {
+            writeQueue = [];   
+            
+            
+          //  writeQueue.push(startCommand);
+
+            batteryOTAPrecent = 0;
+            // Calculate padding to ensure the data is a multiple of 128 bytes
+            let padding = (data.length % 128 === 0) ? 0 : 128 - (data.length % 128);
+            let paddedData = new Uint8Array(data.length + padding).fill(0xFF);
+            paddedData.set(data);
+            let chunkSize = 16;
+            let binFileSize = paddedData.length;
+            let totalChunks = Math.floor(binFileSize / chunkSize); // Total chunks based on chunkSize
+            let dataAddress = 0;  
+
+            const crc16 = calculateCRC16(0xffff,paddedData,binFileSize);
+            const startCommand = new Uint8Array(20).fill(0xFF);
+            //let startCommand = new Uint8Array([0x0D, ...new TextEncoder().encode("startDownload")]);
+            const commandBytes = new TextEncoder().encode("startDownload");
+            startCommand.set(commandBytes);
+            startCommand[14] = (binFileSize >> 24) & 0xFF;
+            startCommand[15] = (binFileSize >> 16) & 0xFF;
+            startCommand[16] = (binFileSize >> 8) & 0xFF;
+            startCommand[17] = binFileSize & 0xFF;
+            startCommand[18] = (crc16 >> 8) & 0xFF;
+            startCommand[19] = crc16 & 0xFF;
+            writeQueue.push(startCommand);
+            let blockCrc16 = 0xFFFF; // Initialize the block CRC16 value
+            crc16Array = [];
+            for (let i = 0; i < binFileSize; i += blockSize) {
+                const blockData = paddedData.subarray(i, Math.min(i + blockSize, binFileSize));
+                blockCrc16 = calculateCRC16(blockCrc16, blockData, blockData.length); // Update CRC progressively
+                crc16Array.push(blockCrc16); // Store CRC for this block
+                console.log(`CRC for block starting at ${i}: ${blockCrc16}`);
+            }
+            console.log('data file crc:', crc16);            
+            if(binFileSize > 30000) {
+                alert('wrong bin file.');
+            }
+            else {   
+                for (let i = 0; i < totalChunks; i++) {
+                    let chunkWithAddress = new Uint8Array(20).fill(0xFF);
+
+                    // Set the address in the first 4 bytes
+                    chunkWithAddress[0] = 0x13;
+                    chunkWithAddress[1] = 0xc5;
+                    chunkWithAddress[2] = (dataAddress >> 8) & 0xFF;
+                    chunkWithAddress[3] = dataAddress & 0xFF;
+
+                    // Copy the chunk of data
+                    chunkWithAddress.set(paddedData.subarray(i * chunkSize, (i + 1) * chunkSize), 4);
+
+                    // Update address and remaining file size
+                    dataAddress += chunkSize;
+                    binFileSize -= chunkSize;
+
+                    // Add the chunk to the queue
+                    writeQueue.push(chunkWithAddress);
+                }            
+                // Add the end command to the queue
+                let endCommand = new Uint8Array([0x0D, ...new TextEncoder().encode("finshDownload")]);
+                writeQueue.push(endCommand);           
+                // Set OTA flag and start sending chunks
+                ota_battBoard_flag = 1;
+                chunkCounter = -1;
+                writeNextChunkFromQueue();
+                batteryOTAPrecent = 0;
+            }
+        }
+       
+        function startOTA(data) {
+            writeQueue = [];     
+            const paddedDataLength = Math.ceil(data.length / chunkSize) * chunkSize;
+            const paddedData = new Uint8Array(paddedDataLength).fill(0xFF);
+            console.log('bin origin data length:', data.length);
+            console.log('padded data length:', paddedDataLength);
+            paddedData.set(data);
+            const crc16 = calculateCRC16(0xffff,paddedData,paddedData.length);
+            const startCommand = new Uint8Array(20).fill(0xFF);
+            const commandBytes = new TextEncoder().encode("ota start");
+			if(paddedDataLength < 120000)
+			{
+				alert('wrong bin file.');	
+			}
+			else {		
+				// Calculate CRC16 for each 2048 bytes block
+				let blockCrc16 = 0xFFFF; // Initialize the block CRC16 value
+                crc16Array = [];
+				for (let i = 0; i < paddedDataLength; i += blockSize) {
+					const blockData = paddedData.subarray(i, Math.min(i + blockSize, paddedDataLength));
+					blockCrc16 = calculateCRC16(blockCrc16, blockData, blockData.length); // Update CRC progressively
+					crc16Array.push(blockCrc16); // Store CRC for this block
+					console.log(`CRC for block starting at ${i}: ${blockCrc16}`);
+				}
+				console.log('data file crc:', crc16);
+				startCommand.set(commandBytes);
+				startCommand[10] = (paddedDataLength >> 24) & 0xFF;
+				startCommand[11] = (paddedDataLength >> 16) & 0xFF;
+				startCommand[12] = (paddedDataLength >> 8) & 0xFF;
+				startCommand[13] = paddedDataLength & 0xFF;
+				startCommand[14] = (crc16 >> 8) & 0xFF;
+				startCommand[15] = crc16 & 0xFF;
+				writeQueue.push(startCommand);
+				const totalChunks = paddedDataLength / chunkSize;
+				for (let i = 0; i < totalChunks; i++) {
+					const chunkWithAddress = new Uint8Array(20).fill(0xFF);
+					chunkWithAddress[0] = (i >> 24) & 0xFF;
+					chunkWithAddress[1] = (i >> 16) & 0xFF;
+					chunkWithAddress[2] = (i >> 8) & 0xFF;
+					chunkWithAddress[3] = i & 0xFF;
+					const chunkData = paddedData.subarray(i * chunkSize, (i + 1) * chunkSize);
+					chunkWithAddress.set(chunkData, 4);
+					writeQueue.push(chunkWithAddress);
+				}
+
+
+
+				// 添加endCommand
+				const endCommand = new TextEncoder().encode("ota finish");
+				const endCommandArray = new Uint8Array(20).fill(0xFF);
+				endCommandArray.set(endCommand);
+				writeQueue.push(endCommandArray);
+				ota_battBoard_flag = 0;
+				chunkCounter = -1;
+				writeNextChunkFromQueue();
+				crc_check_block = 0xffff;
+			}
+        }
+        async function writeNextChunkFromQueue() {
+            if (writeQueue.length > 0) {
+                const chunk = writeQueue.shift();
+                try {
+                    //await characteristicFEC1.writeValueWithResponse(chunk);
+					if(ota_battBoard_flag) {
+						await characteristicFEC1.writeValueWithoutResponse(chunk);
+					}
+					else {
+						await characteristicFEC1.writeValueWithoutResponse(chunk); 
+					}   
+                    if (chunkCounter === -1) {
+                        // 第一次调用，已经发送了ota start包，重置计数器为0，开始正式计数
+                        chunkCounter = 0;
+                       // writeNextChunkFromQueue();  // 继续发送下一个数据包
+                        if(ota_battBoard_flag == 0) {
+                                setTimeout(() => {
+                                writeNextChunkFromQueue();  // 延时1000ms后继续发送下一个数据包
+                            }, 1000);                            
+                        }
+                    } 
+                    else {
+                        chunkCounter++;
+                        document.getElementById('status').textContent = `Sent chunk, ${writeQueue.length} remaining.`;       
+                        if(ota_battBoard_flag)
+                        {
+							if (chunkCounter % CHUNKS_BEFORE_NOTIFY === 0) {
+								console.log('Waiting for OK notification from device...'); 
+								console.log('send counts:', chunkCounter);  									
+							}
+							else {          
+                                console.log('send counts:', chunkCounter);
+                                setTimeout(() => {writeNextChunkFromQueue();}, 20);// 延时20ms后继续发送下一个数据包
+                            }
+                        }
+                        else {
+                            // 每发送128个包后，等待设备响应"OK"
+                            if (chunkCounter % CHUNKS_BEFORE_NOTIFY === 0) {
+                            console.log('send counts:', chunkCounter);
+                            console.log('Waiting for OK notification from device...');
+                            //resetOkTimeout(); 
+                            } else {          
+                                console.log('send counts:', chunkCounter);
+                                //resetOkTimeout();
+                                //writeNextChunkFromQueue(); // 继续发送下一个数据包
+                                //setTimeout(() => {writeNextChunkFromQueue();}, 8);// 延时5ms后继续发送下一个数据包
+                                setTimeout(() => {writeNextChunkFromQueue();}, 10);// 延时5ms后继续发送下一个数据包
+                            }
+                        }
+
+                    }    
+                } catch (error) {
+                    console.error('Failed to send chunk:', error);
+                }
+            } else {
+                document.getElementById('status').textContent = "OTA Update Complete.";
+                clearTimeout(okTimeout); // Clear timeout once OTA is complete
+            }
+        }
+        function handleNotification(event) {
+            const value = event.target.value;
+            console.log('received data:',value.getUint8(0),value.getUint8(1));
+            if (value.getUint8(0) === 0x4F && value.getUint8(1) === 0x4B) {
+                clearTimeout(okTimeout); // Clear the timeout when "OK" is received  
+                let receivedCrcTransmit = 0xffff;
+                let receivedCrcFlash = 0xffff;     
+                if (value.byteLength > 3) {  
+                    receivedCrcTransmit = (value.getUint8(2) << 8) | value.getUint8(3); // Combine two bytes for CRC transmit
+                    console.log('crc data transimit:',receivedCrcTransmit);
+                }
+                if (value.byteLength > 5) {
+                    receivedCrcFlash = (value.getUint8(4) << 8) | value.getUint8(5); // Combine two bytes for CRC flash             
+                    console.log('crc data flash:', receivedCrcFlash);    
+                } 
+                if (value.byteLength > 3)
+                {
+                    // Perform CRC checks
+                    const currentBlockIndex = Math.floor(chunkCounter / (2048 / chunkSize)) - 1; // Determine the current block index
+                    const expectedCrc = crc16Array[currentBlockIndex];  
+                    console.log('expected crc data:', expectedCrc); 
+                    // Proceed only if both CRC checks are successful
+                    if (receivedCrcTransmit === expectedCrc && receivedCrcFlash === expectedCrc) {
+                        console.log('CRC checks passed, continuing transmission');
+                        writeNextChunkFromQueue();  // Proceed to send the next chunk
+                    } else {
+                        console.error('CRC check failed, stopping transmission');
+                        // Handle CRC check failure (e.g., retry, log error, etc.)
+                    }                                       
+                } 
+                else{
+                    writeNextChunkFromQueue();  // 收到OK后继续发送数据 
+                }        
+            }
+        }        
+		function calculateCRC16(crc, data, length) {
+			for (let i = 0; i < length; i++) {
+				crc ^= (data[i] & 0xFF) << 8; // Move the byte to the high position of the CRC register
+				for (let j = 0; j < 8; j++) {
+					if (crc & 0x8000) { // If the highest bit is 1
+						crc = (crc << 1) ^ 0x1021; // Left shift and divide by polynomial
+					} else { // If the highest bit is 0
+						crc <<= 1; // Just left shift
+					}
+				}
+			}
+			return crc & 0xFFFF;
+		}
+        // function resetOkTimeout() {
+        //     clearTimeout(okTimeout); // Clear any existing timeout
+        //     okTimeout = setTimeout(() => {
+        //         console.log('OK not received within 5 seconds, restarting OTA transmission...');
+        //         chunkCounter = -1; // Reset counter to start OTA again
+        //         writeNextChunkFromQueue(); // Restart OTA transmission
+        //     }, 5000); // 5 seconds timeout
+        // }
+    </script>
+</body>
+</html>
+
+
