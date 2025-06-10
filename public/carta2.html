@@ -67,19 +67,19 @@
 let characteristicToWrite = null; // 保存可写特征值
 
 
-let ackResolver = null;    // 保存本轮等待 ACK 的 resolve
-const ACK_TIMEOUT = 6000;  // 毫秒，可按需调整
-
 /* 等待设备返回 AWK（41 57 4B），带超时 */
-function waitForAck() {
+function waitForAck(timeout = 6000) {
   return new Promise((resolve, reject) => {
-    ackResolver = resolve;                 // 收到 AWK 时会调用 resolve()
-    setTimeout(() => {
-      if (ackResolver) {                   // 超时仍未收到
-        ackResolver = null;
-        reject(new Error('等待 AWK 超时'));
-      }
-    }, ACK_TIMEOUT);
+    const timer = setTimeout(() => {
+      console.warn("⚠️ ACK 超时，未收到设备响应");
+      reject(new Error("等待 AWK 超时"));
+    }, timeout);
+
+    // 保存一个触发器到全局，收到 AWK 时会调用它
+    ackResolver = () => {
+      clearTimeout(timer);
+      resolve();
+    };
   });
 }
 
@@ -107,9 +107,12 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
           const d = new Uint8Array(event.target.value.buffer);
           /* ---------- AWK 检测 ---------- */
           if (d.length === 3 && d[0] === 0x41 && d[1] === 0x57 && d[2] === 0x4B) {
-            console.log('收到 AWK');
-            if (ackResolver) { ackResolver(); ackResolver = null; }
-            return;           // 处理完 AWK 后直接返回，下面解析帧可选
+            console.log('✅ 收到 AWK');
+            if (typeof ackResolver === 'function') {
+              ackResolver();
+              ackResolver = null;
+            }
+            return;
           }
 
           if(d[0] != 0x99) {
@@ -309,46 +312,70 @@ document.getElementById('sendBinBtn').addEventListener('click', async () => {
 
   try {
     const arrayBuf = await f.arrayBuffer();
-    const bin = new Uint8Array(arrayBuf);
-    const totalPkts = Math.ceil(bin.length / PAYLOAD_SIZE);
+    let bin = new Uint8Array(arrayBuf);
+    const realLength = bin.length; // 原始长度
+    console.log(`📦 选择的 OTA bin 文件大小: ${realLength} 字节`);
+    // ✅ 补齐到 512 字节对齐（不足补 0xFF）
+    const padding = bin.length % 512;
+    if (padding !== 0) {
+      const padded = new Uint8Array(bin.length + (512 - padding)).fill(0xFF);
+      padded.set(bin);
+      bin = padded;
+    }
+    const totalBlocks = bin.length / 512; // 512 字节为一个块
+    const totalPkts = bin.length / PAYLOAD_SIZE; // 16 字节每包
 
-    // let seq = 0;
-    // for (let offset = 0; offset < bin.length; offset += PAYLOAD_SIZE, seq++) {
-    //   const remain = bin.length - offset;                 // 剩余字节数
-    //   let slice;
-    //   if (remain >= PAYLOAD_SIZE) {
-    //     // 正常 512 字节
-    //     slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
-    //   } else {
-    //     // ⭐ 最后一包：创建 512B 缓冲，先全填 0xFF，再拷贝剩余数据
-    //     slice = new Uint8Array(PAYLOAD_SIZE).fill(0xFF);
-    //     slice.set(bin.subarray(offset));                  // 把剩余字节拷进去
-    //   }
-    //  const slice = bin.subarray(offset, offset + PAYLOAD_SIZE);
-   //   const packet = buildPacket(seq, slice);
+    // ✅ 发送头包：0x52 0x45 0x51 + len_L + len_H
+    const header = new Uint8Array(9);
+    header[0] = 0x52;
+    header[1] = 0x45;
+    header[2] = 0x51;
+    header[3] = (totalBlocks >> 8) & 0xFF;
+    header[4] = totalBlocks & 0xFF;
 
-      /* 如 MTU < 518，可在此再拆小碎片写；此处假设 MTU 足够 */
-     // await characteristicToWrite.writeValue(packet);
-      // === 拆成 32 B 写出 ===
-      for (let offset = 0, seq = 0; offset < bin.length; offset += PAYLOAD_SIZE, ++seq) {
-        /* ---- 取 32B，不足补 0xFF ---- */
-        const remain  = bin.length - offset;
-        const block32 = remain >= PAYLOAD_SIZE
-              ? bin.subarray(offset, offset + PAYLOAD_SIZE)
-              : new Uint8Array(PAYLOAD_SIZE).fill(0xFF)
-                    .map((v, i) => (i < remain ? bin[offset + i] : v));
+    header[5] = (realLength >> 24) & 0xFF;
+    header[6] = (realLength >> 16) & 0xFF;
+    header[7] = (realLength >> 8) & 0xFF;
+    header[8] = realLength & 0xFF;
 
-        const pkt = buildSmallPacket(seq, block32);   // 38 B
-        console.log(`Sending pkt data is, seq=${seq}, size=${pkt.length}, data=${[...pkt]}`);
-        await characteristicToWrite.writeValue(pkt);  // 直接写整帧
-        console.log(`Frame ${seq} sent, wait AWK…`);
+    console.log(`📦 发送 REQ 包，总块数: ${totalBlocks}, 实际字节数: ${realLength}`);
+    await characteristicToWrite.writeValue(header);
+    try {
+      await waitForAck();  // 等设备 ACK
+      console.log("✅ 收到 ACK，开始发送数据...");
+    } catch (e) {
+      alert("REQ 阶段失败: " + e.message);
+      return;
+    }
 
+
+
+
+    const BATCH_SIZE = 32;  // 每 N 包等一次 ACK
+
+    for (let offset = 0, seq = 0; offset < bin.length; offset += PAYLOAD_SIZE, ++seq) {
+      const remain = bin.length - offset;
+      const block32 = remain >= PAYLOAD_SIZE
+            ? bin.subarray(offset, offset + PAYLOAD_SIZE)
+            : new Uint8Array(PAYLOAD_SIZE).fill(0xFF)
+                  .map((v, i) => (i < remain ? bin[offset + i] : v));
+
+      const pkt = buildSmallPacket(seq, block32);
+      console.log(`Sending pkt data pkt=${pkt}, seq=${seq}, size=${pkt.length}, remain=${remain}`);
+      await characteristicToWrite.writeValue(pkt);
+
+      if ((seq + 1) % BATCH_SIZE === 0 || (offset + PAYLOAD_SIZE) >= bin.length) {
+        console.log(`🕐 Batch ${seq + 1} sent, waiting for ACK...`);
         try {
-          await waitForAck();                         // 与前述 ACK 机制相同
+          await waitForAck();  // 每32帧等一次 AWK
         } catch (e) {
-          alert(e.message); return;
+          alert(e.message);
+          return;
         }
       }
+    }
+
+
       alert('OTA bin 全部发送完成！');
     } 
   catch (e) {
