@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>蓝牙设备状态面板</title>
+  <title>Bluetooth Device Status Panel</title>
   <style>
     body { font-family: sans-serif; background: #f8fbff; padding: 2em; }
     h2 { margin-bottom: 1em; }
@@ -17,47 +17,47 @@
 </head>
 <body>
 
-<h2>📡 蓝牙状态面板</h2>
-<button id="connectBtn">🔗 连接蓝牙设备</button>
+<h2>📡 Bluetooth Status Panel</h2>
+<button id="connectBtn">🔗 Connect Bluetooth Device</button>
 
 <div class="form">
   <label for="ssid">SSID:</label>
-  <input type="text" id="ssid" placeholder="请输入WiFi SSID">
+  <input type="text" id="ssid" placeholder="Enter WiFi SSID">
   <label for="password">Password:</label>
-  <input type="text" id="password" placeholder="请输入WiFi密码">
+  <input type="text" id="password" placeholder="Enter WiFi password">
   <button id="startWifiBtn">🚀 Start WiFi</button>
 
-  <!--  OTA BIN 发送  -->
+  <!-- OTA BIN Upload -->
   <div style="margin-top:1em;">
-    <label for="binFile">选择 OTA 固件 (.bin):</label>
+    <label for="binFile">Select OTA Firmware (.bin):</label>
     <input type="file" id="binFile" accept=".bin">
-    <button id="sendBinBtn">📦 发送 OTA BIN</button>
+    <button id="sendBinBtn">📦 Send OTA BIN</button>
   </div>
 
-  <!-- 🌟 新增 OTA 地址输入 -->
+  <!-- OTA URL Input -->
   <div style="margin-top: 1em;">
-  <label for="otaUrl">OTA地址:</label>
-  <input type="text" id="otaUrl" placeholder="请输入OTA下载URL" style="width: 50%;">
-  <button id="startOtaBtn">⬇️ Start Wifi OTA</button>
+  <label for="otaUrl">OTA URL:</label>
+  <input type="text" id="otaUrl" placeholder="Enter OTA download URL" style="width: 50%;">
+  <button id="startOtaBtn">⬇️ Start WiFi OTA</button>
   </div>
 
   <div class="form">
-  <label for="hexInput">手动发送十六进制数据:</label>
-  <input type="text" id="hexInput" placeholder="例如: AA 01 FF 00" style="width: 60%;">
-  <button id="sendHexBtn">📤 发送 Hex 数据</button>
-  <button id="sendAsciiBtn">📝 发送 ASCII 字符串</button>
+  <label for="hexInput">Send Hex Data Manually:</label>
+  <input type="text" id="hexInput" placeholder="e.g. AA 01 FF 00" style="width: 60%;">
+  <button id="sendHexBtn">📤 Send Hex</button>
+  <button id="sendAsciiBtn">📝 Send ASCII</button>
   </div>
 
 </div>
 
 <div class="panel" id="statusPanel">
-  <div class="row"><label>雾化器类型:</label><span class="val" id="atomizer">--</span></div>
+  <div class="row"><label>Atomizer Type:</label><span class="val" id="atomizer">--</span></div>
   <div class="row"><label>Dry Herb Preset:</label><span class="val" id="dryPreset">--</span></div>
   <div class="row"><label>Gesso Preset:</label><span class="val" id="gessoPreset">--</span></div>
-  <div class="row"><label>倒计时:</label><span class="val" id="countdown">--</span></div>
-  <div class="row"><label>当前温度:</label><span class="val" id="curTemp">--</span></div>
-  <div class="row"><label>预设温度:</label><span class="val" id="presetTemp">--</span></div>
-  <div class="row"><label>电池电量:</label><span class="val" id="battery">--</span></div>
+  <div class="row"><label>Countdown:</label><span class="val" id="countdown">--</span></div>
+  <div class="row"><label>Current Temp:</label><span class="val" id="curTemp">--</span></div>
+  <div class="row"><label>Preset Temp:</label><span class="val" id="presetTemp">--</span></div>
+  <div class="row"><label>Battery Level:</label><span class="val" id="battery">--</span></div>
   <div class="row"><label>LED Preset:</label><span class="val" id="ledPreset">--</span></div>
   <div class="row"><label>Dry Herb Time:</label><span class="val" id="dryTime">--</span></div>
   <div class="row"><label>Gesso Time:</label><span class="val" id="gessoTime">--</span></div>
