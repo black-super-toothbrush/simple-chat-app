@@ -383,6 +383,14 @@ document.getElementById('sendBinBtn').addEventListener('click', async () => {
   }
 });
 
+
+
+window.addEventListener('DOMContentLoaded', () => {
+  const otaInput = document.getElementById('otaUrl');
+  otaInput.value = `${location.origin}/simple_ota.bin`;
+});
+
+
 </script>
 
 </body>
