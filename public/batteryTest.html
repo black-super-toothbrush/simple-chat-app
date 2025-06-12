@@ -37,9 +37,8 @@
         document.getElementById('scanButton').addEventListener('click', async () => {
             try {
                 const options = {
-                    acceptAllDevices: true,
-                    optionalServices: [
-                        '0000fee7-0000-1000-8000-00805f9b34fb'  // 0xFEE7 Unknown Service
+                    filters: [
+                        { services: ['0000fee7-0000-1000-8000-00805f9b34fb'] }  // 只显示支持 FEE7 的设备
                     ]
                 };
                 const device = await navigator.bluetooth.requestDevice(options);
