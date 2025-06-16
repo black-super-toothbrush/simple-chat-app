@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ToothBrush - 智能工具集</title>
+    <title>ToothBrush - Smart Tool Suite</title>
 
-    <!-- Google 字体 -->
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     
-    <!-- Font Awesome 图标 -->
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    <!-- 外部样式表 -->
+    <!-- External Stylesheet -->
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- 动态背景粒子 -->
+    <!-- Dynamic Background Particles -->
     <div class="particles-container">
       <div class="particle"></div>
       <div class="particle"></div>
@@ -25,7 +25,7 @@
       <div class="particle"></div>
     </div>
 
-    <!-- 主要内容 -->
+    <!-- Main Content -->
     <div class="main-container">
       <header class="hero-section">
         <div class="hero-content">
@@ -33,17 +33,17 @@
             <i class="fas fa-tooth logo-icon"></i>
             <h1 class="hero-title">ToothBrush</h1>
           </div>
-          <p class="hero-subtitle">智能工具集合 - 让开发更简单</p>
+          <p class="hero-subtitle">Smart Tool Suite - Making Development Easier</p>
           <div class="hero-description">
-            <p>专业的在线工具平台，为开发者和技术爱好者提供便捷的解决方案</p>
+            <p>Professional online tool platform providing convenient solutions for developers and tech enthusiasts</p>
           </div>
         </div>
       </header>
 
       <main class="tools-section">
         <div class="section-header">
-          <h2>选择你需要的工具</h2>
-          <p>点击下方卡片开始使用</p>
+          <h2>Choose Your Tool</h2>
+          <p>Click the cards below to get started</p>
         </div>
         
         <div class="tools-grid">
@@ -52,7 +52,7 @@
               <i class="fas fa-exchange-alt"></i>
             </div>
             <h3>ASCII ↔ HEX</h3>
-            <p>ASCII 与十六进制编码转换工具</p>
+            <p>ASCII to Hexadecimal encoding converter tool</p>
             <div class="card-glow"></div>
           </a>
 
@@ -61,7 +61,7 @@
               <i class="fab fa-bluetooth-b"></i>
             </div>
             <h3>Carta Bluetooth</h3>
-            <p>蓝牙设备连接与通信工具</p>
+            <p>Bluetooth device connection and communication tool</p>
             <div class="card-glow"></div>
           </a>
 
@@ -70,7 +70,7 @@
               <i class="fas fa-battery-three-quarters"></i>
             </div>
             <h3>Battery Test</h3>
-            <p>电池性能测试与监控工具</p>
+            <p>Battery performance testing and monitoring tool</p>
             <div class="card-glow"></div>
           </a>
 
@@ -78,9 +78,9 @@
             <div class="tool-icon">
               <i class="fas fa-cog"></i>
             </div>
-            <h3>更多工具</h3>
-            <p>敬请期待更多实用功能</p>
-            <div class="coming-soon-badge">即将推出</div>
+            <h3>More Tools</h3>
+            <p>Stay tuned for more useful features</p>
+            <div class="coming-soon-badge">Coming Soon</div>
             <div class="card-glow"></div>
           </div>
         </div>
@@ -101,7 +101,7 @@
 
     <!-- JavaScript for animations -->
     <script>
-      // 添加页面加载动画
+      // Add page loading animations
       document.addEventListener('DOMContentLoaded', function() {
         const cards = document.querySelectorAll('.tool-card');
         cards.forEach((card, index) => {
@@ -109,7 +109,7 @@
           card.classList.add('fade-in-up');
         });
 
-        // 鼠标跟随效果
+        // Mouse follow effect
         document.addEventListener('mousemove', function(e) {
           const particles = document.querySelectorAll('.particle');
           particles.forEach((particle, index) => {
