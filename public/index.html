@@ -3,34 +3,123 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Website</title>
+    <title>ToothBrush - 智能工具集</title>
 
     <!-- Google 字体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Font Awesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
     <!-- 外部样式表 -->
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header>
-      <h1>Welcome</h1>
-      <p>Choose a page:</p>
-      <nav>
-        <ul>
-          <li><a href="ascii-hex.html">ASCII↔HEX</a></li>
-          <li><a href="carta2.html">carta bluetooth</a></li>
-          <li><a href="batteryTest.html">Battery</a></li>
-          <li><a href="#link4">no use now</a></li>
-        </ul>
-      </nav>
-    </header>
+    <!-- 动态背景粒子 -->
+    <div class="particles-container">
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+    </div>
 
-    <main>
-      <!-- 此处无需额外 <img>，背景已在 body 中通过 CSS 设置为全屏展示 -->
-    </main>
+    <!-- 主要内容 -->
+    <div class="main-container">
+      <header class="hero-section">
+        <div class="hero-content">
+          <div class="logo-container">
+            <i class="fas fa-tooth logo-icon"></i>
+            <h1 class="hero-title">ToothBrush</h1>
+          </div>
+          <p class="hero-subtitle">智能工具集合 - 让开发更简单</p>
+          <div class="hero-description">
+            <p>专业的在线工具平台，为开发者和技术爱好者提供便捷的解决方案</p>
+          </div>
+        </div>
+      </header>
 
-    <footer>
-      © 2025 ToothBrush. All Rights Reserved.
-    </footer>
+      <main class="tools-section">
+        <div class="section-header">
+          <h2>选择你需要的工具</h2>
+          <p>点击下方卡片开始使用</p>
+        </div>
+        
+        <div class="tools-grid">
+          <a href="ascii-hex.html" class="tool-card">
+            <div class="tool-icon">
+              <i class="fas fa-exchange-alt"></i>
+            </div>
+            <h3>ASCII ↔ HEX</h3>
+            <p>ASCII 与十六进制编码转换工具</p>
+            <div class="card-glow"></div>
+          </a>
+
+          <a href="carta2.html" class="tool-card">
+            <div class="tool-icon">
+              <i class="fab fa-bluetooth-b"></i>
+            </div>
+            <h3>Carta Bluetooth</h3>
+            <p>蓝牙设备连接与通信工具</p>
+            <div class="card-glow"></div>
+          </a>
+
+          <a href="batteryTest.html" class="tool-card">
+            <div class="tool-icon">
+              <i class="fas fa-battery-three-quarters"></i>
+            </div>
+            <h3>Battery Test</h3>
+            <p>电池性能测试与监控工具</p>
+            <div class="card-glow"></div>
+          </a>
+
+          <div class="tool-card coming-soon">
+            <div class="tool-icon">
+              <i class="fas fa-cog"></i>
+            </div>
+            <h3>更多工具</h3>
+            <p>敬请期待更多实用功能</p>
+            <div class="coming-soon-badge">即将推出</div>
+            <div class="card-glow"></div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="modern-footer">
+        <div class="footer-content">
+          <div class="footer-left">
+            <i class="fas fa-tooth"></i>
+            <span>© 2025 ToothBrush. All Rights Reserved.</span>
+          </div>
+          <div class="footer-right">
+            <span>Made with ❤️ for developers</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- JavaScript for animations -->
+    <script>
+      // 添加页面加载动画
+      document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.tool-card');
+        cards.forEach((card, index) => {
+          card.style.animationDelay = `${index * 0.1}s`;
+          card.classList.add('fade-in-up');
+        });
+
+        // 鼠标跟随效果
+        document.addEventListener('mousemove', function(e) {
+          const particles = document.querySelectorAll('.particle');
+          particles.forEach((particle, index) => {
+            const speed = (index + 1) * 0.01;
+            const x = e.clientX * speed;
+            const y = e.clientY * speed;
+            particle.style.transform = `translate(${x}px, ${y}px)`;
+          });
+        });
+      });
+    </script>
   </body>
 </html>
