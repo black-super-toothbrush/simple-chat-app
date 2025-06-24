@@ -1,0 +1,2581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PY32F071 Bluetooth OTA Upgrade Tool</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary-color: #764ba2;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+            --info-color: #4299e1;
+            --light-bg: #f7fafc;
+            --white: #ffffff;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --border-radius: 12px;
+            --border-radius-sm: 8px;
+            --border-radius-lg: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+            color: var(--gray-800);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 400;
+        }
+
+        .grid {
+            display: grid;
+            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            margin-bottom: 24px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius);
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .card-header i {
+            font-size: 1.5rem;
+            margin-right: 12px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            min-width: 120px;
+            gap: 8px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #38a169);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #e53e3e);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--gray-500), var(--gray-600));
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn:disabled {
+            background: var(--gray-300);
+            color: var(--gray-500);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn:disabled::before {
+            display: none;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            gap: 8px;
+        }
+
+        .status-connected {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: var(--success-color);
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-disconnected {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: var(--danger-color);
+            border: 1px solid #f5c6cb;
+        }
+
+        .status i {
+            font-size: 0.875rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .form-control {
+            padding: 12px 16px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            transition: var(--transition);
+            background: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-control:disabled {
+            background: var(--gray-100);
+            color: var(--gray-500);
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress {
+            width: 100%;
+            height: 12px;
+            background: var(--gray-200);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            width: 0%;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .log {
+            background: var(--gray-900);
+            color: var(--gray-100);
+            border-radius: var(--border-radius-sm);
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            border: 1px solid var(--gray-700);
+            position: relative;
+        }
+
+        .log::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log::-webkit-scrollbar-track {
+            background: var(--gray-800);
+            border-radius: 4px;
+        }
+
+        .log::-webkit-scrollbar-thumb {
+            background: var(--gray-600);
+            border-radius: 4px;
+        }
+
+        .log::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-500);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .status-group {
+            background: var(--gray-50);
+            padding: 20px;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid var(--gray-200);
+        }
+
+        .status-group h4 {
+            margin: 0 0 16px 0;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 12px 0;
+            font-size: 0.875rem;
+        }
+
+        .status-item strong {
+            color: var(--gray-600);
+            font-weight: 500;
+        }
+
+        .status-item span {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .file-upload {
+            border: 2px dashed var(--gray-300);
+            border-radius: var(--border-radius);
+            padding: 40px 20px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .file-upload.dragover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload i {
+            font-size: 3rem;
+            color: var(--gray-400);
+            margin-bottom: 16px;
+        }
+
+        .file-upload:hover i {
+            color: var(--primary-color);
+        }
+
+        .file-info {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            padding: 16px;
+            border-radius: var(--border-radius-sm);
+            margin: 16px 0;
+            border-left: 4px solid var(--info-color);
+        }
+
+        .temp-preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .preset-card {
+            background: white;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--border-radius-sm);
+            padding: 16px 12px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .preset-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .preset-card.heating-disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            background: var(--gray-50);
+        }
+
+        .preset-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .temp-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin: 8px 0;
+        }
+
+        .temp-input:focus {
+            outline: none;
+        }
+
+        .temp-unit {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            font-weight: 500;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-300);
+            transition: var(--transition);
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: var(--transition);
+            border-radius: 50%;
+            box-shadow: var(--shadow-sm);
+        }
+
+        input:checked + .slider {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: var(--border-radius-sm);
+            box-shadow: var(--shadow-lg);
+            border-left: 4px solid var(--success-color);
+            transform: translateX(100%);
+            transition: var(--transition);
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                padding: 20px 16px;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .temp-preset-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* 加热状态的特殊样式 */
+        .heating-active .preset-card {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-color: var(--warning-color);
+        }
+
+        .heating-active .preset-card::after {
+            content: "🔥";
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.875rem;
+        }
+
+        /* LED选择器的特殊样式 */
+        .led-selector {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .led-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        /* 更好的响应式表格 */
+        .responsive-table {
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .table th {
+            background: var(--gray-50);
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        /* 添加更多动画效果 */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-300);
+            transition: var(--transition);
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: var(--transition);
+            border-radius: 50%;
+            box-shadow: var(--shadow-sm);
+        }
+
+        input:checked + .slider {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: var(--border-radius-sm);
+            box-shadow: var(--shadow-lg);
+            border-left: 4px solid var(--success-color);
+            transform: translateX(100%);
+            transition: var(--transition);
+            z-index: 1000;
+            min-width: 300px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.error {
+            border-left-color: var(--danger-color);
+        }
+
+        .notification.warning {
+            border-left-color: var(--warning-color);
+        }
+
+        .notification.info {
+            border-left-color: var(--info-color);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .bounce {
+            animation: bounce 0.6s ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected {
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.disconnected {
+            background: var(--danger-color);
+        }
+
+        .status-indicator.connecting {
+            background: var(--warning-color);
+            animation: spin 1s linear infinite;
+        }
+
+        /* 优化文件拖拽样式 */
+        .file-upload.dragover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+        }
+
+        /* 优化进度条 */
+        .progress-bar.pulse {
+            animation: progressPulse 1.5s infinite;
+        }
+
+        @keyframes progressPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* 温度卡片悬停效果 */
+        .preset-card:hover .temp-input {
+            color: var(--primary-color);
+        }
+
+        /* LED预览样式 */
+        .led-preview.clam { background: #f5f5f5; border-color: #ccc; }
+        .led-preview.stealth { background: #2d3748; }
+        .led-preview.purple { background: #805ad5; }
+        .led-preview.blue { background: #3182ce; }
+        .led-preview.cyan { background: #00b5d8; }
+        .led-preview.green { background: #38a169; }
+        .led-preview.yellow { background: #d69e2e; }
+        .led-preview.orange { background: #dd6b20; }
+        .led-preview.red { background: #e53e3e; }
+        .led-preview.pink { background: #d53f8c; }
+        .led-preview.cali-sunset { background: linear-gradient(45deg, #ff6b6b, #ffa500); }
+        .led-preview.purple-haze { background: linear-gradient(45deg, #9f7aea, #b794f6); }
+        .led-preview.northern-nights { background: linear-gradient(45deg, #2d3748, #4a5568); }
+        .led-preview.vegas-nights { background: linear-gradient(45deg, #ed8936, #f6ad55); }
+        .led-preview.blue-dream { background: linear-gradient(45deg, #3182ce, #63b3ed); }
+        .led-preview.strawberry-cough { background: linear-gradient(45deg, #e53e3e, #fc8181); }
+        .led-preview.florida-groves { background: linear-gradient(45deg, #38a169, #68d391); }
+        .led-preview.lime-light { background: linear-gradient(45deg, #68d391, #9ae6b4); }
+
+        /* 响应式优化 */
+        @media (max-width: 1024px) {
+            .status-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .temp-preset-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gray-800);
+            color: white;
+            padding: 8px 12px;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: var(--transition);
+            z-index: 1000;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+
+        /* 加载状态 */
+        .loading {
+            position: relative;
+            pointer-events: none;
+        }
+
+        .loading::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid transparent;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 1;
+        }
+
+        .loading * {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header fade-in">
+            <h1><i class="fas fa-microchip"></i> PY32F071 Bluetooth OTA</h1>
+            <p>Professional Firmware Upgrade Tool</p>
+        </div>
+        
+        <div class="grid grid-2">
+            <!-- 蓝牙连接卡片 -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-bluetooth"></i>
+                    <h3>Bluetooth Connection</h3>
+                </div>
+                <div id="connectionStatus" class="status status-disconnected">
+                    <span class="status-indicator disconnected" id="statusIndicator"></span>
+                    <i class="fas fa-unlink" id="statusIcon"></i>
+                    <span id="statusText">Device Not Connected</span>
+                </div>
+                <div class="controls">
+                    <button id="connectBtn" class="btn btn-primary tooltip" onclick="connectDevice()" data-tooltip="Connect to PY32F071 Bluetooth device">
+                        <i class="fas fa-link"></i>
+                        Connect Device
+                    </button>
+                    <button id="disconnectBtn" class="btn btn-danger tooltip" onclick="disconnectDevice()" disabled data-tooltip="Disconnect from device">
+                        <i class="fas fa-unlink"></i>
+                        Disconnect
+                    </button>
+                    <button id="syncTimeBtn" class="btn btn-secondary tooltip" onclick="syncTime()" disabled data-tooltip="Synchronize device time with system time">
+                        <i class="fas fa-clock"></i>
+                        Sync Time
+                    </button>
+                </div>
+            </div>
+
+            <!-- 固件文件选择卡片 -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-file-code"></i>
+                    <h3>Firmware File</h3>
+                </div>
+                <div class="file-upload" id="fileUploadArea" onclick="document.getElementById('firmwareFile').click()">
+                    <i class="fas fa-cloud-upload-alt" id="uploadIcon"></i>
+                    <p style="margin: 8px 0; font-weight: 500;" id="uploadText">Click to select firmware file</p>
+                    <p style="font-size: 0.875rem; color: var(--gray-500);">or drag and drop here</p>
+                    <p style="font-size: 0.75rem; color: var(--gray-400); margin-top: 8px;">Supports .bin and .hex files</p>
+                </div>
+                <input type="file" id="firmwareFile" accept=".bin,.hex" onchange="handleFileSelect(event)" style="display: none;">
+                <div id="fileInfo" class="file-info" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- 设备状态监控 -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <i class="fas fa-chart-line"></i>
+                <h3>Device Status Monitor</h3>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="notifyToggle" onchange="toggleNotifications()">
+                    <span class="slider"></span>
+                </label>
+                <span style="margin-left: 12px; font-weight: 500;">
+                    Real-time Monitoring
+                    <span id="notifyStatus" style="margin-left: 8px; font-size: 0.875rem; color: var(--gray-500);">Disabled</span>
+                </span>
+            </div>
+            
+            <div id="deviceStatusInfo" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-group">
+                        <h4><i class="fas fa-thermometer-half"></i> Temperature</h4>
+                        <div class="status-item">
+                            <strong>Preset:</strong> 
+                            <button id="presetBtn" class="btn btn-primary" onclick="switchPreset()" disabled style="min-width: 60px; padding: 6px 12px;">--</button>
+                        </div>
+                        <div class="status-item">
+                            <strong>Target:</strong>
+                            <span id="tempSetting">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Current:</strong> 
+                            <span id="realTemp">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-battery-half"></i> Power</h4>
+                        <div class="status-item">
+                            <strong>Battery:</strong>
+                            <span id="batteryLevel">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Charge State:</strong> 
+                            <span id="chargeState">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Brightness:</strong>
+                            <input type="range" id="brightness" min="0" max="100" value="25" 
+                                   style="width: 80px;" oninput="updateBrightnessDisplay(this.value)" onchange="setBrightness(this.value)" disabled>
+                            <span id="brightnessDisplay" style="font-size: 0.8rem; margin-left: 8px;">25</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-fire"></i> Session</h4>
+                        <div style="margin-bottom: 16px; text-align: center;">
+                            <button id="sessionControlBtn" class="btn btn-success" onclick="toggleSession()" disabled style="min-width: 150px;">
+                                <i class="fas fa-play"></i>
+                                Press to Heat
+                            </button>
+                        </div>
+                        <div class="status-item">
+                            <strong>Auto Shut:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="autoShutTime" min="0" max="30" value="2" 
+                                       class="form-control" style="width: 60px; padding: 4px 8px;" 
+                                       onchange="setAutoShutTime(this.value)" disabled>
+                                <span style="font-size: 0.8rem;">min</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Hold Time:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="holdTime" min="10" max="90" value="30" 
+                                       class="form-control" style="width: 60px; padding: 4px 8px;" 
+                                       onchange="setHoldTime(this.value)" disabled>
+                                <span style="font-size: 0.8rem;">sec</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Countdown:</strong> 
+                            <span id="remainTime">--</span>s
+                        </div>
+                        <div class="status-item">
+                            <strong>Session Time:</strong> 
+                            <span id="sessionRemainTime">--</span>s
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-cog"></i> Settings</h4>
+                        <div class="status-item">
+                            <strong>LED Mode:</strong>
+                            <div class="led-selector">
+                                <select id="ledPresetSelect" class="form-control" onchange="setLedPreset(this.value)" style="font-size: 0.8rem;">
+                                    <option value="0x00">Clam</option>
+                                    <option value="0x01">Stealth</option>
+                                    <option value="0x02">Purple</option>
+                                    <option value="0x03">Blue</option>
+                                    <option value="0x04">Cyan</option>
+                                    <option value="0x05">Green</option>
+                                    <option value="0x06">Yellow</option>
+                                    <option value="0x07">Orange</option>
+                                    <option value="0x08">Red</option>
+                                    <option value="0x09">Pink</option>
+                                    <option value="0x0A">Cali Sunset</option>
+                                    <option value="0x0B">Purple Haze</option>
+                                    <option value="0x0C">Northern Nights</option>
+                                    <option value="0x0D">Vegas Nights</option>
+                                    <option value="0x0E">Blue Dream</option>
+                                    <option value="0x0F">Strawberry Cough</option>
+                                    <option value="0x10">Florida Groves</option>
+                                    <option value="0x11">Lime Light</option>
+                                </select>
+                                <div class="led-preview" id="ledPreview"></div>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Current:</strong> 
+                            <span id="ledPreset">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Haptic:</strong> 
+                            <span id="hapticFeedback">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Boost:</strong> 
+                            <span id="sessionBoost">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 温度预设 -->
+                <div style="margin-top: 24px;">
+                    <div class="status-group">
+                        <h4><i class="fas fa-sliders-h"></i> Temperature Presets (300-600°F)</h4>
+                        <div class="temp-preset-grid" id="tempPresets">
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 1</div>
+                                <input type="number" id="tempF1" min="300" max="600" value="450" 
+                                       class="temp-input" onchange="setTemperature(1, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 2</div>
+                                <input type="number" id="tempF2" min="300" max="600" value="500" 
+                                       class="temp-input" onchange="setTemperature(2, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 3</div>
+                                <input type="number" id="tempF3" min="300" max="600" value="550" 
+                                       class="temp-input" onchange="setTemperature(3, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 4</div>
+                                <input type="number" id="tempF4" min="300" max="600" value="600" 
+                                       class="temp-input" onchange="setTemperature(4, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 5</div>
+                                <input type="number" id="tempF5" min="300" max="600" value="613" 
+                                       class="temp-input" onchange="setTemperature(5, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 原始数据 -->
+                <div style="margin-top: 24px;">
+                    <div class="status-group">
+                        <h4><i class="fas fa-code"></i> Raw Data</h4>
+                        <div class="responsive-table">
+                            <table class="table">
+                                <tr>
+                                    <td><strong>Last Packet:</strong></td>
+                                    <td><span id="rawData" style="font-family: monospace; font-size: 0.8rem;">No data</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Packet Count:</strong></td>
+                                    <td><span id="packetCount">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Last Updated:</strong></td>
+                                    <td><span id="lastUpdate">Never</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTA升级和日志 -->
+        <div class="grid">
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i>
+                    <h3>OTA Upgrade</h3>
+                </div>
+                <div class="controls">
+                    <button id="startOtaBtn" class="btn btn-success tooltip" onclick="startOTA()" disabled data-tooltip="Start firmware upload to device">
+                        <i class="fas fa-rocket"></i>
+                        Start Upgrade
+                    </button>
+                    <button id="stopOtaBtn" class="btn btn-danger tooltip" onclick="stopOTA()" disabled data-tooltip="Cancel ongoing firmware upgrade">
+                        <i class="fas fa-stop"></i>
+                        Stop Upgrade
+                    </button>
+                </div>
+                <div class="progress-container">
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                    <div id="progressText" style="text-align: center; margin-top: 8px; font-size: 0.875rem; color: var(--gray-600);">
+                        Waiting to start...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-terminal"></i>
+                    <h3>System Log</h3>
+                    <button class="btn btn-secondary" onclick="clearLog()" style="margin-left: auto; padding: 6px 12px; font-size: 0.8rem;">
+                        <i class="fas fa-trash"></i>
+                        Clear
+                    </button>
+                </div>
+                <div id="logOutput" class="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知组件 -->
+    <div id="notification" class="notification">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+            <span id="notificationText">Operation completed successfully!</span>
+        </div>
+    </div>
+
+    <script>
+        let bluetoothDevice;
+        let characteristic;
+        let firmwareData;
+        let isOtaInProgress = false;
+        let otaSequence = 0;
+        let totalPackets = 0;
+        let sentPackets = 0;
+        let waitingForResponse = false;
+        let responsePromise = null;
+
+        // Notify监听相关变量
+        let rxCharacteristic = null;
+        let notificationsEnabled = false;
+        let notifyPacketCount = 0;
+        let globalPresetIndex = 0;
+        let globalTempF = [0,0,0,0,0,0];
+        let globalTempC = [0,0,0,0,0,0];
+        let currentPreset = 1; // 当前预设值 (1-5)
+        let holdTime = 30;
+        // 当前设备状态跟踪 - B9命令的所有字节状态
+        let currentB9State = {
+            byte3: 0x01,   // 预设值 (1-5)
+            byte6: 0x00,   // LED值
+            byte8: 0x02,   // Auto Shut Time (0-30分钟)
+            byte10: 0x00,  // Session状态
+            byte13: 25,    // Brightness (0-100)
+            // 后续可以继续添加更多字节：byte11, byte12, byte14 等等
+        };
+
+        // LED颜色映射
+        const LED_COLORS = {
+            0x00: 'Clam',
+            0x01: 'Stealth',
+            0x02: 'Purple',
+            0x03: 'Blue',
+            0x04: 'Cyan',
+            0x05: 'Green',
+            0x06: 'Yellow',
+            0x07: 'Orange',
+            0x08: 'Red',
+            0x09: 'Pink',
+            0x0A: 'Cali Sunset',
+            0x0B: 'Purple Haze',
+            0x0C: 'Northern Nights',
+            0x0D: 'Vegas Nights',
+            0x0E: 'Blue Dream',
+            0x0F: 'Strawberry Cough',
+            0x10: 'Florida Groves',
+            0x11: 'Lime Light'
+        };
+
+        // OTA协议常量 - 匹配固件代码格式
+        const CHUNK_SIZE = 32;  // 每个数据包的数据大小
+        const PACKET_SIZE = 36; // 总包大小：4字节地址 + 32字节数据
+        const BLOCK_SIZE = 2048; // Flash块大小
+        const RESPONSE_TIMEOUT = 10000; // 响应超时时间
+
+        // 服务和特征UUID（请根据实际情况修改）
+        const SERVICE_UUID = '55535343-fe7d-4ae5-8fa9-9fafd205e455';
+        const TX_CHARACTERISTIC_UUID = '49535343-8841-43f4-a8d4-ecbe34729bb3';
+        const RX_CHARACTERISTIC_UUID = '49535343-1e4d-4bd9-ba61-23c647249616';
+
+        function log(message) {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logOutput').textContent = '';
+        }
+
+        // 现代化通知系统
+        function showNotification(message, type = 'success', duration = 3000) {
+            const notification = document.getElementById('notification');
+            const icon = notification.querySelector('i');
+            const text = document.getElementById('notificationText');
+            
+            // 重置类名
+            notification.className = 'notification';
+            
+            // 设置图标和样式
+            switch(type) {
+                case 'success':
+                    icon.className = 'fas fa-check-circle';
+                    notification.classList.add('show');
+                    break;
+                case 'error':
+                    icon.className = 'fas fa-exclamation-circle';
+                    notification.classList.add('show', 'error');
+                    break;
+                case 'warning':
+                    icon.className = 'fas fa-exclamation-triangle';
+                    notification.classList.add('show', 'warning');
+                    break;
+                case 'info':
+                    icon.className = 'fas fa-info-circle';
+                    notification.classList.add('show', 'info');
+                    break;
+            }
+            
+            text.textContent = message;
+            
+            // 自动隐藏
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, duration);
+        }
+
+        // 添加连接状态动画
+        function updateConnectionStatusWithAnimation(connected, connecting = false) {
+            const statusElement = document.getElementById('connectionStatus');
+            const indicator = document.getElementById('statusIndicator');
+            const icon = document.getElementById('statusIcon');
+            const text = document.getElementById('statusText');
+            
+            // 获取控制按钮
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const startOtaBtn = document.getElementById('startOtaBtn');
+            const syncTimeBtn = document.getElementById('syncTimeBtn');
+            
+            if (connecting) {
+                statusElement.className = 'status status-disconnected';
+                indicator.className = 'status-indicator connecting';
+                icon.className = 'fas fa-spinner spinning';
+                text.textContent = 'Connecting...';
+                return;
+            }
+            
+            if (connected) {
+                statusElement.className = 'status status-connected bounce';
+                indicator.className = 'status-indicator connected';
+                icon.className = 'fas fa-link';
+                text.textContent = 'Device Connected';
+                
+                // 启用连接状态的按钮
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                startOtaBtn.disabled = !firmwareData;
+                syncTimeBtn.disabled = false;
+                
+                // 启用设备控制相关的控件
+                const sessionControlBtn = document.getElementById('sessionControlBtn');
+                const presetBtn = document.getElementById('presetBtn');
+                const autoShutTimeInput = document.getElementById('autoShutTime');
+                const holdTimeInput = document.getElementById('holdTime');
+                const brightnessInput = document.getElementById('brightness');
+                const ledPresetSelect = document.getElementById('ledPresetSelect');
+                
+                if (sessionControlBtn) sessionControlBtn.disabled = false;
+                if (presetBtn) presetBtn.disabled = false;
+                if (autoShutTimeInput) autoShutTimeInput.disabled = false;
+                if (holdTimeInput) holdTimeInput.disabled = false;
+                if (brightnessInput) brightnessInput.disabled = false;
+                if (ledPresetSelect) ledPresetSelect.disabled = false;
+                
+                // 启用温度预设输入框
+                ['tempF1', 'tempF2', 'tempF3', 'tempF4', 'tempF5'].forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) {
+                        input.disabled = false;
+                        input.classList.remove('heating-disabled');
+                        // 为父容器也移除禁用类
+                        const container = input.closest('.preset-card');
+                        if (container) container.classList.remove('heating-disabled');
+                    }
+                });
+                
+                showNotification('设备连接成功！', 'success');
+            } else {
+                statusElement.className = 'status status-disconnected';
+                indicator.className = 'status-indicator disconnected';
+                icon.className = 'fas fa-unlink';
+                text.textContent = 'Device Not Connected';
+                
+                // 禁用连接状态的按钮
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                startOtaBtn.disabled = true;
+                syncTimeBtn.disabled = true;
+                
+                // 禁用设备控制相关的控件
+                const sessionControlBtn = document.getElementById('sessionControlBtn');
+                const presetBtn = document.getElementById('presetBtn');
+                const autoShutTimeInput = document.getElementById('autoShutTime');
+                const holdTimeInput = document.getElementById('holdTime');
+                const brightnessInput = document.getElementById('brightness');
+                const ledPresetSelect = document.getElementById('ledPresetSelect');
+                
+                if (sessionControlBtn) sessionControlBtn.disabled = true;
+                if (presetBtn) presetBtn.disabled = true;
+                if (autoShutTimeInput) autoShutTimeInput.disabled = true;
+                if (holdTimeInput) holdTimeInput.disabled = true;
+                if (brightnessInput) {
+                    brightnessInput.disabled = true;
+                    brightnessInput.value = 25;
+                    updateBrightnessDisplay(25);
+                }
+                if (ledPresetSelect) ledPresetSelect.disabled = true;
+                
+                // 禁用温度预设输入框
+                ['tempF1', 'tempF2', 'tempF3', 'tempF4', 'tempF5'].forEach(id => {
+                    const input = document.getElementById(id);
+                    if (input) {
+                        input.disabled = true;
+                        // 重置值
+                        const presetValues = [450, 500, 550, 600, 613];
+                        const presetIndex = parseInt(id.replace('tempF', '')) - 1;
+                        if (presetIndex >= 0 && presetIndex < presetValues.length) {
+                            input.value = presetValues[presetIndex];
+                        }
+                    }
+                });
+                
+                // 重置notify状态
+                notificationsEnabled = false;
+                const notifyToggle = document.getElementById('notifyToggle');
+                if (notifyToggle) {
+                    notifyToggle.checked = false;
+                }
+                document.getElementById('notifyStatus').textContent = 'Disabled';
+                document.getElementById('deviceStatusInfo').style.display = 'none';
+            }
+            
+            // 移除动画类
+            setTimeout(() => {
+                statusElement.classList.remove('bounce');
+            }, 600);
+        }
+
+        // 文件拖放功能
+        function initializeFileDragDrop() {
+            const uploadArea = document.getElementById('fileUploadArea');
+            const uploadIcon = document.getElementById('uploadIcon');
+            const uploadText = document.getElementById('uploadText');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => {
+                    uploadArea.classList.add('dragover');
+                    uploadIcon.className = 'fas fa-cloud-download-alt';
+                    uploadText.textContent = 'Release to upload file';
+                }, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => {
+                    uploadArea.classList.remove('dragover');
+                    uploadIcon.className = 'fas fa-cloud-upload-alt';
+                    uploadText.textContent = 'Click to select firmware file';
+                }, false);
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.name.endsWith('.bin') || file.name.endsWith('.hex')) {
+                        loadFirmwareFile(file);
+                        showNotification(`文件 ${file.name} 上传成功`, 'success');
+                    } else {
+                        showNotification('请选择 .bin 或 .hex 格式的固件文件', 'error');
+                    }
+                }
+            }, false);
+        }
+
+        // 添加按钮加载状态
+        function setButtonLoading(buttonId, loading = true) {
+            const button = document.getElementById(buttonId);
+            if (loading) {
+                button.classList.add('loading');
+                button.disabled = true;
+            } else {
+                button.classList.remove('loading');
+            }
+        }
+
+        // 优化进度条显示
+        function updateProgressWithAnimation(current, total) {
+            const percentage = Math.round((current / total) * 100);
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `Progress: ${current}/${total} (${percentage}%)`;
+            
+            // 添加脉冲效果
+            if (percentage > 0 && percentage < 100) {
+                progressBar.classList.add('pulse');
+            } else {
+                progressBar.classList.remove('pulse');
+            }
+        }
+
+        // LED颜色预览功能
+        function updateLedPreview(colorValue) {
+            const preview = document.getElementById('ledPreview');
+            const colorName = LED_COLORS[colorValue] || 'unknown';
+            
+            // 移除所有颜色类
+            preview.className = 'led-preview';
+            
+            // 添加对应的颜色类
+            const colorClass = colorName.toLowerCase().replace(/\s+/g, '-');
+            preview.classList.add(colorClass);
+        }
+
+        // 处理设备响应
+        function handleResponse(event) {
+            const data = new Uint8Array(event.target.value.buffer);
+            // 打印data 16进制  数据和长度
+            log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+            // 检查是否是设备状态notify数据包 (20字节，包头包尾都是0xA9)
+            if (data.length === 20 && data[0] === 0xA9 && data[19] === 0xA9) {
+                handleNotifyData(data);
+                return;
+            }
+            
+            // 检查是否是温度设定数据包 (8字节，包头包尾都是0xA3)
+            if (data.length === 8 && data[0] === 0xA3 && data[7] === 0xA3) {
+                handleTempSettingData(data);
+                return;
+            }
+ 
+            if (data.length === 6 && data[0] === 0xA7 && data[5] === 0xA7) {
+                handleTempTimeData(data);
+                return;
+            }
+
+
+            //log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => String.fromCharCode(b)).join('')}`);
+            
+            // 检查是否是OK响应
+            const responseText = Array.from(data).map(b => String.fromCharCode(b)).join('');
+            if (responseText.startsWith('OK')) {
+                log(`Block confirmed: ${responseText}`);
+                if (responsePromise) {
+                    responsePromise.resolve(data);
+                    responsePromise = null;
+                }
+                waitingForResponse = false;
+            } else {
+                log(`Unexpected response: ${responseText}`);
+                // 即使响应格式不符合预期，也要清除等待状态避免卡住
+                if (responsePromise && waitingForResponse) {
+                    log(`Clearing response wait due to unexpected response`);
+                    responsePromise.resolve(data);
+                    responsePromise = null;
+                    waitingForResponse = false;
+                }
+            }
+        }
+
+        // 处理设备状态notify数据
+        function handleNotifyData(data) {
+            notifyPacketCount++;
+            
+            // 验证数据包格式
+            if (data[1] !== 20) {
+                log(`Invalid notify packet length field: ${data[1]}`);
+                return;
+            }
+            
+            // 解析数据包
+            const preset = data[3];
+            const tempSetting =    globalTempF[preset];//data[4];
+            const ledPreset = data[6];
+            const sessionEnable = data[7];
+            const autoShutTime = data[8];
+            const remainTime = data[9];
+            const realTemp = (data[10] << 8) | data[11]; // 温度合并
+            const tempUnit = data[12] === 0x0f ? '℉' : '℃'; // 0x0f=华氏度, 0x0c=摄氏度
+            const sessionRemainTime = data[13];
+            const hapticFeedback = data[14];
+            const sessionBoost = data[15];
+            const batteryLevel = data[16];
+            const chargeState = data[17];
+            const brightness = data[18];
+            
+            // 更新显示
+            updateDeviceStatus({
+                preset,
+                tempSetting,
+                realTemp,
+                tempUnit,
+                ledPreset,
+                sessionEnable,
+                autoShutTime,
+                remainTime,
+                sessionRemainTime,
+                hapticFeedback,
+                sessionBoost,
+                batteryLevel,
+                chargeState,
+                brightness
+            });
+            
+            // 更新原始数据显示
+            const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+            document.getElementById('rawData').textContent = rawDataHex;
+            document.getElementById('packetCount').textContent = notifyPacketCount;
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            
+            //log(`Received device status notify: temp=${realTemp}°${tempUnit}, battery=${batteryLevel}%, preset=${preset}`);
+        }
+
+
+        
+        function handleTempTimeData(data) {
+            if (data[1] !== 6) {
+                log(`Invalid temp time packet length field: ${data[1]}`);
+                return;
+            }    
+            holdTime = (data[3] << 8) | data[4];
+            
+            // 更新Hold Time输入框
+            document.getElementById('holdTime').value = holdTime;
+            
+            log(`Received hold time: ${holdTime} seconds`);
+        }
+
+        // 处理温度设定数据包 - 格式: 0xA3 + 长度(8) + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
+        function handleTempSettingData(data) {
+            // 验证数据包格式
+            if (data[1] !== 8) {
+                log(`Invalid temp setting packet length field: ${data[1]}`);
+                return;
+            }
+            
+            // 解析数据包
+            const presetIndex = data[2]; // 预设索引 (1-5)
+            const tempF = (data[3] << 8) | data[4]; // 华氏温度
+            const tempC = (data[5] << 8) | data[6]; // 摄氏温度
+            
+            // 验证预设索引范围
+            if (presetIndex < 1 || presetIndex > 5) {
+                log(`Invalid preset index: ${presetIndex}`);
+                return;
+            }
+            
+            // 保存到全局变量
+            globalPresetIndex = presetIndex;
+            globalTempF[presetIndex] = tempF;
+            globalTempC[presetIndex] = tempC;
+            
+            // 更新温度预设输入框
+            document.getElementById(`tempF${presetIndex}`).value = tempF;
+            
+            // 显示原始数据
+            const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+            
+            log(`Received temp setting for preset ${presetIndex}: ${tempF}°F`);
+            log(`  Raw data: ${rawDataHex}`);
+        }
+
+                // 更新设备状态显示
+        function updateDeviceStatus(status) {
+            // 更新预设显示和同步当前预设值
+            currentPreset = status.preset;
+            document.getElementById('presetBtn').textContent = status.preset;
+            
+            document.getElementById('tempSetting').textContent = status.tempSetting + '°F';
+            document.getElementById('realTemp').textContent = status.realTemp + '°F';
+           //  document.getElementById('tempUnit').textContent = status.tempUnit;
+            
+            // 更新LED预设显示和选择框
+            const ledColorName = LED_COLORS[status.ledPreset] || `Unknown (0x${status.ledPreset.toString(16).padStart(2, '0')})`;
+            document.getElementById('ledPreset').textContent = ledColorName;
+            
+            // 更新选择框
+            const ledSelect = document.getElementById('ledPresetSelect');
+            const ledHexValue = '0x' + status.ledPreset.toString(16).padStart(2, '0').toUpperCase();
+            ledSelect.value = ledHexValue;
+            
+            // 更新LED颜色预览
+            updateLedPreview(status.ledPreset);
+            
+            // 同步状态跟踪变量
+            currentB9State.byte3 = status.preset;
+            currentB9State.byte6 = status.ledPreset;
+            currentB9State.byte8 = status.autoShutTime;
+            currentB9State.byte10 = status.sessionEnable ? 0x01 : 0x00;
+            currentB9State.byte13 = status.brightness;
+            
+            // 更新Session控制按钮
+            updateSessionControlButton(status.sessionEnable);
+            document.getElementById('autoShutTime').value = status.autoShutTime;
+            document.getElementById('remainTime').textContent = status.remainTime;
+            document.getElementById('sessionRemainTime').textContent = status.sessionRemainTime;
+            document.getElementById('hapticFeedback').textContent = status.hapticFeedback ? 'On' : 'Off';
+            document.getElementById('sessionBoost').textContent = status.sessionBoost ? 'Enabled' : 'Disabled';
+            document.getElementById('batteryLevel').textContent = status.batteryLevel + '%';
+            
+            // 充电状态显示
+            const chargeStateText = status.chargeState === 1 ? 'Charging' : 'Not Charging';
+            document.getElementById('chargeState').textContent = chargeStateText;
+            
+            document.getElementById('brightness').value = status.brightness;
+            updateBrightnessDisplay(status.brightness);
+        }
+
+        // 等待响应
+        function waitForResponse(timeoutMs = RESPONSE_TIMEOUT) {
+            return new Promise((resolve, reject) => {
+                responsePromise = { resolve, reject };
+                waitingForResponse = true;
+                
+                setTimeout(() => {
+                    if (waitingForResponse) {
+                        waitingForResponse = false;
+                        responsePromise = null;
+                        reject(new Error('Response timeout'));
+                    }
+                }, timeoutMs);
+            });
+        }
+
+        // 旧的updateConnectionStatus函数已被updateConnectionStatusWithAnimation替代
+
+        async function connectDevice() {
+            try {
+                updateConnectionStatusWithAnimation(false, true); // 显示连接中状态
+                setButtonLoading('connectBtn', true);
+                log('Searching for Bluetooth devices...');
+                
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { name: 'PY32F071' },
+                        { namePrefix: 'PY32' }
+                    ],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                log(`Found device: ${bluetoothDevice.name}`);
+                
+                const server = await bluetoothDevice.gatt.connect();
+                log('GATT server connected successfully');
+                
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                log('Service obtained successfully');
+                
+                characteristic = await service.getCharacteristic(TX_CHARACTERISTIC_UUID);
+                log('TX characteristic obtained successfully');
+                
+                // Get RX characteristic for listening to responses
+                rxCharacteristic = await service.getCharacteristic(RX_CHARACTERISTIC_UUID);
+                log('RX characteristic obtained successfully');
+                
+                // Enable notifications to receive responses
+                await rxCharacteristic.startNotifications();
+                rxCharacteristic.addEventListener('characteristicvaluechanged', handleResponse);
+                log('Response listener enabled successfully');
+
+                // Listen for device disconnection
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
+                updateConnectionStatusWithAnimation(true);
+                log('Bluetooth device connected successfully!');
+                
+            } catch (error) {
+                log(`Connection failed: ${error.message}`);
+                updateConnectionStatusWithAnimation(false);
+                showNotification(`连接失败: ${error.message}`, 'error');
+            } finally {
+                setButtonLoading('connectBtn', false);
+            }
+        }
+
+        function onDisconnected() {
+            log('Device disconnected');
+            updateConnectionStatusWithAnimation(false);
+            bluetoothDevice = null;
+            characteristic = null;
+            rxCharacteristic = null;
+        }
+
+        async function disconnectDevice() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+                log('Device disconnected actively');
+            }
+            updateConnectionStatusWithAnimation(false);
+            rxCharacteristic = null;
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            loadFirmwareFile(file);
+        }
+
+        function loadFirmwareFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                firmwareData = new Uint8Array(e.target.result);
+                
+                // Pad firmware data to make it divisible by BLOCK_SIZE (2048 bytes)
+                const paddedLength = Math.ceil(firmwareData.length / BLOCK_SIZE) * BLOCK_SIZE;
+                const paddedData = new Uint8Array(paddedLength);
+                paddedData.fill(0xFF); // Fill with 0xFF to align with 2048-byte blocks
+                paddedData.set(firmwareData);
+                firmwareData = paddedData;
+                
+                const fileInfo = document.getElementById('fileInfo');
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `
+                    <strong>File Name:</strong> ${file.name}<br>
+                    <strong>Original Size:</strong> ${e.target.result.byteLength} bytes<br>
+                    <strong>Padded Size:</strong> ${firmwareData.length} bytes (aligned to ${BLOCK_SIZE}-byte blocks)<br>
+                    <strong>Estimated Packets:</strong> ${Math.ceil(firmwareData.length / CHUNK_SIZE)} packets (32 bytes each)<br>
+                    <strong>Flash Blocks:</strong> ${firmwareData.length / BLOCK_SIZE} blocks (exactly)<br>
+                    <strong>Transmission Time:</strong> ~${Math.ceil((Math.ceil(firmwareData.length / CHUNK_SIZE) * 20 + (firmwareData.length / BLOCK_SIZE) * 200) / 1000)} seconds
+                `;
+                
+                totalPackets = Math.ceil(firmwareData.length / CHUNK_SIZE);
+                
+                document.getElementById('startOtaBtn').disabled = !bluetoothDevice || !bluetoothDevice.gatt.connected;
+                
+                log(`Firmware file loaded: ${file.name}, padded size: ${firmwareData.length} bytes (${BLOCK_SIZE}-byte aligned)`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Load default firmware file on page load
+        async function loadDefaultFirmware() {
+            try {
+                log('Attempting to load default firmware file: merged_24k_250611.bin');
+                const response = await fetch('./merged_24k_250611.bin');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const originalData = new Uint8Array(arrayBuffer);
+                    
+                    // Pad firmware data to make it divisible by BLOCK_SIZE (2048 bytes)
+                    const paddedLength = Math.ceil(originalData.length / BLOCK_SIZE) * BLOCK_SIZE;
+                    firmwareData = new Uint8Array(paddedLength);
+                    firmwareData.fill(0xFF); // Fill with 0xFF to align with 2048-byte blocks
+                    firmwareData.set(originalData);
+                    
+                    const fileInfo = document.getElementById('fileInfo');
+                    fileInfo.style.display = 'block';
+                    fileInfo.innerHTML = `
+                        <strong>File Name:</strong> merged_24k_250611.bin (default)<br>
+                        <strong>Original Size:</strong> ${originalData.length} bytes<br>
+                        <strong>Padded Size:</strong> ${firmwareData.length} bytes (aligned to ${BLOCK_SIZE}-byte blocks)<br>
+                        <strong>Estimated Packets:</strong> ${Math.ceil(firmwareData.length / CHUNK_SIZE)} packets (32 bytes each)<br>
+                        <strong>Flash Blocks:</strong> ${firmwareData.length / BLOCK_SIZE} blocks (exactly)<br>
+                        <strong>Transmission Time:</strong> ~${Math.ceil((Math.ceil(firmwareData.length / CHUNK_SIZE) * 20 + (firmwareData.length / BLOCK_SIZE) * 200) / 1000)} seconds
+                    `;
+                    
+                    totalPackets = Math.ceil(firmwareData.length / CHUNK_SIZE);
+                    
+                    // Update start button state
+                    const startBtn = document.getElementById('startOtaBtn');
+                    if (startBtn) {
+                        startBtn.disabled = !bluetoothDevice || !bluetoothDevice.gatt.connected;
+                    }
+                    
+                    log(`✓ Default firmware file loaded successfully: merged_24k_250611.bin, padded size: ${firmwareData.length} bytes (${BLOCK_SIZE}-byte aligned)`);
+                } else {
+                    log(`✗ Default firmware file not found (HTTP ${response.status}). Please select a file manually.`);
+                }
+            } catch (error) {
+                log(`✗ Failed to load default firmware file: ${error.message}. Please select a file manually.`);
+            }
+        }
+
+        // CRC16计算 - 匹配固件中的算法
+        function calculateCRC16(startValue, data) {
+            let crc = startValue;
+            for (let i = 0; i < data.length; i++) {
+                crc ^= (data[i] << 8);
+                for (let j = 0; j < 8; j++) {
+                    if (crc & 0x8000) {
+                        crc = (crc << 1) ^ 0x1021;
+                    } else {
+                        crc <<= 1;
+                    }
+                    crc &= 0xFFFF;
+                }
+            }
+            return crc;
+        }
+
+        // 创建OTA开始命令
+        function createStartCommand(dataLength, crc16) {
+            const command = new Uint8Array(20);
+            command.fill(0xFF); // Fill with 0xFF like in firmware
+            
+            const commandText = new TextEncoder().encode("ota start");
+            command.set(commandText, 0);
+            
+            // 文件大小 (4字节, 大端序)
+            command[10] = (dataLength >> 24) & 0xFF;
+            command[11] = (dataLength >> 16) & 0xFF;
+            command[12] = (dataLength >> 8) & 0xFF;
+            command[13] = dataLength & 0xFF;
+            
+            // CRC16 (2字节, 大端序)
+            command[14] = (crc16 >> 8) & 0xFF;
+            command[15] = crc16 & 0xFF;
+            
+            return command;
+        }
+
+        // 创建数据包
+        function createDataPacket(chunkIndex, chunkData) {
+            const packet = new Uint8Array(36);
+            packet.fill(0xFF);
+            
+            // 地址 (4字节, 大端序)
+            packet[0] = (chunkIndex >> 24) & 0xFF;
+            packet[1] = (chunkIndex >> 16) & 0xFF;
+            packet[2] = (chunkIndex >> 8) & 0xFF;
+            packet[3] = chunkIndex & 0xFF;
+            
+            // 数据 (32字节, 从16改为32)
+            packet.set(chunkData, 4);
+            
+            return packet;
+        }
+
+        // 创建结束命令
+        function createEndCommand() {
+            const command = new Uint8Array(20);
+            command.fill(0xFF);
+            
+            const commandText = new TextEncoder().encode("ota finish");
+            command.set(commandText, 0);
+            
+            return command;
+        }
+
+        async function sendPacket(packet, description, waitForAck = false, retryCount = 3) {
+            if (!characteristic) {
+                throw new Error('Bluetooth characteristic not connected');
+            }
+            
+            for (let i = 0; i < retryCount; i++) {
+                try {
+                  //  log(`Send ${description}: ${Array.from(packet.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}...`);
+                    
+                    // 发送数据包
+                    await characteristic.writeValue(packet);
+                    
+                    if (waitForAck) {
+                        // 等待设备响应
+                        const response = await waitForResponse(RESPONSE_TIMEOUT);
+                        log(`${description} acknowledged`);
+                        return response;
+                    } else {
+                        return null;
+                    }
+                    
+                } catch (error) {
+                    if (error.message.includes('timeout') || 
+                        error.message.includes('GATT operation already in progress')) {
+                        log(`${description} failed, retry ${i + 1}/${retryCount}: ${error.message}`);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                        continue;
+                    } else {
+                        log(`Critical error for ${description}: ${error.message}`);
+                        throw error;
+                    }
+                }
+            }
+            throw new Error(`${description} retry attempts exhausted`);
+        }
+
+        function updateProgress(current, total) {
+            updateProgressWithAnimation(current, total);
+        }
+
+        async function startOTA() {
+            if (!firmwareData || !characteristic) {
+                log('Please select firmware file and connect device first');
+                return;
+            }
+            
+            // Check Bluetooth connection status
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                log('Error: Device not connected');
+                return;
+            }
+
+            isOtaInProgress = true;
+            otaSequence = 0;
+            sentPackets = 0;
+            
+            document.getElementById('startOtaBtn').disabled = true;
+            document.getElementById('stopOtaBtn').disabled = false;
+            
+            try {
+                log('Starting OTA upgrade...');
+                
+                // 1. 计算整个文件的CRC16
+                const fileCRC = calculateCRC16(0xFFFF, firmwareData);
+                log(`File CRC16: 0x${fileCRC.toString(16).toUpperCase()}`);
+                
+                // 2. 发送开始命令
+                const startCommand = createStartCommand(firmwareData.length, fileCRC);
+                await sendPacket(startCommand, 'START command', false);
+                
+                // 3. 发送数据包
+                let offset = 0;
+                let chunkIndex = 0;
+                const totalChunks = Math.ceil(firmwareData.length / CHUNK_SIZE);
+                
+                while (offset < firmwareData.length && isOtaInProgress) {
+                    // Check connection status
+                    if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                        throw new Error('Device connection interrupted');
+                    }
+                    
+                    const remainingBytes = firmwareData.length - offset;
+                    const chunkSize = Math.min(CHUNK_SIZE, remainingBytes);
+                    const chunkData = firmwareData.slice(offset, offset + chunkSize);
+                    
+                    // 如果数据不足32字节，用0xFF填充 (从16改为32)
+                    const paddedChunk = new Uint8Array(CHUNK_SIZE);
+                    paddedChunk.fill(0xFF);
+                    paddedChunk.set(chunkData);
+                    
+                    const dataPacket = createDataPacket(chunkIndex, paddedChunk);
+                    
+                    // 检查是否需要等待2048字节块的确认
+                    const isBlockEnd = ((offset + chunkSize) % BLOCK_SIZE === 0) || (offset + chunkSize >= firmwareData.length);
+                    
+                    if (chunkIndex % 32 === 0 || chunkIndex < 10) { // Log every 32 packets or first 10
+                        log(`Send data packet ${chunkIndex}/${totalChunks}, offset: ${offset}, size: ${chunkSize}, block_end: ${isBlockEnd}`);
+                    }
+                    
+                    await sendPacket(dataPacket, `data packet ${chunkIndex}`, isBlockEnd);
+                    
+                    offset += chunkSize;
+                    chunkIndex++;
+                    sentPackets++;
+                    
+                    updateProgress(sentPackets, totalPackets);
+                    
+                    // 每个数据包之间的延时，块结束时等待更长时间
+                    if (isBlockEnd) {
+                        await new Promise(resolve => setTimeout(resolve, 50)); // 块结束等待100ms
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 5)); // 普通包等待10ms
+                    }
+                }
+                
+                if (!isOtaInProgress) {
+                    log('OTA upgrade cancelled');
+                    return;
+                }
+                
+                // 4. 发送结束命令
+                log('Sending finish command...');
+                const endCommand = createEndCommand();
+                await sendPacket(endCommand, 'FINISH command', false);
+                
+                // 等待设备完成处理
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                log('OTA upgrade completed!');
+                updateProgress(totalPackets, totalPackets);
+                
+            } catch (error) {
+                log(`OTA upgrade failed: ${error.message}`);
+            } finally {
+                isOtaInProgress = false;
+                document.getElementById('startOtaBtn').disabled = false;
+                document.getElementById('stopOtaBtn').disabled = true;
+            }
+        }
+
+        function stopOTA() {
+            isOtaInProgress = false;
+            log('User cancelled OTA upgrade');
+            document.getElementById('startOtaBtn').disabled = false;
+            document.getElementById('stopOtaBtn').disabled = true;
+        }
+
+        // Check browser support
+        if (!navigator.bluetooth) {
+            log('Error: This browser does not support Web Bluetooth API');
+            log('Please use Chrome, Edge, or other browsers that support Web Bluetooth');
+            document.getElementById('connectBtn').disabled = true;
+        } else {
+            log('Browser supports Web Bluetooth API');
+        }
+
+        // Load default firmware file when page loads
+        window.addEventListener('load', function() {
+            loadDefaultFirmware();
+            initializeFileDragDrop();
+            
+            // 设置Hold Time默认值
+            document.getElementById('holdTime').value = holdTime;
+            // 设置Brightness默认值
+            document.getElementById('brightness').value = currentB9State.byte13;
+            updateBrightnessDisplay(currentB9State.byte13);
+            
+            // 初始化LED预览
+            updateLedPreview(0x00);
+            
+            // 添加页面加载动画
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
+            
+            // 显示欢迎通知
+            setTimeout(() => {
+                showNotification('PY32F071 OTA升级工具已就绪', 'info', 2000);
+            }, 1000);
+        });
+
+        // 切换notifications开关
+        async function toggleNotifications() {
+            if (!rxCharacteristic) {
+                log('Error: RX characteristic not available');
+                showNotification('设备未连接，无法启用监控', 'error');
+                return;
+            }
+
+            try {
+                const toggle = document.getElementById('notifyToggle');
+                
+                if (notificationsEnabled) {
+                    // 禁用notifications
+                    await rxCharacteristic.stopNotifications();
+                    notificationsEnabled = false;
+                    document.getElementById('notifyStatus').textContent = 'Disabled';
+                    document.getElementById('deviceStatusInfo').style.display = 'none';
+                    toggle.checked = false;
+                    log('Device status notifications disabled');
+                    showNotification('实时监控已关闭', 'info', 2000);
+                } else {
+                    // 启用notifications
+                    await rxCharacteristic.startNotifications();
+                    notificationsEnabled = true;
+                    document.getElementById('notifyStatus').textContent = 'Enabled';
+                    document.getElementById('deviceStatusInfo').style.display = 'block';
+                    toggle.checked = true;
+                    log('Device status notifications enabled');
+                    showNotification('实时监控已开启', 'success', 2000);
+                }
+            } catch (error) {
+                log(`Failed to toggle notifications: ${error.message}`);
+                showNotification(`监控切换失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 同步时间功能 - 发送格式：b1 09 year(2 byte) month day hour minute b1
+        async function syncTime() {
+            if (!characteristic) {
+                log('Error: Device not connected');
+                return;
+            }
+
+            try {
+                // 获取当前时间
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1; // JavaScript月份从0开始
+                const day = now.getDate();
+                const hour = now.getHours();
+                const minute = now.getMinutes();
+
+                // 构造时间同步数据包：b1 09 year(2 byte) month day hour minute b1
+                const timePacket = new Uint8Array(9);
+                timePacket[0] = 0xB1;  // 起始标识
+                timePacket[1] = 0x09;  // 命令类型 - 时间同步
+                timePacket[2] = (year >> 8) & 0xFF;  // 年份高字节
+                timePacket[3] = year & 0xFF;         // 年份低字节
+                timePacket[4] = month;               // 月份
+                timePacket[5] = day;                 // 日期
+                timePacket[6] = hour;                // 小时
+                timePacket[7] = minute;              // 分钟
+                timePacket[8] = 0xB1;  // 结束标识
+
+                // 发送时间同步数据包
+                await characteristic.writeValue(timePacket);
+                
+                const timeStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')} ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                const packetHex = Array.from(timePacket).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                
+                                 log(`✓ Time sync packet sent: ${timeStr}`);
+                 log(`  Packet data: ${packetHex}`);
+                 
+             } catch (error) {
+                 log(`✗ Failed to sync time: ${error.message}`);
+             }
+         }
+
+         // 设置温度预设 - 发送格式：0xA3 + 8 + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
+         async function setTemperature(presetIndex, tempF) {
+             if (!characteristic) {
+                 log('Error: Device not connected');
+                 return;
+             }
+
+             // 验证温度范围
+             const temperature = parseInt(tempF);
+             if (temperature < 300 || temperature > 600) {
+                 log(`Error: Temperature ${temperature}°F is out of range (300-600°F)`);
+                 // 恢复之前的值
+                 document.getElementById(`tempF${presetIndex}`).value = document.getElementById(`tempF${presetIndex}`).defaultValue;
+                 return;
+             }
+
+             try {
+                 // 华氏度转摄氏度 (C = (F - 32) * 5/9)
+                 const tempC = Math.round((temperature - 32) * 5 / 9);
+
+                 // 构造温度设置数据包：0xA3 + 8 + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
+                 const tempPacket = new Uint8Array(8);
+                 tempPacket[0] = 0xB3;                    // 起始标识
+                 tempPacket[1] = 8;                       // 数据长度
+                 tempPacket[2] = presetIndex;             // 预设索引 (1-5)
+                 tempPacket[3] = (temperature >> 8) & 0xFF;  // 华氏温度高字节
+                 tempPacket[4] = temperature & 0xFF;         // 华氏温度低字节
+                 tempPacket[5] = (tempC >> 8) & 0xFF;        // 摄氏温度高字节
+                 tempPacket[6] = tempC & 0xFF;               // 摄氏温度低字节
+                 tempPacket[7] = 0xB3;                    // 结束标识
+
+                 // 发送温度设置数据包
+                 await characteristic.writeValue(tempPacket);
+                 
+                 const packetHex = Array.from(tempPacket).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                 
+                 log(`✓ Temperature preset ${presetIndex} set to ${temperature}°F (${tempC}°C)`);
+                 log(`  Packet data: ${packetHex}`);
+                 
+                           } catch (error) {
+                  log(`✗ Failed to set temperature: ${error.message}`);
+              }
+          }
+
+          // 通用B9命令发送函数 - 可设置任意字节
+          async function sendB9Command(updates, description) {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  return;
+              }
+
+              try {
+                  // 更新状态
+                  for (const [bytePos, value] of Object.entries(updates)) {
+                      currentB9State[bytePos] = value;
+                  }
+
+                  // 构造B9命令数据包：0xB9 + 长度(20) + 数据字节 + 0xB9
+                  const command = new Uint8Array(20);
+                  command[0] = 0xB9;        // 起始标识
+                  command[1] = 20;          // 数据长度
+                  command[2] = 0x00;
+                  command[3] = currentB9State.byte3 || 0x01;   // 预设值 (1-5)
+                  command[4] = 0x00;
+                  command[5] = 0x00;
+                  command[6] = currentB9State.byte6 || 0x00;   // LED值
+                  command[7] = 0x00;
+                  command[8] = currentB9State.byte8 || 0x00;   // Auto Shut Time (0-30分钟)
+                  command[9] = 0x00;
+                  command[10] = currentB9State.byte10 || 0x00; // Session状态
+                  command[11] = currentB9State.byte11 || 0x00; // 未来扩展
+                  command[12] = currentB9State.byte12 || 0x00; // 未来扩展
+                  command[13] = currentB9State.byte13 || 0x00; // Brightness (0-100)
+                  command[14] = currentB9State.byte14 || 0x00; // 未来扩展
+                  command[15] = currentB9State.byte15 || 0x00; // 未来扩展
+                  command[16] = currentB9State.byte16 || 0x00; // 未来扩展
+                  command[17] = currentB9State.byte17 || 0x00; // 未来扩展
+                  command[18] = currentB9State.byte18 || 0x00; // 未来扩展
+                  command[19] = 0xB9;       // 结束标识
+
+                  // 发送命令
+                  await characteristic.writeValue(command);
+                  
+                  const packetHex = Array.from(command).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                  
+                  log(`✓ ${description}`);
+                  log(`  Packet data: ${packetHex}`);
+                  
+                  // 显示更新的字节
+                  const updatedBytes = Object.entries(updates).map(([pos, val]) => 
+                      `${pos}: 0x${val.toString(16).padStart(2, '0')}`
+                  ).join(', ');
+                  log(`  Updated bytes: ${updatedBytes}`);
+                  
+              } catch (error) {
+                  log(`✗ Failed to send B9 command (${description}): ${error.message}`);
+              }
+          }
+
+          // 设置LED预设 - 调用通用B9命令函数
+          async function setLedPreset(ledValue) {
+              // 解析十六进制值
+              const ledPreset = parseInt(ledValue, 16);
+              const colorName = LED_COLORS[ledPreset] || 'Unknown';
+              
+              // 验证LED值范围
+              if (!(ledPreset in LED_COLORS)) {
+                  log(`Error: Invalid LED color value ${ledValue}`);
+                  return;
+              }
+
+              // 更新LED预览
+              updateLedPreview(ledPreset);
+
+              // 调用通用B9命令函数，只更新LED值（第6字节）
+              await sendB9Command(
+                  { byte6: ledPreset },
+                  `LED color set to ${colorName} (${ledValue})`
+              );
+              
+              showNotification(`LED颜色已设置为 ${colorName}`, 'success', 2000);
+          }
+
+          // 更新Session控制按钮状态并控制其他控件的启用/禁用
+          function updateSessionControlButton(isSessionEnabled) {
+              const sessionBtn = document.getElementById('sessionControlBtn');
+              
+              // 获取需要控制的元素
+              const presetBtn = document.getElementById('presetBtn');
+              const autoShutTimeInput = document.getElementById('autoShutTime');
+              const holdTimeInput = document.getElementById('holdTime');
+              const brightnessInput = document.getElementById('brightness');
+              const ledPresetSelect = document.getElementById('ledPresetSelect');
+              
+              // 温度预设输入框
+              const tempInputs = [
+                  document.getElementById('tempF1'),
+                  document.getElementById('tempF2'),
+                  document.getElementById('tempF3'),
+                  document.getElementById('tempF4'),
+                  document.getElementById('tempF5')
+              ];
+              
+              if (isSessionEnabled) {
+                  // 加热中：按钮变红色，禁用其他控件
+                  sessionBtn.textContent = 'Stop Heating';
+                  sessionBtn.style.backgroundColor = '#dc3545'; // 红色
+                  sessionBtn.style.color = 'white';
+                  
+                  // 禁用其他控制项并添加视觉提示
+                  presetBtn.disabled = true;
+                  presetBtn.classList.add('heating-disabled');
+                  
+                  autoShutTimeInput.disabled = true;
+                  autoShutTimeInput.classList.add('heating-disabled');
+                  
+                  holdTimeInput.disabled = true;
+                  holdTimeInput.classList.add('heating-disabled');
+                  
+                  brightnessInput.disabled = true;
+                  brightnessInput.classList.add('heating-disabled');
+                  
+                  ledPresetSelect.disabled = true;
+                  ledPresetSelect.classList.add('heating-disabled');
+                  
+                  // 禁用所有温度预设输入框并添加视觉提示
+                  tempInputs.forEach(input => {
+                      if (input) {
+                          input.disabled = true;
+                          input.classList.add('heating-disabled');
+                          // 为父容器也添加禁用类
+                          const container = input.closest('.preset-container');
+                          if (container) container.classList.add('heating-disabled');
+                      }
+                  });
+                  
+                  log('🔥 Heating started - Other controls disabled');
+                  
+              } else {
+                  // 停止加热：按钮变绿色，启用其他控件
+                  sessionBtn.textContent = 'Press to Heat';
+                  sessionBtn.style.backgroundColor = '#28a745'; // 绿色
+                  sessionBtn.style.color = 'white';
+                  
+                  // 只有在设备连接时才启用其他控制项
+                  const isConnected = !sessionBtn.disabled; // 如果session按钮没被禁用，说明设备已连接
+                  
+                  if (isConnected) {
+                      presetBtn.disabled = false;
+                      presetBtn.classList.remove('heating-disabled');
+                      
+                      autoShutTimeInput.disabled = false;
+                      autoShutTimeInput.classList.remove('heating-disabled');
+                      
+                      holdTimeInput.disabled = false;
+                      holdTimeInput.classList.remove('heating-disabled');
+                      
+                      brightnessInput.disabled = false;
+                      brightnessInput.classList.remove('heating-disabled');
+                      
+                      ledPresetSelect.disabled = false;
+                      ledPresetSelect.classList.remove('heating-disabled');
+                      
+                      // 启用所有温度预设输入框并移除视觉提示
+                      tempInputs.forEach(input => {
+                          if (input) {
+                              input.disabled = false;
+                              input.classList.remove('heating-disabled');
+                              // 为父容器也移除禁用类
+                              const container = input.closest('.preset-container');
+                              if (container) container.classList.remove('heating-disabled');
+                          }
+                      });
+                  }
+                  
+                  log('✅ Heating stopped - Other controls enabled');
+              }
+          }
+
+          // 切换Session状态 - 调用通用B9命令函数
+          async function toggleSession() {
+              // 获取当前按钮状态来判断要执行的操作
+              const sessionBtn = document.getElementById('sessionControlBtn');
+              const isCurrentlyHeating = sessionBtn.textContent === 'Stop Heating';
+              const newSessionState = isCurrentlyHeating ? 0x00 : 0x01;
+              const action = isCurrentlyHeating ? 'stop' : 'start';
+              
+              // 调用通用B9命令函数，只更新Session状态（第10字节）
+              await sendB9Command(
+                  { byte10: newSessionState },
+                  `Session ${action} command sent`
+              );
+          }
+
+          // 切换预设挡位 - 循环切换1→2→3→4→5→1
+          async function switchPreset() {
+              // 循环切换预设值
+              currentPreset = currentPreset >= 5 ? 1 : currentPreset + 1;
+              
+              // 更新按钮显示
+              document.getElementById('presetBtn').textContent = currentPreset;
+              
+              // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
+              await sendB9Command(
+                  { byte3: currentPreset },
+                  `Preset switched to ${currentPreset}`
+              );
+              
+              log(`✓ Preset switched to ${currentPreset}`);
+          }
+
+          // 设置Auto Shut Time - 发送B9命令第8字节
+          async function setAutoShutTime(minutes) {
+              // 验证时间范围
+              const autoShutTime = parseInt(minutes);
+              if (autoShutTime < 0 || autoShutTime > 30) {
+                  log(`Error: Auto Shut Time ${autoShutTime} is out of range (0-30 minutes)`);
+                  // 恢复之前的值
+                  document.getElementById('autoShutTime').value = currentB9State.byte8 || 2;
+                  return;
+              }
+
+              // 调用通用B9命令函数，只更新Auto Shut Time（第8字节）
+              await sendB9Command(
+                  { byte8: autoShutTime },
+                  `Auto Shut Time set to ${autoShutTime} minutes`
+              );
+          }
+
+          // 设置Hold Time - 发送B7命令格式：B7 06 01 holdTime(high) holdTime(low) B7
+          async function setHoldTime(seconds) {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  return;
+              }
+
+              // 验证时间范围
+              const holdTime = parseInt(seconds);
+              if (holdTime < 10 || holdTime > 90) {
+                  log(`Error: Hold Time ${holdTime} is out of range (10-90 seconds)`);
+                  // 恢复之前的值
+                  document.getElementById('holdTime').value = window.holdTime || 30;
+                  return;
+              }
+
+              try {
+                  // 构造B7命令数据包：B7 06 01 holdTime(high) holdTime(low) B7
+                  const holdTimeCommand = new Uint8Array(6);
+                  holdTimeCommand[0] = 0xB7;                      // 起始标识
+                  holdTimeCommand[1] = 0x06;                      // 数据长度
+                  holdTimeCommand[2] = 0x01;                      // 固定字节
+                  holdTimeCommand[3] = (holdTime >> 8) & 0xFF;    // holdTime高字节
+                  holdTimeCommand[4] = holdTime & 0xFF;           // holdTime低字节
+                  holdTimeCommand[5] = 0xB7;                      // 结束标识
+
+                  // 发送Hold Time设置命令
+                  await characteristic.writeValue(holdTimeCommand);
+                  
+                  const packetHex = Array.from(holdTimeCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                  
+                  log(`✓ Hold Time set to ${holdTime} seconds`);
+                  log(`  Packet data: ${packetHex}`);
+                  
+                  // 更新全局holdTime变量
+                  window.holdTime = holdTime;
+                  
+              } catch (error) {
+                  log(`✗ Failed to set Hold Time: ${error.message}`);
+              }
+          }
+
+          // 更新亮度显示值（实时）
+          function updateBrightnessDisplay(value) {
+              document.getElementById('brightnessDisplay').textContent = value;
+          }
+
+          // 设置Brightness - 发送B9命令第13字节
+          async function setBrightness(brightness) {
+              // 验证亮度范围
+              const brightnessValue = parseInt(brightness);
+              if (brightnessValue < 0 || brightnessValue > 100) {
+                  log(`Error: Brightness ${brightnessValue} is out of range (0-100)`);
+                  // 恢复之前的值
+                  document.getElementById('brightness').value = currentB9State.byte13;
+                  updateBrightnessDisplay(currentB9State.byte13);
+                  return;
+              }
+
+              // 调用通用B9命令函数，只更新Brightness（第13字节）
+              await sendB9Command(
+                  { byte13: brightnessValue },
+                  `Brightness set to ${brightnessValue}`
+              );
+          }
+    </script>
+</body>
+</html> 
