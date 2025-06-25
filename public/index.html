@@ -1,130 +1,779 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ToothBrush - Smart Tool Suite</title>
+    <title>森林深处的小屋 - 我的个人主页</title>
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Klee+One:wght@400;600&family=Ma+Shan+Zheng&display=swap" rel="stylesheet" />
     
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-    <!-- External Stylesheet -->
-    <link rel="stylesheet" href="styles.css" />
+    <style>
+      :root {
+        --forest-green: #4a7c5e;
+        --moss-green: #6b8e5a;
+        --sky-blue: #87ceeb;
+        --sunset-orange: #ff9a56;
+        --warm-yellow: #ffd97d;
+        --cloud-white: #f8f9fa;
+        --earth-brown: #8b5a3c;
+        --magic-purple: #9b59b6;
+        --fairy-pink: #ff9eb5;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Noto Sans SC', 'Klee One', sans-serif;
+        overflow-x: hidden;
+        background: linear-gradient(
+          to bottom,
+          var(--sky-blue) 0%,
+          #b8e6ff 30%,
+          var(--warm-yellow) 70%,
+          var(--sunset-orange) 100%
+        );
+        min-height: 100vh;
+        position: relative;
+      }
+
+      /* 魔法背景动画 */
+      .magic-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        overflow: hidden;
+      }
+
+      /* 飘动的云朵 */
+      .cloud {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 50px;
+        opacity: 0.7;
+        animation: float 20s infinite ease-in-out;
+      }
+
+      .cloud::before,
+      .cloud::after {
+        content: '';
+        position: absolute;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 50px;
+      }
+
+      .cloud-1 {
+        width: 80px;
+        height: 30px;
+        top: 10%;
+        left: -100px;
+        animation-delay: 0s;
+      }
+
+      .cloud-1::before {
+        width: 40px;
+        height: 40px;
+        top: -20px;
+        left: 10px;
+      }
+
+      .cloud-1::after {
+        width: 60px;
+        height: 35px;
+        top: -15px;
+        right: 10px;
+      }
+
+      .cloud-2 {
+        width: 120px;
+        height: 40px;
+        top: 20%;
+        left: -150px;
+        animation-delay: -10s;
+      }
+
+      .cloud-2::before {
+        width: 60px;
+        height: 60px;
+        top: -30px;
+        left: 15px;
+      }
+
+      .cloud-2::after {
+        width: 80px;
+        height: 45px;
+        top: -20px;
+        right: 15px;
+      }
+
+      .cloud-3 {
+        width: 100px;
+        height: 35px;
+        top: 60%;
+        left: -120px;
+        animation-delay: -15s;
+      }
+
+      .cloud-3::before {
+        width: 50px;
+        height: 50px;
+        top: -25px;
+        left: 12px;
+      }
+
+      .cloud-3::after {
+        width: 70px;
+        height: 40px;
+        top: -18px;
+        right: 12px;
+      }
+
+      @keyframes float {
+        0% { transform: translateX(-200px); }
+        100% { transform: translateX(calc(100vw + 200px)); }
+      }
+
+      /* 闪烁的精灵 */
+      .fairy {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        background: var(--magic-purple);
+        border-radius: 50%;
+        box-shadow: 0 0 10px var(--magic-purple);
+        animation: fairyFly 15s infinite ease-in-out;
+      }
+
+      .fairy:nth-child(odd) {
+        background: var(--fairy-pink);
+        box-shadow: 0 0 10px var(--fairy-pink);
+      }
+
+      @keyframes fairyFly {
+        0%, 100% { 
+          transform: translate(0, 0) scale(0.5);
+          opacity: 0.3;
+        }
+        25% { 
+          transform: translate(30vw, -20vh) scale(1);
+          opacity: 1;
+        }
+        50% { 
+          transform: translate(60vw, 10vh) scale(0.8);
+          opacity: 0.7;
+        }
+        75% { 
+          transform: translate(20vw, -30vh) scale(1.2);
+          opacity: 0.9;
+        }
+      }
+
+      /* 主容器 */
+      .main-container {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* 头部区域 */
+      .hero-section {
+        text-align: center;
+        padding: 80px 20px;
+        position: relative;
+      }
+
+      .magical-house {
+        width: 200px;
+        height: 160px;
+        margin: 0 auto 40px;
+        position: relative;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+
+      .magical-house:hover {
+        transform: scale(1.1) rotate(2deg);
+      }
+
+      .house-base {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 80px;
+        background: var(--earth-brown);
+        border-radius: 10px;
+      }
+
+      .house-roof {
+        position: absolute;
+        bottom: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 80px solid transparent;
+        border-right: 80px solid transparent;
+        border-bottom: 60px solid var(--forest-green);
+      }
+
+      .house-door {
+        position: absolute;
+        bottom: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 25px;
+        height: 35px;
+        background: var(--earth-brown);
+        border-radius: 15px 15px 0 0;
+        border: 3px solid #654321;
+      }
+
+      .house-window {
+        position: absolute;
+        bottom: 40px;
+        width: 20px;
+        height: 20px;
+        background: var(--warm-yellow);
+        border-radius: 50%;
+        border: 3px solid #654321;
+        box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.8);
+      }
+
+      .house-window.left {
+        left: 15px;
+      }
+
+      .house-window.right {
+        right: 15px;
+      }
+
+      .smoke {
+        position: absolute;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 30px;
+        background: rgba(200, 200, 200, 0.6);
+        border-radius: 50%;
+        animation: smokeRise 3s infinite ease-in-out;
+      }
+
+      @keyframes smokeRise {
+        0% { opacity: 0.8; transform: translateX(-50%) translateY(0); }
+        100% { opacity: 0; transform: translateX(-45%) translateY(-30px); }
+      }
+
+      .hero-title {
+        font-family: 'Ma Shan Zheng', cursive;
+        font-size: 3.5rem;
+        color: var(--forest-green);
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        animation: titleGlow 3s infinite ease-in-out alternate;
+      }
+
+      @keyframes titleGlow {
+        0% { text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1); }
+        100% { text-shadow: 2px 2px 20px rgba(255, 215, 125, 0.6); }
+      }
+
+      .hero-subtitle {
+        font-size: 1.3rem;
+        color: var(--earth-brown);
+        margin-bottom: 30px;
+        font-weight: 400;
+      }
+
+      .hero-description {
+        max-width: 600px;
+        margin: 0 auto;
+        color: var(--forest-green);
+        font-size: 1.1rem;
+        line-height: 1.8;
+        background: rgba(255, 255, 255, 0.3);
+        padding: 20px;
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+      }
+
+      /* 工具区域 */
+      .tools-section {
+        flex: 1;
+        padding: 60px 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .section-header {
+        text-align: center;
+        margin-bottom: 50px;
+      }
+
+      .section-header h2 {
+        font-family: 'Ma Shan Zheng', cursive;
+        font-size: 2.5rem;
+        color: var(--forest-green);
+        margin-bottom: 15px;
+        position: relative;
+      }
+
+      .section-header h2::after {
+        content: '✧';
+        position: absolute;
+        top: -10px;
+        right: -30px;
+        color: var(--magic-purple);
+        animation: sparkle 2s infinite;
+      }
+
+      @keyframes sparkle {
+        0%, 100% { opacity: 0.4; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+
+      .section-header p {
+        color: var(--earth-brown);
+        font-size: 1.1rem;
+      }
+
+      .tools-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        padding: 20px 0;
+      }
+
+      .tool-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 249, 250, 0.7));
+        border-radius: 25px;
+        padding: 30px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        position: relative;
+        overflow: hidden;
+        border: 3px solid transparent;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+      }
+
+      .tool-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, var(--moss-green), var(--forest-green), var(--magic-purple));
+        z-index: -1;
+        border-radius: 25px;
+        transform: scale(0);
+        transition: transform 0.3s ease;
+      }
+
+      .tool-card:hover::before {
+        transform: scale(1.05);
+      }
+
+      .tool-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        border-color: var(--forest-green);
+        color: white;
+      }
+
+      .tool-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        background: linear-gradient(135deg, var(--warm-yellow), var(--sunset-orange));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: all 0.3s ease;
+      }
+
+      .tool-card:hover .tool-icon {
+        background: linear-gradient(135deg, var(--fairy-pink), var(--magic-purple));
+        transform: rotate(360deg) scale(1.1);
+      }
+
+      .tool-icon i {
+        font-size: 2rem;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .tool-card h3 {
+        font-family: 'Klee One', cursive;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        color: var(--forest-green);
+        transition: color 0.3s ease;
+      }
+
+      .tool-card:hover h3 {
+        color: white;
+      }
+
+      .tool-card p {
+        color: var(--earth-brown);
+        line-height: 1.6;
+        transition: color 0.3s ease;
+      }
+
+      .tool-card:hover p {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      /* 森林元素装饰 */
+      .forest-decoration {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 120px;
+        background: linear-gradient(to top, var(--forest-green) 0%, transparent 100%);
+        z-index: -1;
+      }
+
+      .tree {
+        position: absolute;
+        bottom: 0;
+      }
+
+      .tree-1 {
+        left: 5%;
+        width: 60px;
+        height: 100px;
+        background: var(--earth-brown);
+        clip-path: polygon(40% 100%, 45% 60%, 30% 60%, 35% 20%, 30% 20%, 40% 0%, 60% 0%, 70% 20%, 65% 20%, 70% 60%, 55% 60%, 60% 100%);
+      }
+
+      .tree-2 {
+        right: 8%;
+        width: 80px;
+        height: 120px;
+        background: var(--earth-brown);
+        clip-path: polygon(35% 100%, 40% 50%, 25% 50%, 30% 15%, 25% 15%, 35% 0%, 65% 0%, 75% 15%, 70% 15%, 75% 50%, 60% 50%, 65% 100%);
+      }
+
+      /* 页脚 */
+      .forest-footer {
+        background: linear-gradient(to top, var(--forest-green), rgba(74, 124, 94, 0.8));
+        padding: 40px 20px;
+        text-align: center;
+        position: relative;
+        margin-top: 60px;
+      }
+
+      .footer-content {
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 800px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+
+      .footer-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .footer-left i {
+        font-size: 1.5rem;
+        color: var(--warm-yellow);
+      }
+
+      /* 魔法粒子效果 */
+      .magic-particle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: var(--warm-yellow);
+        border-radius: 50%;
+        pointer-events: none;
+        animation: magicFloat 6s infinite ease-in-out;
+      }
+
+      @keyframes magicFloat {
+        0%, 100% { 
+          transform: translateY(0) scale(0.5);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        50% { 
+          transform: translateY(-100vh) scale(1);
+          opacity: 0.8;
+        }
+      }
+
+      /* 响应式设计 */
+      @media (max-width: 768px) {
+        .hero-title {
+          font-size: 2.5rem;
+        }
+
+        .tools-grid {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+
+        .footer-content {
+          justify-content: center;
+          text-align: center;
+        }
+
+        .tree-1, .tree-2 {
+          display: none;
+        }
+      }
+
+      /* 加载动画 */
+      .fade-in-up {
+        opacity: 0;
+        transform: translateY(30px);
+        animation: fadeInUp 0.8s ease forwards;
+      }
+
+      @keyframes fadeInUp {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
   </head>
   <body>
-    <!-- Dynamic Background Particles -->
-    <div class="particles-container">
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
-      <div class="particle"></div>
+    <!-- 魔法背景 -->
+    <div class="magic-background">
+      <!-- 飘动的云朵 -->
+      <div class="cloud cloud-1"></div>
+      <div class="cloud cloud-2"></div>
+      <div class="cloud cloud-3"></div>
+      
+      <!-- 闪烁的精灵 -->
+      <div class="fairy" style="top: 20%; left: 10%; animation-delay: 0s;"></div>
+      <div class="fairy" style="top: 60%; left: 80%; animation-delay: -3s;"></div>
+      <div class="fairy" style="top: 40%; left: 60%; animation-delay: -6s;"></div>
+      <div class="fairy" style="top: 80%; left: 30%; animation-delay: -9s;"></div>
+      <div class="fairy" style="top: 15%; left: 70%; animation-delay: -12s;"></div>
     </div>
 
-    <!-- Main Content -->
+    <!-- 主容器 -->
     <div class="main-container">
+      <!-- 头部区域 -->
       <header class="hero-section">
-        <div class="hero-content">
-          <div class="logo-container">
-            <i class="fas fa-tooth logo-icon"></i>
-            <h1 class="hero-title">ToothBrush</h1>
-          </div>
-          <p class="hero-subtitle">Smart Tool Suite - Making Development Easier</p>
-          <div class="hero-description">
-            <p>Professional online tool platform providing convenient solutions for developers and tech enthusiasts</p>
-          </div>
+        <div class="magical-house">
+          <div class="house-base"></div>
+          <div class="house-roof"></div>
+          <div class="house-door"></div>
+          <div class="house-window left"></div>
+          <div class="house-window right"></div>
+          <div class="smoke"></div>
+        </div>
+        
+        <h1 class="hero-title">森林深处的小屋</h1>
+        <p class="hero-subtitle">一个充满魔法的工具乐园</p>
+        <div class="hero-description">
+          <p>欢迎来到这个神奇的地方！这里有着各种各样的魔法工具，每一个都能帮助你在数字世界中创造奇迹。就像吉卜力动画中的那些神奇道具一样，它们简单而强大，等待着你去发现它们的秘密...</p>
         </div>
       </header>
 
+      <!-- 工具区域 -->
       <main class="tools-section">
         <div class="section-header">
-          <h2>Choose Your Tool</h2>
-          <p>Click the cards below to get started</p>
+          <h2>魔法工具箱</h2>
+          <p>选择一个工具开始你的魔法之旅</p>
         </div>
         
         <div class="tools-grid">
-          <a href="ascii-hex.html" class="tool-card">
+          <a href="ascii-hex.html" class="tool-card fade-in-up">
             <div class="tool-icon">
               <i class="fas fa-exchange-alt"></i>
             </div>
-            <h3>ASCII ↔ HEX</h3>
-            <p>ASCII to Hexadecimal encoding converter tool</p>
-            <div class="card-glow"></div>
+            <h3>🌟 文字魔法转换器</h3>
+            <p>将普通文字转换为神秘的十六进制符文，或者将古老的符文解码为可读的文字。这是一个连接两个世界的魔法桥梁。</p>
           </a>
 
-          <a href="carta2.html" class="tool-card">
+          <a href="carta2.html" class="tool-card fade-in-up">
             <div class="tool-icon">
               <i class="fab fa-bluetooth-b"></i>
             </div>
-            <h3>Carta Bluetooth</h3>
-            <p>Bluetooth device connection and communication tool</p>
-            <div class="card-glow"></div>
+            <h3>🧚‍♀️ 蓝牙精灵通讯</h3>
+            <p>召唤蓝牙精灵来建立设备之间的神奇连接。就像龙猫的森林精灵一样，它们会帮助你的设备相互交流。</p>
           </a>
 
-          <a href="batteryTest.html" class="tool-card">
+          <a href="batteryTest.html" class="tool-card fade-in-up">
             <div class="tool-icon">
               <i class="fas fa-battery-three-quarters"></i>
             </div>
-            <h3>Battery Test</h3>
-            <p>Battery performance testing and monitoring tool</p>
-            <div class="card-glow"></div>
+            <h3>⚡ 能量水晶检测</h3>
+            <p>检测你的设备中的能量水晶（电池）状态。这个魔法工具会告诉你水晶还能释放多少能量，就像天空之城的飞行石一样。</p>
           </a>
 
-          <a href="ble_ota_upgrade.html" class="tool-card">
+          <a href="ble_ota_upgrade.html" class="tool-card fade-in-up">
             <div class="tool-icon">
-              <i class="fas fa-battery-three-quarters"></i>
+              <i class="fas fa-cloud-upload-alt"></i>
             </div>
-            <h3>New Feature</h3>
-            <p>OTA test</p>
-            <div class="card-glow"></div>
+            <h3>🌙 空中魔法更新</h3>
+            <p>通过空中传输的方式为你的设备注入新的魔法力量。这就像魔女宅急便中的飞行魔法一样神奇！</p>
           </a>
 
-          <a href="switch2.html" class="tool-card">
+          <a href="switch2.html" class="tool-card fade-in-up">
             <div class="tool-icon">
               <i class="fas fa-toggle-on"></i>
             </div>
-            <h3>Switch Demo</h3>
-            <p>Switch component test</p>
-            <div class="card-glow"></div>
+            <h3>🎋 开关精灵测试</h3>
+            <p>测试各种魔法开关的功能。这些小精灵们负责控制不同的魔法效果，确保它们工作正常是很重要的。</p>
+          </a>
+
+          <a href="testMove.html" class="tool-card fade-in-up">
+            <div class="tool-icon">
+              <i class="fas fa-wind"></i>
+            </div>
+            <h3>🍃 风之谷气流仿真</h3>
+            <p>观察神奇容器中的气流运动，就像风之谷中的风一样。你可以控制各种魔法设备，创造属于你的风之奇迹。</p>
           </a>
         </div>
       </main>
 
-      <footer class="modern-footer">
+      <!-- 森林装饰 -->
+      <div class="forest-decoration">
+        <div class="tree tree-1"></div>
+        <div class="tree tree-2"></div>
+      </div>
+
+      <!-- 页脚 -->
+      <footer class="forest-footer">
         <div class="footer-content">
           <div class="footer-left">
-            <i class="fas fa-tooth"></i>
-            <span>© 2025 ToothBrush. All Rights Reserved.</span>
+            <i class="fas fa-heart"></i>
+            <span>© 2025 森林小屋工作室</span>
           </div>
           <div class="footer-right">
-            <span>Made with ❤️ for developers</span>
+            <span>用爱与魔法制作 ✨</span>
           </div>
         </div>
       </footer>
     </div>
 
-    <!-- JavaScript for animations -->
+    <!-- JavaScript 魔法效果 -->
     <script>
-      // Add page loading animations
+      // 页面加载动画
       document.addEventListener('DOMContentLoaded', function() {
         const cards = document.querySelectorAll('.tool-card');
         cards.forEach((card, index) => {
-          card.style.animationDelay = `${index * 0.1}s`;
-          card.classList.add('fade-in-up');
+          card.style.animationDelay = `${index * 0.15}s`;
         });
 
-        // Mouse follow effect
+        // 鼠标魔法粒子效果
+        let particleId = 0;
         document.addEventListener('mousemove', function(e) {
-          const particles = document.querySelectorAll('.particle');
-          particles.forEach((particle, index) => {
-            const speed = (index + 1) * 0.01;
-            const x = e.clientX * speed;
-            const y = e.clientY * speed;
-            particle.style.transform = `translate(${x}px, ${y}px)`;
+          if (Math.random() > 0.9) { // 10% 概率生成粒子
+            createMagicParticle(e.clientX, e.clientY);
+          }
+        });
+
+        // 创建魔法粒子
+        function createMagicParticle(x, y) {
+          const particle = document.createElement('div');
+          particle.className = 'magic-particle';
+          particle.style.left = x + 'px';
+          particle.style.top = y + 'px';
+          particle.style.animationDelay = Math.random() * 2 + 's';
+          
+          // 随机颜色
+          const colors = ['#ffd97d', '#ff9eb5', '#9b59b6', '#87ceeb'];
+          particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+          
+          document.body.appendChild(particle);
+          
+          // 6秒后移除粒子
+          setTimeout(() => {
+            if (particle.parentNode) {
+              particle.parentNode.removeChild(particle);
+            }
+          }, 6000);
+        }
+
+        // 小屋点击魔法效果
+        const house = document.querySelector('.magical-house');
+        house.addEventListener('click', function() {
+          // 创建爆炸般的粒子效果
+          for (let i = 0; i < 12; i++) {
+            setTimeout(() => {
+              const rect = house.getBoundingClientRect();
+              const centerX = rect.left + rect.width / 2;
+              const centerY = rect.top + rect.height / 2;
+              createMagicParticle(
+                centerX + (Math.random() - 0.5) * 100,
+                centerY + (Math.random() - 0.5) * 100
+              );
+            }, i * 50);
+          }
+        });
+
+        // 随机生成背景精灵
+        setInterval(() => {
+          if (Math.random() > 0.7) {
+            createRandomFairy();
+          }
+        }, 3000);
+
+        function createRandomFairy() {
+          const fairy = document.createElement('div');
+          fairy.className = 'fairy';
+          fairy.style.left = Math.random() * 100 + '%';
+          fairy.style.top = Math.random() * 100 + '%';
+          fairy.style.animationDelay = Math.random() * 15 + 's';
+          
+          document.querySelector('.magic-background').appendChild(fairy);
+          
+          // 15秒后移除
+          setTimeout(() => {
+            if (fairy.parentNode) {
+              fairy.parentNode.removeChild(fairy);
+            }
+          }, 15000);
+        }
+
+        // 工具卡片悬停音效（可选）
+        const toolCards = document.querySelectorAll('.tool-card');
+        toolCards.forEach(card => {
+          card.addEventListener('mouseenter', function() {
+            // 可以在这里添加悬停音效
+            this.style.transform = 'translateY(-10px) scale(1.02)';
+          });
+          
+          card.addEventListener('mouseleave', function() {
+            this.style.transform = '';
           });
         });
       });
