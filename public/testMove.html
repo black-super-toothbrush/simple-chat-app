@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>气流运动仿真</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+        
+        #canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .control-group input {
+            width: 200px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 5px;
+            padding: 8px;
+            color: white;
+        }
+        
+        .info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <h3>气流控制</h3>
+        <div class="control-group">
+            <label>粒子数量: <span id="particleCountLabel">2000</span></label>
+            <input type="range" id="particleCount" min="500" max="5000" value="2000">
+        </div>
+        <div class="control-group">
+            <label>风力强度: <span id="windStrengthLabel">0.5</span></label>
+            <input type="range" id="windStrength" min="0" max="2" step="0.1" value="0.5">
+        </div>
+        <div class="control-group">
+            <label>粒子大小: <span id="particleSizeLabel">2</span></label>
+            <input type="range" id="particleSize" min="1" max="5" step="0.5" value="2">
+        </div>
+        <div class="control-group">
+            <label>拖拽系数: <span id="dragLabel">0.99</span></label>
+            <input type="range" id="drag" min="0.9" max="1" step="0.01" value="0.99">
+        </div>
+    </div>
+    
+    <div class="info">
+        <div>鼠标移动：改变风向</div>
+        <div>鼠标点击：增强局部风力</div>
+        <div>按住拖拽：创建风力源</div>
+    </div>
+
+    <script>
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.life = Math.random() * 100 + 100;
+                this.maxLife = this.life;
+                this.size = Math.random() * 2 + 1;
+            }
+            
+            update(windField, canvas) {
+                // 根据位置获取风场力
+                const windForce = this.getWindForce(windField);
+                
+                // 应用风力
+                this.vx += windForce.x * windStrength;
+                this.vy += windForce.y * windStrength;
+                
+                // 应用拖拽
+                this.vx *= dragCoeff;
+                this.vy *= dragCoeff;
+                
+                // 更新位置
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // 生命周期
+                this.life--;
+                
+                // 边界处理 - 循环
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+                
+                // 重生
+                if (this.life <= 0) {
+                    this.respawn(canvas);
+                }
+            }
+            
+            getWindForce(windField) {
+                const gridX = Math.floor(this.x / windField.cellSize);
+                const gridY = Math.floor(this.y / windField.cellSize);
+                
+                if (gridX >= 0 && gridX < windField.cols && gridY >= 0 && gridY < windField.rows) {
+                    return windField.field[gridY][gridX];
+                }
+                
+                return { x: 0, y: 0 };
+            }
+            
+            respawn(canvas) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.life = this.maxLife;
+            }
+            
+            draw(ctx) {
+                const alpha = this.life / this.maxLife;
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                
+                // 根据速度改变颜色
+                const hue = Math.max(0, Math.min(240, 240 - speed * 30));
+                
+                ctx.save();
+                ctx.globalAlpha = alpha * 0.8;
+                ctx.fillStyle = `hsl(${hue}, 70%, 60%)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, particleSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制运动轨迹
+                if (speed > 1) {
+                    ctx.globalAlpha = alpha * 0.3;
+                    ctx.strokeStyle = `hsl(${hue}, 70%, 60%)`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x - this.vx * 3, this.y - this.vy * 3);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        class WindField {
+            constructor(width, height, cellSize = 20) {
+                this.cellSize = cellSize;
+                this.cols = Math.ceil(width / cellSize);
+                this.rows = Math.ceil(height / cellSize);
+                this.field = [];
+                this.initField();
+            }
+            
+            initField() {
+                for (let y = 0; y < this.rows; y++) {
+                    this.field[y] = [];
+                    for (let x = 0; x < this.cols; x++) {
+                        this.field[y][x] = {
+                            x: (Math.random() - 0.5) * 0.1,
+                            y: (Math.random() - 0.5) * 0.1
+                        };
+                    }
+                }
+            }
+            
+            update(mouseX, mouseY, mousePressed) {
+                const time = Date.now() * 0.001;
+                
+                for (let y = 0; y < this.rows; y++) {
+                    for (let x = 0; x < this.cols; x++) {
+                        const worldX = x * this.cellSize;
+                        const worldY = y * this.cellSize;
+                        
+                        // 基础噪声风场
+                        const noise1 = Math.sin(worldX * 0.01 + time * 0.5) * Math.cos(worldY * 0.01 + time * 0.3);
+                        const noise2 = Math.cos(worldX * 0.008 + time * 0.7) * Math.sin(worldY * 0.012 + time * 0.4);
+                        
+                        this.field[y][x].x = noise1 * 0.1;
+                        this.field[y][x].y = noise2 * 0.1;
+                        
+                        // 鼠标影响
+                        if (mouseX !== null && mouseY !== null) {
+                            const dx = worldX - mouseX;
+                            const dy = worldY - mouseY;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < 150) {
+                                const influence = (150 - distance) / 150;
+                                const angle = Math.atan2(dy, dx);
+                                const force = influence * (mousePressed ? 0.8 : 0.3);
+                                
+                                this.field[y][x].x += Math.cos(angle + Math.PI) * force;
+                                this.field[y][x].y += Math.sin(angle + Math.PI) * force;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            draw(ctx) {
+                if (!showWindField) return;
+                
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                
+                for (let y = 0; y < this.rows; y++) {
+                    for (let x = 0; x < this.cols; x++) {
+                        const worldX = x * this.cellSize + this.cellSize / 2;
+                        const worldY = y * this.cellSize + this.cellSize / 2;
+                        const force = this.field[y][x];
+                        
+                        const endX = worldX + force.x * 200;
+                        const endY = worldY + force.y * 200;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(worldX, worldY);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                        
+                        // 箭头
+                        const angle = Math.atan2(force.y, force.x);
+                        const arrowLength = 5;
+                        ctx.beginPath();
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - arrowLength * Math.cos(angle - 0.5),
+                            endY - arrowLength * Math.sin(angle - 0.5)
+                        );
+                        ctx.moveTo(endX, endY);
+                        ctx.lineTo(
+                            endX - arrowLength * Math.cos(angle + 0.5),
+                            endY - arrowLength * Math.sin(angle + 0.5)
+                        );
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+        }
+        
+        // 初始化
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 变量
+        let particles = [];
+        let windField;
+        let mouseX = null;
+        let mouseY = null;
+        let mousePressed = false;
+        let animationId;
+        
+        // 控制参数
+        let particleCount = 2000;
+        let windStrength = 0.5;
+        let particleSize = 2;
+        let dragCoeff = 0.99;
+        let showWindField = false;
+        
+        // 调整画布大小
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // 重新创建风场
+            windField = new WindField(canvas.width, canvas.height);
+            
+            // 重新创建粒子
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                ));
+            }
+        }
+        
+        // 动画循环
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 更新风场
+            windField.update(mouseX, mouseY, mousePressed);
+            
+            // 绘制风场（可选）
+            windField.draw(ctx);
+            
+            // 更新和绘制粒子
+            for (let particle of particles) {
+                particle.update(windField, canvas);
+                particle.draw(ctx);
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // 控制面板事件
+        function setupControls() {
+            const particleCountSlider = document.getElementById('particleCount');
+            const particleCountLabel = document.getElementById('particleCountLabel');
+            const windStrengthSlider = document.getElementById('windStrength');
+            const windStrengthLabel = document.getElementById('windStrengthLabel');
+            const particleSizeSlider = document.getElementById('particleSize');
+            const particleSizeLabel = document.getElementById('particleSizeLabel');
+            const dragSlider = document.getElementById('drag');
+            const dragLabel = document.getElementById('dragLabel');
+            
+            particleCountSlider.addEventListener('input', (e) => {
+                particleCount = parseInt(e.target.value);
+                particleCountLabel.textContent = particleCount;
+                
+                // 调整粒子数量
+                if (particles.length < particleCount) {
+                    while (particles.length < particleCount) {
+                        particles.push(new Particle(
+                            Math.random() * canvas.width,
+                            Math.random() * canvas.height
+                        ));
+                    }
+                } else {
+                    particles = particles.slice(0, particleCount);
+                }
+            });
+            
+            windStrengthSlider.addEventListener('input', (e) => {
+                windStrength = parseFloat(e.target.value);
+                windStrengthLabel.textContent = windStrength;
+            });
+            
+            particleSizeSlider.addEventListener('input', (e) => {
+                particleSize = parseFloat(e.target.value);
+                particleSizeLabel.textContent = particleSize;
+            });
+            
+            dragSlider.addEventListener('input', (e) => {
+                dragCoeff = parseFloat(e.target.value);
+                dragLabel.textContent = dragCoeff;
+            });
+        }
+        
+        // 鼠标事件
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            mousePressed = true;
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            mousePressed = false;
+        });
+        
+        canvas.addEventListener('mouseleave', (e) => {
+            mouseX = null;
+            mouseY = null;
+            mousePressed = false;
+        });
+        
+        // 键盘事件
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                showWindField = !showWindField;
+                e.preventDefault();
+            }
+        });
+        
+        // 窗口大小改变
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 启动
+        resizeCanvas();
+        setupControls();
+        animate();
+    </script>
+</body>
+</html>
