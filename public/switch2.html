@@ -1440,6 +1440,7 @@
                                     <option value="0xC1">Descent</option>
                                     <option value="0xD1">Valley</option>
                                     <option value="0xE1">Hill</option>
+                                    <option value="0xF1">Custom</option>
                                 </select>
                             </div>
                         </div>
@@ -1471,6 +1472,7 @@
                                     <option value="0xC1">Descent</option>
                                     <option value="0xD1">Valley</option>
                                     <option value="0xE1">Hill</option>
+                                    <option value="0xF1">Custom</option>
                                 </select>
                             </div>
                         </div>
@@ -1502,6 +1504,7 @@
                                     <option value="0xC1">Descent</option>
                                     <option value="0xD1">Valley</option>
                                     <option value="0xE1">Hill</option>
+                                    <option value="0xF1">Custom</option>
                                 </select>
                             </div>
                         </div>
@@ -1533,6 +1536,7 @@
                                     <option value="0xC1">Descent</option>
                                     <option value="0xD1">Valley</option>
                                     <option value="0xE1">Hill</option>
+                                    <option value="0xF1">Custom</option>
                                 </select>
                             </div>
                         </div>
@@ -1564,9 +1568,93 @@
                                     <option value="0xC1">Descent</option>
                                     <option value="0xD1">Valley</option>
                                     <option value="0xE1">Hill</option>
+                                    <option value="0xF1">Custom</option>
                                 </select>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom setting -->
+        <div class="grid">
+            <div class="card fade-in" id="customConfigCard">
+                <div class="card-header">
+                    <i class="fas fa-cogs"></i>
+                    <h3>Custom setting</h3>
+                </div>
+                <div style="padding: 16px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        <template id="customConfigRowTemplate">
+                            <div class="custom-config-row">
+                                <label>point<span class="custom-index"></span>：</label>
+                                <input type="number" class="custom-temp" min="0" max="65535" step="1" style="width: 70px;" placeholder="温度">
+                                <span>°</span>
+                                <input type="number" class="custom-time" min="0" max="255" step="1" style="width: 50px;" placeholder="时间">
+                                <span>s</span>
+                            </div>
+                        </template>
+                        <!-- 8组输入框 -->
+                        <div class="custom-config-row">
+                            <label>point1：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="400" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point2：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="410" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point3：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="420" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point4：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="430" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point5：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="440" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point6：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="450" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point7：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="460" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point8：</label>
+                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="470" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 18px; text-align: right;">
+                        <button class="btn btn-primary" id="sendCustomProfileBtn" style="min-width: 180px;">send custom</button>
                     </div>
                 </div>
             </div>
@@ -1660,7 +1748,8 @@
             0xB1: 'Ascent', 
             0xC1: 'Descent',
             0xD1: 'Valley',
-            0xE1: 'Hill'
+            0xE1: 'Hill',
+            0xF1: 'Custom'
         };
 
         let currentMode = 0xA1; // 默认模式为 Steady
@@ -2226,6 +2315,13 @@
                 return;
             }
             
+            // 新增：自定义参数包处理（0xaa/0xab包头包尾，15字节）
+            if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 15) ||
+                (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 15)) {
+                handleCustomProfileData(data);
+                return;
+            }
+            
             // 对于非0xA9数据包，打印data 16进制数据和长度
             log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
             
@@ -2500,8 +2596,23 @@
             document.getElementById('totalHeatingCycles').textContent = stats.totalHeatingCycles;
             document.getElementById('mostCyclesInDay').textContent = stats.mostCyclesInDay;
             document.getElementById('chargeCycles').textContent = stats.chargeCycles;
-            document.getElementById('profile').textContent = stats.profile;
-            document.getElementById('lightMode').textContent = stats.lightMode;
+            
+            // Profile: 显示数字对应的模式文字 (根据MODE_TYPES映射)
+            const PROFILE_MODE_MAP = {
+                0xA1: 'Steady',
+                0xB1: 'Ascent', 
+                0xC1: 'Descent',
+                0xD1: 'Valley',
+                0xE1: 'Hill',
+                0xF1: 'Custom'
+            };
+            const profileText = PROFILE_MODE_MAP[stats.profile] || `Unknown (${stats.profile})`;
+            document.getElementById('profile').textContent = profileText;
+            
+            // Light Mode: 显示灯光对应模式文字
+            const lightModeText = LED_COLORS[stats.lightMode] || `Unknown (${stats.lightMode})`;
+            document.getElementById('lightMode').textContent = lightModeText;
+            
             document.getElementById('deviceResets').textContent = stats.deviceResets;
             document.getElementById('favoriteHeatingTime').textContent = `${stats.favoriteHeatingTime}s`;
         }
@@ -3732,6 +3843,94 @@
             document.getElementById('softwareRevision').textContent = softwareRevision || '--';
             document.getElementById('manufacturerName').textContent = manufacturerName || '--';
             document.getElementById('hardwareVersion').textContent = hardwareVersion || '--';
+        }
+
+        // ========== Custom参数配置相关 ==========
+        function getCustomProfileFromUI() {
+            const temps = Array.from(document.querySelectorAll('#customConfigCard .custom-temp')).map(input => parseInt(input.value) || 0);
+            const times = Array.from(document.querySelectorAll('#customConfigCard .custom-time')).map(input => parseInt(input.value) || 0);
+            return { temp: temps, time: times };
+        }
+        async function sendCustomProfile() {
+            if (!characteristic) {
+                log('Error: Device not connected');
+                showNotification('设备未连接', 'error');
+                return;
+            }
+            const profile = getCustomProfileFromUI();
+            // 组包并发送两包（ba/bb头尾）
+            for (let index = 0; index < 2; index++) {
+                let ble_tx_buff = new Uint8Array(15);
+                let ble_tx_len = 15;
+                if (index === 0) {
+                    ble_tx_buff[0] = 0xba;
+                    ble_tx_buff[1] = ble_tx_len;
+                    ble_tx_buff[2] = profile.temp[0] >> 8;
+                    ble_tx_buff[3] = profile.temp[0] & 0xff;
+                    ble_tx_buff[4] = profile.time[0];
+                    ble_tx_buff[5] = profile.temp[1] >> 8;
+                    ble_tx_buff[6] = profile.temp[1] & 0xff;
+                    ble_tx_buff[7] = profile.time[1];
+                    ble_tx_buff[8] = profile.temp[2] >> 8;
+                    ble_tx_buff[9] = profile.temp[2] & 0xff;
+                    ble_tx_buff[10] = profile.time[2];
+                    ble_tx_buff[11] = profile.temp[3] >> 8;
+                    ble_tx_buff[12] = profile.temp[3] & 0xff;
+                    ble_tx_buff[13] = profile.time[3];
+                    ble_tx_buff[14] = 0xba;
+                } else {
+                    ble_tx_buff[0] = 0xbb;
+                    ble_tx_buff[1] = ble_tx_len;
+                    ble_tx_buff[2] = profile.temp[4] >> 8;
+                    ble_tx_buff[3] = profile.temp[4] & 0xff;
+                    ble_tx_buff[4] = profile.time[4];
+                    ble_tx_buff[5] = profile.temp[5] >> 8;
+                    ble_tx_buff[6] = profile.temp[5] & 0xff;
+                    ble_tx_buff[7] = profile.time[5];
+                    ble_tx_buff[8] = profile.temp[6] >> 8;
+                    ble_tx_buff[9] = profile.temp[6] & 0xff;
+                    ble_tx_buff[10] = profile.time[6];
+                    ble_tx_buff[11] = profile.temp[7] >> 8;
+                    ble_tx_buff[12] = profile.temp[7] & 0xff;
+                    ble_tx_buff[13] = profile.time[7];
+                    ble_tx_buff[14] = 0xbb;
+                }
+                try {
+                    await characteristic.writeValue(ble_tx_buff);
+                    log(`✓ Custom参数包${index+1}已发送(ba/bb): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
+                } catch (e) {
+                    log(`✗ Custom参数包${index+1}发送失败: ${e.message}`);
+                    showNotification(`自定义参数包${index+1}发送失败`, 'error');
+                    return;
+                }
+            }
+            showNotification('自定义参数全部发送成功', 'success');
+        }
+        document.getElementById('sendCustomProfileBtn').onclick = sendCustomProfile;
+
+        // 新增：自定义参数包解析
+        function handleCustomProfileData(data) {
+            let group = (data[0] === 0xaa) ? 0 : 1;
+            let temps = [];
+            let times = [];
+            for(let i=0; i<4; i++) {
+                let temp = (data[2+i*3] << 8) | data[3+i*3];
+                let time = data[4+i*3];
+                temps.push(temp);
+                times.push(time);
+            }
+            
+            // 更新UI输入框
+            for(let i=0; i<4; i++) {
+                let idx = group*4 + i;
+                const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+                const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+                if (tempInputs[idx]) tempInputs[idx].value = temps[i];
+                if (timeInputs[idx]) timeInputs[idx].value = times[i];
+            }
+            
+            log(`收到自定义参数包${group+1}：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
+            showNotification(`收到自定义参数包${group+1}已同步到UI`,'info');
         }
     </script>
 </body>
