@@ -1622,56 +1622,56 @@
                             <label>point1：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="400" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="0" step="1" value="0" style="width: 50px;" readonly>
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point2：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="410" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="1" max="255" step="1" value="30" style="width: 50px;" onchange="validateCustomTime(this, 2)" oninput="validateCustomTime(this, 2)">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point3：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="420" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="60" style="width: 50px;" onchange="validateCustomTime(this, 3)" oninput="validateCustomTime(this, 3)">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point4：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="430" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="90" style="width: 50px;" onchange="validateCustomTime(this, 4)" oninput="validateCustomTime(this, 4)">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point5：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="440" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="120" style="width: 50px;" onchange="validateCustomTime(this, 5)" oninput="validateCustomTime(this, 5)">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point6：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="450" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="150" style="width: 50px;" onchange="validateCustomTime(this, 6)" oninput="validateCustomTime(this, 6)">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point7：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="460" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="180" style="width: 50px;" onchange="validateCustomTime(this, 7)" oninput="validateCustomTime(this, 7)">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point8：</label>
                             <input type="number" class="custom-temp" min="0" max="65535" step="1" value="470" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="30" style="width: 50px;">
+                            <input type="number" class="custom-time" min="0" max="255" step="1" value="210" style="width: 50px;" onchange="validateCustomTime(this, 8)" oninput="validateCustomTime(this, 8)">
                             <span>s</span>
                         </div>
                     </div>
@@ -4021,6 +4021,23 @@
 
           // ==================== Preset Mode 控制 ====================
           
+          // 获取Custom setting中最后一个非0点的时间值
+          function getLastNonZeroTimeFromCustom() {
+              const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+              let lastNonZeroTime = 30; // 默认值
+              
+              // 从后往前查找最后一个非0的时间值
+              for (let i = timeInputs.length - 1; i >= 1; i--) { // 从point8到point2
+                  const timeValue = parseInt(timeInputs[i].value) || 0;
+                  if (timeValue > 0) {
+                      lastNonZeroTime = timeValue;
+                      break;
+                  }
+              }
+              
+              return lastNonZeroTime;
+          }
+
           // 设置Preset Mode - 发送B5命令格式：B5 05 preset mode B5
           async function setPresetMode(preset, modeValue) {
               if (!characteristic) {
@@ -4037,6 +4054,25 @@
                   if (!(mode in MODE_TYPES)) {
                       log(`Error: Invalid mode value ${modeValue} for preset ${preset}`);
                       return;
+                  }
+
+                  // 如果模式是Custom(0xF1)，自动设置Hold Time为Custom setting中最后一个非0点的时间值
+                  if (mode === 0xF1) {
+                      const customHoldTime = getLastNonZeroTimeFromCustom();
+                      
+                      // 更新UI滑块
+                      const holdTimeSlider = document.getElementById(`presetHoldTime${preset}`);
+                      if (holdTimeSlider) {
+                          holdTimeSlider.value = customHoldTime;
+                          updatePresetHoldTimeDisplay(preset, customHoldTime);
+                          presetHoldTimes[preset] = customHoldTime;
+                      }
+                      
+                      // 发送Hold Time设置命令
+                      await setPresetHoldTime(preset, customHoldTime);
+                      
+                      log(`✓ Auto-set Preset ${preset} Hold Time to ${customHoldTime}s (last non-zero custom time)`);
+                      showNotification(`预设${preset}保持时间自动设置为${customHoldTime}秒（基于Custom配置）`, 'info', 3000);
                   }
 
                   // 构造B5命令数据包：B5 05 preset mode B5
@@ -4151,7 +4187,7 @@
             } else if (currentDate === targetDate) {
                 return { 
                     needsUpdate: false, 
-                    statusText: 'Is newest firmware', 
+                    statusText: 'Newest firmware', 
                     isHighlight: false 
                 };
             } else {
@@ -4254,17 +4290,156 @@
         }
 
         // ========== Custom参数配置相关 ==========
+        
+                 // 验证自定义时间点的递增逻辑
+         function validateCustomTime(input, pointIndex) {
+             const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+             const currentValue = parseInt(input.value) || 0;
+             
+             // 获取前一个点的时间值
+             let previousValue = 0;
+             if (pointIndex > 1) {
+                 previousValue = parseInt(timeInputs[pointIndex - 2].value) || 0;
+             }
+             
+             let isValid = true;
+             let errorMessage = '';
+             
+             // 验证规则
+             if (pointIndex === 2) {
+                 // point2必须大于0
+                 if (currentValue <= 0) {
+                     isValid = false;
+                     errorMessage = 'Point2时间必须大于0';
+                 }
+             } else {
+                 // point3-8：必须大于前一个点或者为0
+                 if (currentValue !== 0 && currentValue <= previousValue) {
+                     isValid = false;
+                     errorMessage = `Point${pointIndex}时间必须大于Point${pointIndex-1}(${previousValue}s)或者为0`;
+                 }
+             }
+             
+             // 设置输入框样式
+             if (isValid) {
+                 input.style.borderColor = '';
+                 input.style.backgroundColor = '';
+                 input.title = '';
+                 
+                 // 如果验证通过，更新所有Custom模式preset的Hold Time
+                 updateCustomModeHoldTimes();
+             } else {
+                 input.style.borderColor = '#dc3545';
+                 input.style.backgroundColor = '#f8d7da';
+                 input.title = errorMessage;
+                 
+                 // 显示错误提示
+                 showNotification(errorMessage, 'warning', 3000);
+                 
+                 // 恢复到有效值
+                 setTimeout(() => {
+                     if (pointIndex === 2) {
+                         input.value = Math.max(1, previousValue + 1);
+                     } else {
+                         input.value = currentValue === 0 ? 0 : Math.max(previousValue + 1, currentValue);
+                     }
+                     validateCustomTime(input, pointIndex);
+                 }, 1500);
+             }
+             
+             // 验证后续点的时间值
+             validateSubsequentPoints(pointIndex);
+         }
+        
+                 // 验证后续点的时间值（当前点改变时，检查后续点是否还有效）
+         function validateSubsequentPoints(changedPointIndex) {
+             const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+             
+             for (let i = changedPointIndex; i < timeInputs.length; i++) {
+                 const input = timeInputs[i];
+                 if (input.readOnly) continue; // 跳过point1
+                 
+                 validateCustomTime(input, i + 1);
+             }
+         }
+         
+         // 验证所有时间点设置是否正确
+         function validateAllCustomTimes() {
+             const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+             let allValid = true;
+             
+             for (let i = 1; i < timeInputs.length; i++) { // 从point2开始
+                 const input = timeInputs[i];
+                 const currentValue = parseInt(input.value) || 0;
+                 const previousValue = i === 1 ? 0 : parseInt(timeInputs[i - 1].value) || 0;
+                 
+                 if (i === 1) {
+                     // point2必须大于0
+                     if (currentValue <= 0) {
+                         allValid = false;
+                         break;
+                     }
+                 } else {
+                     // point3-8：必须大于前一个点或者为0
+                     if (currentValue !== 0 && currentValue <= previousValue) {
+                         allValid = false;
+                         break;
+                     }
+                 }
+             }
+             
+             return allValid;
+         }
+        
         function getCustomProfileFromUI() {
             const temps = Array.from(document.querySelectorAll('#customConfigCard .custom-temp')).map(input => parseInt(input.value) || 0);
-            const times = Array.from(document.querySelectorAll('#customConfigCard .custom-time')).map(input => parseInt(input.value) || 0);
+            const times = Array.from(document.querySelectorAll('#customConfigCard .custom-time')).map((input, index) => {
+                // point1的时间固定为0
+                if (index === 0) return 0;
+                return parseInt(input.value) || 0;
+            });
             return { temp: temps, time: times };
         }
+        // 更新所有设置为Custom模式的preset的Hold Time
+        function updateCustomModeHoldTimes() {
+            const customHoldTime = getLastNonZeroTimeFromCustom();
+            
+            for (let i = 1; i <= 5; i++) {
+                const modeSelect = document.getElementById(`presetMode${i}`);
+                if (modeSelect && modeSelect.value === '0xF1') { // Custom模式
+                    const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                    if (holdTimeSlider) {
+                        holdTimeSlider.value = customHoldTime;
+                        updatePresetHoldTimeDisplay(i, customHoldTime);
+                        presetHoldTimes[i] = customHoldTime;
+                        
+                        // 发送更新的Hold Time到设备
+                        setPresetHoldTime(i, customHoldTime);
+                    }
+                }
+            }
+            
+            if (customHoldTime > 30) { // 只有当时间不是默认值时才显示通知
+                showNotification(`已更新所有Custom模式preset的保持时间为${customHoldTime}秒`, 'info', 2000);
+            }
+        }
+
         async function sendCustomProfile() {
             if (!characteristic) {
                 log('Error: Device not connected');
                 showNotification('设备未连接', 'error');
                 return;
             }
+            
+            // 发送前进行最终验证
+            if (!validateAllCustomTimes()) {
+                showNotification('请先修正时间点设置错误', 'error');
+                return;
+            }
+            
+            // 更新所有Custom模式preset的Hold Time
+            updateCustomModeHoldTimes();
+            
             const profile = getCustomProfileFromUI();
             // 组包并发送两包（ba/bb头尾）
             for (let index = 0; index < 2; index++) {
@@ -4334,7 +4509,12 @@
                 const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
                 const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
                 if (tempInputs[idx]) tempInputs[idx].value = temps[i];
-                if (timeInputs[idx]) timeInputs[idx].value = times[i];
+                if (timeInputs[idx]) {
+                    // point1的时间固定为0，不更新
+                    if (idx !== 0) {
+                        timeInputs[idx].value = times[i];
+                    }
+                }
             }
             
             log(`收到自定义参数包${group+1}：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
