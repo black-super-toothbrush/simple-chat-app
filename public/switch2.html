@@ -1349,6 +1349,28 @@
                                 Boost
                             </button>
                         </div>
+                        <div class="status-item">
+                            <strong>Firmware:</strong> 
+                            <button id="updateFirmwareBtn" class="btn btn-warning tooltip" onclick="startFirmwareUpdate()" disabled 
+                                    style="min-width: 150px; padding: 6px 12px; font-size: 0.8rem;"
+                                    data-tooltip="Update device firmware using simple_ota.bin">
+                                <i class="fas fa-download"></i>
+                                Update Firmware
+                            </button>
+                        </div>
+                        <div class="status-item" id="firmwareStatusContainer" style="display: none;">
+                            <strong>Status:</strong>
+                            <span id="firmwareStatusText" style="font-size: 0.8rem; font-weight: 600;"></span>
+                        </div>
+                        <div class="status-item" id="otaProgressContainer" style="display: none;">
+                            <strong>OTA Progress:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                                <div class="progress" style="flex: 1; height: 8px;">
+                                    <div class="progress-bar" id="otaProgressBar" style="width: 0%;"></div>
+                                </div>
+                                <span id="otaProgressText" style="font-size: 0.8rem; color: var(--primary-color);">0%</span>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Mode Control -->
@@ -1410,12 +1432,12 @@
             <div class="card fade-in">
                 <div class="card-header">
                     <i class="fas fa-sliders-h"></i>
-                    <h3>Temperature Presets (300-600°F)</h3>
+                    <h3>Temperature Presets (250-650°F)</h3>
                 </div>
                 <div class="temp-preset-grid" id="tempPresets">
                     <div class="preset-card">
                         <div class="preset-title">Preset 1</div>
-                        <input type="number" id="tempF1" min="300" max="600" value="450" 
+                        <input type="number" id="tempF1" min="250" max="650" value="450" 
                                class="temp-input" onchange="setTemperature(1, this.value)">
                         <div class="temp-unit">°F</div>
                         <div class="preset-controls">
@@ -1447,7 +1469,7 @@
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 2</div>
-                        <input type="number" id="tempF2" min="300" max="600" value="500" 
+                        <input type="number" id="tempF2" min="250" max="650" value="500" 
                                class="temp-input" onchange="setTemperature(2, this.value)">
                         <div class="temp-unit">°F</div>
                         <div class="preset-controls">
@@ -1479,7 +1501,7 @@
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 3</div>
-                        <input type="number" id="tempF3" min="300" max="600" value="550" 
+                        <input type="number" id="tempF3" min="250" max="650" value="550" 
                                class="temp-input" onchange="setTemperature(3, this.value)">
                         <div class="temp-unit">°F</div>
                         <div class="preset-controls">
@@ -1511,7 +1533,7 @@
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 4</div>
-                        <input type="number" id="tempF4" min="300" max="600" value="600" 
+                        <input type="number" id="tempF4" min="250" max="650" value="600" 
                                class="temp-input" onchange="setTemperature(4, this.value)">
                         <div class="temp-unit">°F</div>
                         <div class="preset-controls">
@@ -1543,7 +1565,7 @@
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 5</div>
-                        <input type="number" id="tempF5" min="300" max="600" value="613" 
+                        <input type="number" id="tempF5" min="250" max="650" value="613" 
                                class="temp-input" onchange="setTemperature(5, this.value)">
                         <div class="temp-unit">°F</div>
                         <div class="preset-controls">
@@ -1766,6 +1788,15 @@
         const MAX_DATA_POINTS = 300; // 最大数据点数量（5分钟 * 60秒）
         let lastTemperatureUpdate = 0;
 
+        // OTA相关变量
+        let otaWriteQueue = [];
+        let otaCrc16Array = [];
+        let otaChunkCounter = 0;
+        let otaInProgress = false;
+        const OTA_CHUNK_SIZE = 16;
+        const OTA_BLOCK_SIZE = 2048;
+        const OTA_CHUNKS_BEFORE_NOTIFY = 128;
+
         // LED颜色映射
         const LED_COLORS = {
             0x00: 'Clam',
@@ -1865,7 +1896,7 @@
                                 }
                             },
                             min: 0,
-                            max: 500 // 动态调整，默认500
+                            max: 650 // 固定最大值为650°F
                         }
                     },
                     animation: {
@@ -1879,33 +1910,13 @@
             });
         }
 
-        // 动态更新图表Y轴最大值
-        function updateChartYAxisMax() {
-            if (!temperatureChart) return;
-            
-            // 获取当前target温度（使用tempSetting元素）
-            const targetTempElement = document.getElementById('tempSetting');
-            let targetTemp = 400; // 默认值
-            
-            if (targetTempElement && targetTempElement.textContent && targetTempElement.textContent !== '--') {
-                const tempText = targetTempElement.textContent.replace('°F', '');
-                const parsedTemp = parseInt(tempText);
-                if (!isNaN(parsedTemp)) {
-                    targetTemp = parsedTemp;
-                }
-            }
-            
-            // 设置Y轴最大值为target温度+100
-            const newMaxY = targetTemp + 100;
-            temperatureChart.options.scales.y.max = newMaxY;
-            temperatureChart.update('none');
-            
-            // 更新图表信息显示当前Y轴范围
+        // 更新图表信息显示（Y轴最大值已固定为650°F）
+        function updateChartInfo() {
             const chartInfo = document.getElementById('chartInfo');
             if (chartInfo && temperatureData.length > 0) {
                 const pointCount = temperatureData.length;
                 const duration = Math.floor(pointCount / 60);
-                chartInfo.textContent = `${pointCount} points, ~${duration}min data (Max: ${newMaxY}°F)`;
+                chartInfo.textContent = `${pointCount} points, ~${duration}min data (Max: 650°F)`;
             }
         }
 
@@ -1935,8 +1946,8 @@
                 chartStartTime = now - (MAX_DATA_POINTS * 1000);
             }
             
-            // 动态更新Y轴最大值
-            updateChartYAxisMax();
+            // 更新图表信息显示
+            updateChartInfo();
             
             // 更新图表
             if (temperatureChart) {
@@ -1946,13 +1957,7 @@
             }
             
             // 更新图表信息
-            const chartInfo = document.getElementById('chartInfo');
-            if (chartInfo) {
-                const pointCount = temperatureData.length;
-                const duration = Math.floor(pointCount / 60); // 估算分钟数
-                const currentMaxY = temperatureChart.options.scales.y.max;
-                chartInfo.textContent = `${pointCount} points, ~${duration}min data (Max: ${currentMaxY}°F)`;
-            }
+            updateChartInfo();
         }
 
         // 格式化时间标签
@@ -2064,6 +2069,7 @@
                 const hapticBtn = document.getElementById('hapticBtn');
                 const boostBtn = document.getElementById('boostBtn');
                 const cleaningAssistBtn = document.getElementById('cleaningAssistBtn');
+                const updateFirmwareBtn = document.getElementById('updateFirmwareBtn');
                 
                 if (sessionControlBtn) sessionControlBtn.disabled = false;
                 if (presetBtn) presetBtn.disabled = false;
@@ -2074,6 +2080,7 @@
                 if (modeControlBtn) modeControlBtn.disabled = false;
                 if (hapticBtn) hapticBtn.disabled = false;
                 if (cleaningAssistBtn) cleaningAssistBtn.disabled = false;
+                if (updateFirmwareBtn) updateFirmwareBtn.disabled = false;
                 // Boost按钮初始状态为禁用（只有加热时才启用）
                 if (boostBtn) boostBtn.disabled = true;
                 
@@ -2126,9 +2133,11 @@
                 const hapticBtn = document.getElementById('hapticBtn');
                 const boostBtn = document.getElementById('boostBtn');
                 const cleaningAssistBtn = document.getElementById('cleaningAssistBtn');
+                const updateFirmwareBtn = document.getElementById('updateFirmwareBtn');
                 
                 if (sessionControlBtn) sessionControlBtn.disabled = true;
                 if (presetBtn) presetBtn.disabled = true;
+                if (updateFirmwareBtn) updateFirmwareBtn.disabled = true;
                 if (autoShutTimeInput) {
                     autoShutTimeInput.disabled = true;
                     autoShutTimeInput.value = 2;
@@ -2289,6 +2298,14 @@
         // 修改handleResponse，增加C1~C4包处理
         function handleResponse(event) {
             const data = new Uint8Array(event.target.value.buffer);
+            
+            // 优先检查OTA响应（在OTA进行中）
+            if (otaInProgress) {
+                if (handleOTAResponse(data)) {
+                    return; // OTA响应已处理
+                }
+            }
+            
             // 检查C1~C4包
             if (data[0] === 0xC1 || data[0] === 0xC2 || data[0] === 0xC3 || data[0] === 0xC4) {
                 handleDeviceInfoPacket(data);
@@ -2367,6 +2384,314 @@
             updateModeDisplay(mode, modeName);
             
             log(`Received global mode notify: ${modeName} (0x${mode.toString(16).padStart(2, '0')})`);
+        }
+
+        // OTA相关函数
+        function calculateOTACRC16(crc, data, length) {
+            for (let i = 0; i < length; i++) {
+                crc ^= (data[i] & 0xFF) << 8;
+                for (let j = 0; j < 8; j++) {
+                    if (crc & 0x8000) {
+                        crc = (crc << 1) ^ 0x1021;
+                    } else {
+                        crc <<= 1;
+                    }
+                }
+            }
+            return crc & 0xFFFF;
+        }
+
+        async function loadOTABinFile() {
+            try {
+                const response = await fetch('./simple_ota.bin');
+                if (!response.ok) {
+                    throw new Error(`Failed to load simple_ota.bin: ${response.statusText}`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                return new Uint8Array(arrayBuffer);
+            } catch (error) {
+                log(`✗ Failed to load OTA file: ${error.message}`);
+                showNotification(`加载固件文件失败: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function startFirmwareUpdate() {
+            if (!characteristic) {
+                log('Error: Device not connected');
+                showNotification('设备未连接，无法更新固件', 'error');
+                return;
+            }
+
+            if (otaInProgress) {
+                log('OTA update already in progress');
+                showNotification('固件更新正在进行中', 'warning');
+                return;
+            }
+
+            try {
+                // 禁用所有控制按钮
+                setOTAModeUI(true);
+                
+                log('开始固件更新...');
+                showNotification('正在加载固件文件...', 'info');
+                
+                // 加载bin文件
+                const data = await loadOTABinFile();
+                log(`✓ Loaded firmware file: ${data.length} bytes`);
+                
+                // 开始OTA
+                await startOTA(data);
+                
+            } catch (error) {
+                log(`✗ Firmware update failed: ${error.message}`);
+                showNotification(`固件更新失败: ${error.message}`, 'error');
+                setOTAModeUI(false);
+            }
+        }
+
+        async function startOTA(data) {
+            otaWriteQueue = [];
+            otaInProgress = true;
+            
+            // 数据填充到16字节整数倍
+            const paddedDataLength = Math.ceil(data.length / OTA_CHUNK_SIZE) * OTA_CHUNK_SIZE;
+            const paddedData = new Uint8Array(paddedDataLength).fill(0xFF);
+            paddedData.set(data);
+            
+            log(`✓ Padded data length: ${paddedDataLength} bytes`);
+            
+            // 验证文件大小（主固件应该大于120KB）
+            if (paddedDataLength < 120000) {
+                throw new Error('固件文件过小，可能不是有效的主固件文件');
+            }
+            
+            // 计算整体CRC16
+            const crc16 = calculateOTACRC16(0xFFFF, paddedData, paddedData.length);
+            log(`✓ File CRC16: 0x${crc16.toString(16).padStart(4, '0')}`);
+            
+            // 计算每个2KB块的CRC16
+            let blockCrc16 = 0xFFFF;
+            otaCrc16Array = [];
+            for (let i = 0; i < paddedDataLength; i += OTA_BLOCK_SIZE) {
+                const blockData = paddedData.subarray(i, Math.min(i + OTA_BLOCK_SIZE, paddedDataLength));
+                blockCrc16 = calculateOTACRC16(blockCrc16, blockData, blockData.length);
+                otaCrc16Array.push(blockCrc16);
+                log(`Block ${i / OTA_BLOCK_SIZE} CRC16: 0x${blockCrc16.toString(16).padStart(4, '0')}`);
+            }
+            
+            // 构造开始命令
+            const startCommand = new Uint8Array(20).fill(0xFF);
+            const commandBytes = new TextEncoder().encode("ota start");
+            startCommand.set(commandBytes);
+            startCommand[10] = (paddedDataLength >> 24) & 0xFF;
+            startCommand[11] = (paddedDataLength >> 16) & 0xFF;
+            startCommand[12] = (paddedDataLength >> 8) & 0xFF;
+            startCommand[13] = paddedDataLength & 0xFF;
+            startCommand[14] = (crc16 >> 8) & 0xFF;
+            startCommand[15] = crc16 & 0xFF;
+            otaWriteQueue.push(startCommand);
+            
+            // 分包数据
+            const totalChunks = paddedDataLength / OTA_CHUNK_SIZE;
+            for (let i = 0; i < totalChunks; i++) {
+                const chunkWithAddress = new Uint8Array(20).fill(0xFF);
+                chunkWithAddress[0] = (i >> 24) & 0xFF;
+                chunkWithAddress[1] = (i >> 16) & 0xFF;
+                chunkWithAddress[2] = (i >> 8) & 0xFF;
+                chunkWithAddress[3] = i & 0xFF;
+                const chunkData = paddedData.subarray(i * OTA_CHUNK_SIZE, (i + 1) * OTA_CHUNK_SIZE);
+                chunkWithAddress.set(chunkData, 4);
+                otaWriteQueue.push(chunkWithAddress);
+            }
+            
+            // 添加结束命令
+            const endCommand = new TextEncoder().encode("ota finish");
+            const endCommandArray = new Uint8Array(20).fill(0xFF);
+            endCommandArray.set(endCommand);
+            otaWriteQueue.push(endCommandArray);
+            
+            // 初始化进度
+            updateOTAProgress(0, totalChunks);
+            
+            // 开始发送
+            otaChunkCounter = -1;
+            log(`✓ Starting OTA transmission: ${totalChunks} chunks`);
+            showNotification('开始固件传输...', 'info');
+            
+            writeNextOTAChunk();
+        }
+
+        async function writeNextOTAChunk() {
+            if (otaWriteQueue.length > 0) {
+                const chunk = otaWriteQueue.shift();
+                try {
+                    await characteristic.writeValueWithoutResponse(chunk);
+                    
+                    if (otaChunkCounter === -1) {
+                        // 发送了开始命令，等待1秒后继续
+                        otaChunkCounter = 0;
+                        setTimeout(() => {
+                            writeNextOTAChunk();
+                        }, 1000);
+                    } else {
+                        otaChunkCounter++;
+                        
+                        // 更新进度
+                        const totalChunks = otaChunkCounter + otaWriteQueue.length;
+                        updateOTAProgress(otaChunkCounter, totalChunks);
+                        
+                        // 每128包等待响应
+                        if (otaChunkCounter % OTA_CHUNKS_BEFORE_NOTIFY === 0) {
+                            log(`Waiting for OK notification (chunk ${otaChunkCounter})...`);
+                        } else {
+                            setTimeout(() => {
+                                writeNextOTAChunk();
+                            }, 10);
+                        }
+                    }
+                } catch (error) {
+                    log(`✗ Failed to send OTA chunk: ${error.message}`);
+                    showNotification(`固件传输失败: ${error.message}`, 'error');
+                    setOTAModeUI(false);
+                }
+            } else {
+                // OTA完成
+                otaInProgress = false;
+                log('✓ OTA Update Complete');
+                showNotification('固件更新完成！', 'success');
+                setOTAModeUI(false);
+                updateOTAProgress(100, 100, true);
+            }
+        }
+
+        function handleOTAResponse(data) {
+            // 检查是否是OTA的"OK"响应
+            if (data.length >= 2 && data[0] === 0x4F && data[1] === 0x4B) { // "OK"
+                let receivedCrcTransmit = 0xFFFF;
+                let receivedCrcFlash = 0xFFFF;
+                
+                if (data.length > 3) {
+                    receivedCrcTransmit = (data[2] << 8) | data[3];
+                    log(`Received CRC transmit: 0x${receivedCrcTransmit.toString(16).padStart(4, '0')}`);
+                }
+                
+                if (data.length > 5) {
+                    receivedCrcFlash = (data[4] << 8) | data[5];
+                    log(`Received CRC flash: 0x${receivedCrcFlash.toString(16).padStart(4, '0')}`);
+                }
+                
+                if (data.length > 3) {
+                    // 验证CRC
+                    const currentBlockIndex = Math.floor(otaChunkCounter / (OTA_BLOCK_SIZE / OTA_CHUNK_SIZE)) - 1;
+                    const expectedCrc = otaCrc16Array[currentBlockIndex];
+                    
+                    if (receivedCrcTransmit === expectedCrc && receivedCrcFlash === expectedCrc) {
+                        log('✓ CRC check passed, continuing...');
+                        writeNextOTAChunk();
+                    } else {
+                        log(`✗ CRC check failed: expected 0x${expectedCrc.toString(16).padStart(4, '0')}`);
+                        showNotification('CRC校验失败，停止传输', 'error');
+                        setOTAModeUI(false);
+                    }
+                } else {
+                    // 简单的OK响应，继续传输
+                    writeNextOTAChunk();
+                }
+                
+                return true; // 表示已处理OTA响应
+            }
+            
+            return false; // 不是OTA响应
+        }
+
+        function updateOTAProgress(current, total, completed = false) {
+            const progressContainer = document.getElementById('otaProgressContainer');
+            const progressBar = document.getElementById('otaProgressBar');
+            const progressText = document.getElementById('otaProgressText');
+            
+            if (completed) {
+                progressContainer.style.display = 'none';
+                return;
+            }
+            
+            const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+            
+            progressContainer.style.display = 'block';
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = `${percentage}% (${current}/${total})`;
+        }
+
+        function setOTAModeUI(otaMode) {
+            const updateBtn = document.getElementById('updateFirmwareBtn');
+            const buttons = [
+                'connectBtn', 'disconnectBtn', 'sessionControlBtn', 'presetBtn',
+                'modeControlBtn', 'hapticBtn', 'boostBtn', 'cleaningAssistBtn',
+                'refreshStatsBtn', 'sendCustomProfileBtn'
+            ];
+            
+            if (otaMode) {
+                // OTA模式：禁用所有按钮除了固件更新按钮
+                updateBtn.textContent = 'Updating...';
+                updateBtn.disabled = true;
+                updateBtn.classList.add('loading');
+                
+                buttons.forEach(btnId => {
+                    const btn = document.getElementById(btnId);
+                    if (btn) btn.disabled = true;
+                });
+                
+                // 禁用所有输入控件
+                const inputs = document.querySelectorAll('input, select');
+                inputs.forEach(input => {
+                    input.disabled = true;
+                });
+                
+            } else {
+                // 恢复正常模式
+                updateBtn.innerHTML = '<i class="fas fa-download"></i> Update Firmware';
+                updateBtn.disabled = !characteristic; // 只有连接时才启用
+                updateBtn.classList.remove('loading');
+                
+                // 恢复固件状态检查
+                if (characteristic) {
+                    const softwareRevision = document.getElementById('softwareRevision').textContent;
+                    updateFirmwareStatus(softwareRevision);
+                }
+                
+                // 重新设置按钮状态（需要考虑连接状态）
+                if (characteristic) {
+                    buttons.forEach(btnId => {
+                        const btn = document.getElementById(btnId);
+                        if (btn && btnId !== 'connectBtn') {
+                            btn.disabled = false;
+                        }
+                    });
+                    
+                    // 重新启用输入控件
+                    const inputs = document.querySelectorAll('input, select');
+                    inputs.forEach(input => {
+                        input.disabled = false;
+                    });
+                    
+                    // 禁用连接按钮，启用断开按钮
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                } else {
+                    // 设备未连接，只启用连接按钮
+                    document.getElementById('connectBtn').disabled = false;
+                    buttons.forEach(btnId => {
+                        const btn = document.getElementById(btnId);
+                        if (btn && btnId !== 'connectBtn') {
+                            btn.disabled = true;
+                        }
+                    });
+                }
+                
+                // 隐藏进度条和固件状态
+                document.getElementById('otaProgressContainer').style.display = 'none';
+                document.getElementById('firmwareStatusContainer').style.display = 'none';
+            }
         }
 
         // 处理设备状态notify数据
@@ -2662,8 +2987,8 @@
             updateCurrentPresetModeDisplay(status.preset);
            //  document.getElementById('tempUnit').textContent = status.tempUnit;
            
-            // 当target温度更新时，更新图表Y轴最大值
-            setTimeout(() => updateChartYAxisMax(), 100);
+            // 更新图表信息显示
+            setTimeout(() => updateChartInfo(), 100);
             
             // 更新LED预设显示和选择框
             const ledColorName = LED_COLORS[status.ledPreset] || `Unknown (0x${status.ledPreset.toString(16).padStart(2, '0')})`;
@@ -2979,8 +3304,8 @@
 
              // 验证温度范围
              const temperature = parseInt(tempF);
-             if (temperature < 300 || temperature > 600) {
-                 log(`Error: Temperature ${temperature}°F is out of range (300-600°F)`);
+             if (temperature < 250 || temperature > 650) {
+                 log(`Error: Temperature ${temperature}°F is out of range (250-650°F)`);
                  // 恢复之前的值
                  document.getElementById(`tempF${presetIndex}`).value = document.getElementById(`tempF${presetIndex}`).defaultValue;
                  return;
@@ -3802,6 +4127,86 @@
               log(`Received preset ${preset} mode: ${modeName} (0x${mode.toString(16).padStart(2, '0')})`);
           }
 
+        // 检查固件版本并返回状态
+        function checkFirmwareVersion(softwareRevision) {
+            if (!softwareRevision || softwareRevision === '--') {
+                return { needsUpdate: false, statusText: 'Unknown version', isHighlight: false };
+            }
+
+            // 解析软件版本格式：SW2-YYMMDD-XXX
+            const versionMatch = softwareRevision.match(/SW2-(\d{6})/);
+            if (!versionMatch) {
+                return { needsUpdate: false, statusText: 'Unknown format', isHighlight: false };
+            }
+
+            const currentDate = versionMatch[1]; // YYMMDD格式
+            const targetDate = '250626'; // SW2-250626
+
+            if (currentDate < targetDate) {
+                return { 
+                    needsUpdate: true, 
+                    statusText: 'New firmware available', 
+                    isHighlight: true 
+                };
+            } else if (currentDate === targetDate) {
+                return { 
+                    needsUpdate: false, 
+                    statusText: 'Is newest firmware', 
+                    isHighlight: false 
+                };
+            } else {
+                return { 
+                    needsUpdate: false, 
+                    statusText: 'Newer than target', 
+                    isHighlight: false 
+                };
+            }
+        }
+
+        // 更新固件状态显示
+        function updateFirmwareStatus(softwareRevision) {
+            const statusContainer = document.getElementById('firmwareStatusContainer');
+            const statusText = document.getElementById('firmwareStatusText');
+            const updateBtn = document.getElementById('updateFirmwareBtn');
+
+            const firmwareStatus = checkFirmwareVersion(softwareRevision);
+
+            if (firmwareStatus.statusText !== 'Unknown version') {
+                statusContainer.style.display = 'block';
+                statusText.textContent = firmwareStatus.statusText;
+
+                if (firmwareStatus.isHighlight) {
+                    // 高亮显示：橙色背景
+                    statusText.style.color = '#ff6b35';
+                    statusText.style.backgroundColor = 'rgba(255, 107, 53, 0.1)';
+                    statusText.style.padding = '2px 6px';
+                    statusText.style.borderRadius = '4px';
+                    statusText.style.border = '1px solid rgba(255, 107, 53, 0.3)';
+                    
+                    // 按钮也高亮
+                    updateBtn.classList.remove('btn-warning');
+                    updateBtn.classList.add('btn-danger');
+                    updateBtn.style.animation = 'pulse 2s infinite';
+                } else {
+                    // 普通显示：绿色
+                    statusText.style.color = '#28a745';
+                    statusText.style.backgroundColor = 'rgba(40, 167, 69, 0.1)';
+                    statusText.style.padding = '2px 6px';
+                    statusText.style.borderRadius = '4px';
+                    statusText.style.border = '1px solid rgba(40, 167, 69, 0.3)';
+                    
+                    // 按钮普通样式
+                    updateBtn.classList.remove('btn-danger');
+                    updateBtn.classList.add('btn-warning');
+                    updateBtn.style.animation = 'none';
+                }
+            } else {
+                statusContainer.style.display = 'none';
+            }
+
+            log(`Firmware status: ${firmwareStatus.statusText} (Highlight: ${firmwareStatus.isHighlight})`);
+        }
+
         // 只读取software revision、manufacturer和hardware version
         async function readSoftwareAndManufacturer(server) {
             let softwareRevision = '--';
@@ -3843,6 +4248,9 @@
             document.getElementById('softwareRevision').textContent = softwareRevision || '--';
             document.getElementById('manufacturerName').textContent = manufacturerName || '--';
             document.getElementById('hardwareVersion').textContent = hardwareVersion || '--';
+            
+            // 检查并更新固件状态
+            updateFirmwareStatus(softwareRevision);
         }
 
         // ========== Custom参数配置相关 ==========
