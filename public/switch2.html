@@ -983,6 +983,108 @@
         .loading * {
             opacity: 0.5;
         }
+
+        /* Preset控件样式 */
+        .preset-controls {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .preset-control-item {
+            margin-bottom: 8px;
+        }
+
+        .preset-control-label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-control-input {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preset-slider {
+            flex: 1;
+            height: 4px;
+            background: var(--gray-200);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .preset-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .preset-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .preset-slider:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .preset-value {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            min-width: 28px;
+            text-align: right;
+        }
+
+        .preset-mode-select {
+            width: 100%;
+            padding: 4px 6px;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            background: white;
+            color: var(--gray-700);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .preset-mode-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .preset-mode-select:disabled {
+            background: var(--gray-100);
+            color: var(--gray-500);
+            cursor: not-allowed;
+        }
+
+        /* 加热状态下的禁用样式 */
+        .preset-slider.heating-disabled,
+        .preset-mode-select.heating-disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -1134,6 +1236,10 @@
                             <strong>Current:</strong> 
                             <span id="realTemp">--</span>
                         </div>
+                        <div class="status-item">
+                            <strong>Preset Mode:</strong>
+                            <span id="currentPresetMode" style="color: var(--primary-color); font-weight: 600;">Steady</span>
+                        </div>
                     </div>
                     
                     <div class="status-group">
@@ -1167,6 +1273,12 @@
                                 Press to Heat
                             </button>
                         </div>
+                        <div style="margin-bottom: 16px; text-align: center;">
+                            <button id="cleaningAssistBtn" class="btn btn-secondary" onclick="toggleCleaningAssist()" disabled style="min-width: 150px;">
+                                <i class="fas fa-broom"></i>
+                                Cleaning Assist
+                            </button>
+                        </div>
                         <div class="status-item">
                             <strong>Auto Shut:</strong>
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1180,19 +1292,7 @@
                                 <span id="autoShutDisplay" style="font-size: 0.8rem; margin-left: 8px;">2 min</span>
                             </div>
                         </div>
-                        <div class="status-item">
-                            <strong>Hold Time:</strong>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <input type="range" id="holdTime" min="10" max="90" value="30" 
-                                       style="width: 80px;" 
-                                       oninput="updateHoldTimeDisplay(this.value)" 
-                                       onchange="setHoldTime(this.value); endSliderDrag('holdTime')"
-                                       onmousedown="startSliderDrag('holdTime')"
-                                       ontouchstart="startSliderDrag('holdTime')" 
-                                       disabled>
-                                <span id="holdTimeDisplay" style="font-size: 0.8rem; margin-left: 8px;">30 sec</span>
-                            </div>
-                        </div>
+
                         <div class="status-item">
                             <strong>Countdown:</strong> 
                             <span id="remainTime">--</span>s
@@ -1265,7 +1365,20 @@
                             </button>
                         </div>
                         <div style="margin-top: 8px; text-align: center; font-size: 0.8rem; color: var(--gray-500);">
-                            <span id="modeSequence">Steady → Ascent → Descent</span>
+                            <span id="modeSequence">Steady → Ascent → Descent → Valley → Hill</span>
+                        </div>
+                        <div class="status-item" style="margin-top: 12px;">
+                            <strong>Hold Time:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="range" id="holdTime" min="10" max="90" value="30" 
+                                       style="width: 80px;" 
+                                       oninput="updateHoldTimeDisplay(this.value)" 
+                                       onchange="setHoldTime(this.value); endSliderDrag('holdTime')"
+                                       onmousedown="startSliderDrag('holdTime')"
+                                       ontouchstart="startSliderDrag('holdTime')" 
+                                       disabled>
+                                <span id="holdTimeDisplay" style="font-size: 0.8rem; margin-left: 8px;">30 sec</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1305,30 +1418,155 @@
                         <input type="number" id="tempF1" min="300" max="600" value="450" 
                                class="temp-input" onchange="setTemperature(1, this.value)">
                         <div class="temp-unit">°F</div>
+                        <div class="preset-controls">
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Hold Time:</label>
+                                <div class="preset-control-input">
+                                    <input type="range" id="presetHoldTime1" min="10" max="90" value="30" 
+                                           class="preset-slider" 
+                                           oninput="updatePresetHoldTimeDisplay(1, this.value)" 
+                                           onchange="setPresetHoldTime(1, this.value); endSliderDrag('presetHoldTime1')"
+                                           onmousedown="startSliderDrag('presetHoldTime1')"
+                                           ontouchstart="startSliderDrag('presetHoldTime1')" 
+                                           disabled>
+                                    <span id="presetHoldTimeDisplay1" class="preset-value">30s</span>
+                                </div>
+                            </div>
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Mode:</label>
+                                <select id="presetMode1" class="preset-mode-select" onchange="setPresetMode(1, this.value)" disabled>
+                                    <option value="0xA1">Steady</option>
+                                    <option value="0xB1">Ascent</option>
+                                    <option value="0xC1">Descent</option>
+                                    <option value="0xD1">Valley</option>
+                                    <option value="0xE1">Hill</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 2</div>
                         <input type="number" id="tempF2" min="300" max="600" value="500" 
                                class="temp-input" onchange="setTemperature(2, this.value)">
                         <div class="temp-unit">°F</div>
+                        <div class="preset-controls">
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Hold Time:</label>
+                                <div class="preset-control-input">
+                                    <input type="range" id="presetHoldTime2" min="10" max="90" value="30" 
+                                           class="preset-slider" 
+                                           oninput="updatePresetHoldTimeDisplay(2, this.value)" 
+                                           onchange="setPresetHoldTime(2, this.value); endSliderDrag('presetHoldTime2')"
+                                           onmousedown="startSliderDrag('presetHoldTime2')"
+                                           ontouchstart="startSliderDrag('presetHoldTime2')" 
+                                           disabled>
+                                    <span id="presetHoldTimeDisplay2" class="preset-value">30s</span>
+                                </div>
+                            </div>
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Mode:</label>
+                                <select id="presetMode2" class="preset-mode-select" onchange="setPresetMode(2, this.value)" disabled>
+                                    <option value="0xA1">Steady</option>
+                                    <option value="0xB1">Ascent</option>
+                                    <option value="0xC1">Descent</option>
+                                    <option value="0xD1">Valley</option>
+                                    <option value="0xE1">Hill</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 3</div>
                         <input type="number" id="tempF3" min="300" max="600" value="550" 
                                class="temp-input" onchange="setTemperature(3, this.value)">
                         <div class="temp-unit">°F</div>
+                        <div class="preset-controls">
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Hold Time:</label>
+                                <div class="preset-control-input">
+                                    <input type="range" id="presetHoldTime3" min="10" max="90" value="30" 
+                                           class="preset-slider" 
+                                           oninput="updatePresetHoldTimeDisplay(3, this.value)" 
+                                           onchange="setPresetHoldTime(3, this.value); endSliderDrag('presetHoldTime3')"
+                                           onmousedown="startSliderDrag('presetHoldTime3')"
+                                           ontouchstart="startSliderDrag('presetHoldTime3')" 
+                                           disabled>
+                                    <span id="presetHoldTimeDisplay3" class="preset-value">30s</span>
+                                </div>
+                            </div>
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Mode:</label>
+                                <select id="presetMode3" class="preset-mode-select" onchange="setPresetMode(3, this.value)" disabled>
+                                    <option value="0xA1">Steady</option>
+                                    <option value="0xB1">Ascent</option>
+                                    <option value="0xC1">Descent</option>
+                                    <option value="0xD1">Valley</option>
+                                    <option value="0xE1">Hill</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 4</div>
                         <input type="number" id="tempF4" min="300" max="600" value="600" 
                                class="temp-input" onchange="setTemperature(4, this.value)">
                         <div class="temp-unit">°F</div>
+                        <div class="preset-controls">
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Hold Time:</label>
+                                <div class="preset-control-input">
+                                    <input type="range" id="presetHoldTime4" min="10" max="90" value="30" 
+                                           class="preset-slider" 
+                                           oninput="updatePresetHoldTimeDisplay(4, this.value)" 
+                                           onchange="setPresetHoldTime(4, this.value); endSliderDrag('presetHoldTime4')"
+                                           onmousedown="startSliderDrag('presetHoldTime4')"
+                                           ontouchstart="startSliderDrag('presetHoldTime4')" 
+                                           disabled>
+                                    <span id="presetHoldTimeDisplay4" class="preset-value">30s</span>
+                                </div>
+                            </div>
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Mode:</label>
+                                <select id="presetMode4" class="preset-mode-select" onchange="setPresetMode(4, this.value)" disabled>
+                                    <option value="0xA1">Steady</option>
+                                    <option value="0xB1">Ascent</option>
+                                    <option value="0xC1">Descent</option>
+                                    <option value="0xD1">Valley</option>
+                                    <option value="0xE1">Hill</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="preset-card">
                         <div class="preset-title">Preset 5</div>
                         <input type="number" id="tempF5" min="300" max="600" value="613" 
                                class="temp-input" onchange="setTemperature(5, this.value)">
                         <div class="temp-unit">°F</div>
+                        <div class="preset-controls">
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Hold Time:</label>
+                                <div class="preset-control-input">
+                                    <input type="range" id="presetHoldTime5" min="10" max="90" value="30" 
+                                           class="preset-slider" 
+                                           oninput="updatePresetHoldTimeDisplay(5, this.value)" 
+                                           onchange="setPresetHoldTime(5, this.value); endSliderDrag('presetHoldTime5')"
+                                           onmousedown="startSliderDrag('presetHoldTime5')"
+                                           ontouchstart="startSliderDrag('presetHoldTime5')" 
+                                           disabled>
+                                    <span id="presetHoldTimeDisplay5" class="preset-value">30s</span>
+                                </div>
+                            </div>
+                            <div class="preset-control-item">
+                                <label class="preset-control-label">Mode:</label>
+                                <select id="presetMode5" class="preset-mode-select" onchange="setPresetMode(5, this.value)" disabled>
+                                    <option value="0xA1">Steady</option>
+                                    <option value="0xB1">Ascent</option>
+                                    <option value="0xC1">Descent</option>
+                                    <option value="0xD1">Valley</option>
+                                    <option value="0xE1">Hill</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1398,6 +1636,12 @@
         let globalTempC = [0,0,0,0,0,0];
         let currentPreset = 1; // 当前预设值 (1-5)
         let holdTime = 30;
+        let cleaningAssistEnabled = false; // 清洁助手状态
+        
+        // 每个preset独立的Hold Time和Mode存储 (preset 1-5)
+        let presetHoldTimes = [0, 30, 30, 30, 30, 30]; // index 0 未使用，1-5对应preset 1-5
+        let presetModes = [0, 0xA1, 0xA1, 0xA1, 0xA1, 0xA1]; // index 0 未使用，1-5对应preset 1-5，默认Steady模式
+        
         // 当前设备状态跟踪 - B9命令的所有字节状态
         let currentB9State = {
             byte3: 0x01,   // 预设值 (1-5)
@@ -1414,7 +1658,9 @@
         const MODE_TYPES = {
             0xA1: 'Steady',
             0xB1: 'Ascent', 
-            0xC1: 'Descent'
+            0xC1: 'Descent',
+            0xD1: 'Valley',
+            0xE1: 'Hill'
         };
 
         let currentMode = 0xA1; // 默认模式为 Steady
@@ -1728,6 +1974,7 @@
                 const modeControlBtn = document.getElementById('modeControlBtn');
                 const hapticBtn = document.getElementById('hapticBtn');
                 const boostBtn = document.getElementById('boostBtn');
+                const cleaningAssistBtn = document.getElementById('cleaningAssistBtn');
                 
                 if (sessionControlBtn) sessionControlBtn.disabled = false;
                 if (presetBtn) presetBtn.disabled = false;
@@ -1737,6 +1984,7 @@
                 if (ledPresetSelect) ledPresetSelect.disabled = false;
                 if (modeControlBtn) modeControlBtn.disabled = false;
                 if (hapticBtn) hapticBtn.disabled = false;
+                if (cleaningAssistBtn) cleaningAssistBtn.disabled = false;
                 // Boost按钮初始状态为禁用（只有加热时才启用）
                 if (boostBtn) boostBtn.disabled = true;
                 
@@ -1751,6 +1999,14 @@
                         if (container) container.classList.remove('heating-disabled');
                     }
                 });
+                
+                // 启用preset控件（Hold Time滑块和Mode选择器）
+                for (let i = 1; i <= 5; i++) {
+                    const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                    const modeSelect = document.getElementById(`presetMode${i}`);
+                    if (holdTimeSlider) holdTimeSlider.disabled = false;
+                    if (modeSelect) modeSelect.disabled = false;
+                }
                 
                 showNotification('设备连接成功！', 'success');
                 
@@ -1780,10 +2036,15 @@
                 const modeControlBtn = document.getElementById('modeControlBtn');
                 const hapticBtn = document.getElementById('hapticBtn');
                 const boostBtn = document.getElementById('boostBtn');
+                const cleaningAssistBtn = document.getElementById('cleaningAssistBtn');
                 
                 if (sessionControlBtn) sessionControlBtn.disabled = true;
                 if (presetBtn) presetBtn.disabled = true;
-                if (autoShutTimeInput) autoShutTimeInput.disabled = true;
+                if (autoShutTimeInput) {
+                    autoShutTimeInput.disabled = true;
+                    autoShutTimeInput.value = 2;
+                    updateAutoShutDisplay(2);
+                }
                 if (holdTimeInput) {
                     holdTimeInput.disabled = true;
                     holdTimeInput.value = 30;
@@ -1794,10 +2055,6 @@
                     brightnessInput.value = 25;
                     updateBrightnessDisplay(25);
                 }
-                if (autoShutTimeInput) {
-                    autoShutTimeInput.value = 2;
-                    updateAutoShutDisplay(2);
-                }
                 if (ledPresetSelect) ledPresetSelect.disabled = true;
                 if (modeControlBtn) modeControlBtn.disabled = true;
                 if (hapticBtn) {
@@ -1807,6 +2064,10 @@
                 if (boostBtn) {
                     boostBtn.disabled = true;
                     updateBoostButton(0); // 重置为默认状态
+                }
+                if (cleaningAssistBtn) {
+                    cleaningAssistBtn.disabled = true;
+                    updateCleaningAssistButton(false); // 重置为默认状态
                 }
                 
                 // 禁用温度预设输入框
@@ -1822,6 +2083,23 @@
                         }
                     }
                 });
+                
+                // 禁用preset控件（Hold Time滑块和Mode选择器）并重置值
+                for (let i = 1; i <= 5; i++) {
+                    const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                    const modeSelect = document.getElementById(`presetMode${i}`);
+                    if (holdTimeSlider) {
+                        holdTimeSlider.disabled = true;
+                        holdTimeSlider.value = 30;
+                        updatePresetHoldTimeDisplay(i, 30);
+                        presetHoldTimes[i] = 30; // 重置本地存储
+                    }
+                    if (modeSelect) {
+                        modeSelect.disabled = true;
+                        modeSelect.value = '0xA1'; // 重置为Steady模式
+                        presetModes[i] = 0xA1; // 重置本地存储
+                    }
+                }
                 
                 // 重置notify状态
                 notificationsEnabled = false;
@@ -1935,9 +2213,16 @@
                 return;
             }
             
-            // 检查是否是模式状态notify数据包 (5字节，A5 05 01 mode A5)
-            if (data.length === 5 && data[0] === 0xA5 && data[4] === 0xA5 && data[1] === 0x05 && data[2] === 0x01) {
-                handleModeNotifyData(data);
+            // 检查是否是模式状态notify数据包 (5字节，A5 05 preset mode A5)
+            if (data.length === 5 && data[0] === 0xA5 && data[4] === 0xA5 && data[1] === 0x05) {
+                const preset = data[2];
+                if (preset === 0) {
+                    // preset 0 = 全局模式控制
+                    handleModeNotifyData(data);
+                } else if (preset >= 1 && preset <= 5) {
+                    // preset 1-5 = 各预设的模式控制
+                    handlePresetModeData(data);
+                }
                 return;
             }
             
@@ -1950,8 +2235,16 @@
                 return;
             }
  
-            if (data.length === 6 && data[0] === 0xA7 && data[5] === 0xA7) {
-                handleTempTimeData(data);
+            // 检查是否是Hold Time数据包 (6字节，A7 06 preset time_high time_low A7)
+            if (data.length === 6 && data[0] === 0xA7 && data[5] === 0xA7 && data[1] === 0x06) {
+                const preset = data[2];
+                if (preset === 0) {
+                    // preset 0 = 全局Hold Time (旧格式，但data[2]应该是0而不是1)
+                    handleTempTimeData(data);
+                } else if (preset >= 1 && preset <= 5) {
+                    // preset 1-5 = 各预设的Hold Time
+                    handlePresetHoldTimeData(data);
+                }
                 return;
             }
 
@@ -1977,7 +2270,7 @@
             // 更新模式显示
             updateModeDisplay(mode, modeName);
             
-            log(`Received mode notify: ${modeName} (0x${mode.toString(16).padStart(2, '0')})`);
+            log(`Received global mode notify: ${modeName} (0x${mode.toString(16).padStart(2, '0')})`);
         }
 
         // 处理设备状态notify数据
@@ -2053,7 +2346,7 @@
                 updateHoldTimeDisplay(holdTime);
             }
             
-            log(`Received hold time: ${holdTime} seconds`);
+            log(`Received global hold time: ${holdTime} seconds`);
         }
 
         // 处理温度设定数据包 - 格式: 0xA3 + 长度(8) + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
@@ -2253,6 +2546,9 @@
             
             document.getElementById('tempSetting').textContent = status.tempSetting + '°F';
             document.getElementById('realTemp').textContent = status.realTemp + '°F';
+            
+            // 更新当前preset对应的模式显示
+            updateCurrentPresetModeDisplay(status.preset);
            //  document.getElementById('tempUnit').textContent = status.tempUnit;
            
             // 当target温度更新时，更新图表Y轴最大值
@@ -2451,6 +2747,18 @@
             // 初始化Haptic和Boost按钮显示
             updateHapticButton(currentB9State.byte11 === 0xAA);
             updateBoostButton(currentB9State.byte12);
+            
+            // 初始化CleaningAssist按钮显示
+            updateCleaningAssistButton(cleaningAssistEnabled);
+            
+            // 初始化preset控件显示
+            for (let i = 1; i <= 5; i++) {
+                updatePresetHoldTimeDisplay(i, presetHoldTimes[i]);
+                // Mode选择器默认值已在HTML中设置，这里不需要特别处理
+            }
+            
+            // 初始化当前preset对应的模式显示
+            updateCurrentPresetModeDisplay(currentPreset);
             
             // 确保Boost按钮初始状态为禁用（只有加热时才能使用）
             document.getElementById('boostBtn').disabled = true;
@@ -2687,6 +2995,7 @@
               const modeControlBtn = document.getElementById('modeControlBtn');
               const hapticBtn = document.getElementById('hapticBtn');
               const boostBtn = document.getElementById('boostBtn');
+              const cleaningAssistBtn = document.getElementById('cleaningAssistBtn');
               
               // 温度预设输入框
               const tempInputs = [
@@ -2729,16 +3038,34 @@
                   boostBtn.disabled = false;
                   boostBtn.classList.remove('heating-disabled');
                   
+                  // CleaningAssist按钮在加热时禁用
+                  cleaningAssistBtn.disabled = true;
+                  cleaningAssistBtn.classList.add('heating-disabled');
+                  
                   // 禁用所有温度预设输入框并添加视觉提示
                   tempInputs.forEach(input => {
                       if (input) {
                           input.disabled = true;
                           input.classList.add('heating-disabled');
                           // 为父容器也添加禁用类
-                          const container = input.closest('.preset-container');
+                          const container = input.closest('.preset-card');
                           if (container) container.classList.add('heating-disabled');
                       }
                   });
+                  
+                  // 禁用preset控件
+                  for (let i = 1; i <= 5; i++) {
+                      const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                      const modeSelect = document.getElementById(`presetMode${i}`);
+                      if (holdTimeSlider) {
+                          holdTimeSlider.disabled = true;
+                          holdTimeSlider.classList.add('heating-disabled');
+                      }
+                      if (modeSelect) {
+                          modeSelect.disabled = true;
+                          modeSelect.classList.add('heating-disabled');
+                      }
+                  }
                   
                   
               } else {
@@ -2776,16 +3103,34 @@
                       boostBtn.disabled = true;
                       boostBtn.classList.add('heating-disabled');
                       
+                      // CleaningAssist按钮在非加热时启用
+                      cleaningAssistBtn.disabled = false;
+                      cleaningAssistBtn.classList.remove('heating-disabled');
+                      
                       // 启用所有温度预设输入框并移除视觉提示
                       tempInputs.forEach(input => {
                           if (input) {
                               input.disabled = false;
                               input.classList.remove('heating-disabled');
                               // 为父容器也移除禁用类
-                              const container = input.closest('.preset-container');
+                              const container = input.closest('.preset-card');
                               if (container) container.classList.remove('heating-disabled');
                           }
                       });
+                      
+                      // 启用preset控件
+                      for (let i = 1; i <= 5; i++) {
+                          const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                          const modeSelect = document.getElementById(`presetMode${i}`);
+                          if (holdTimeSlider) {
+                              holdTimeSlider.disabled = false;
+                              holdTimeSlider.classList.remove('heating-disabled');
+                          }
+                          if (modeSelect) {
+                              modeSelect.disabled = false;
+                              modeSelect.classList.remove('heating-disabled');
+                          }
+                      }
                   }
 
               }
@@ -2813,6 +3158,9 @@
               
               // 更新按钮显示
               document.getElementById('presetBtn').textContent = currentPreset;
+              
+              // 更新当前preset对应的模式显示
+              updateCurrentPresetModeDisplay(currentPreset);
               
               // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
               await sendB9Command(
@@ -2858,11 +3206,11 @@
               }
 
               try {
-                  // 构造B7命令数据包：B7 06 01 holdTime(high) holdTime(low) B7
+                  // 构造B7命令数据包：B7 06 00 holdTime(high) holdTime(low) B7 (preset 0 = 全局Hold Time)
                   const holdTimeCommand = new Uint8Array(6);
                   holdTimeCommand[0] = 0xB7;                      // 起始标识
                   holdTimeCommand[1] = 0x06;                      // 数据长度
-                  holdTimeCommand[2] = 0x01;                      // 固定字节
+                  holdTimeCommand[2] = 0x00;                      // preset 0 (全局Hold Time)
                   holdTimeCommand[3] = (holdTime >> 8) & 0xFF;    // holdTime高字节
                   holdTimeCommand[4] = holdTime & 0xFF;           // holdTime低字节
                   holdTimeCommand[5] = 0xB7;                      // 结束标识
@@ -2961,7 +3309,7 @@
               }
 
               try {
-                  // 循环切换模式：Steady (A1) → Ascent (B1) → Descent (C1) → Steady (A1)
+                  // 循环切换模式：Steady (A1) → Ascent (B1) → Descent (C1) → Valley (D1) → Hill (E1) → Steady (A1)
                   let newMode;
                   switch (currentMode) {
                       case 0xA1: // Steady -> Ascent
@@ -2970,7 +3318,13 @@
                       case 0xB1: // Ascent -> Descent
                           newMode = 0xC1;
                           break;
-                      case 0xC1: // Descent -> Steady
+                      case 0xC1: // Descent -> Valley
+                          newMode = 0xD1;
+                          break;
+                      case 0xD1: // Valley -> Hill
+                          newMode = 0xE1;
+                          break;
+                      case 0xE1: // Hill -> Steady
                           newMode = 0xA1;
                           break;
                       default: // 默认为 Steady
@@ -2978,11 +3332,11 @@
                           break;
                   }
 
-                  // 构造B5命令数据包：B5 05 01 mode B5
+                  // 构造B5命令数据包：B5 05 00 mode B5 (preset 0 = 全局Mode Control)
                   const modeCommand = new Uint8Array(5);
                   modeCommand[0] = 0xB5;    // 起始标识
                   modeCommand[1] = 0x05;    // 数据长度
-                  modeCommand[2] = 0x01;    // 固定字节
+                  modeCommand[2] = 0x00;    // preset 0 (全局Mode Control)
                   modeCommand[3] = newMode; // 模式值
                   modeCommand[4] = 0xB5;    // 结束标识
 
@@ -3013,7 +3367,7 @@
               
               // 更新模式序列显示，高亮当前模式
               let sequenceText = '';
-              const modes = ['Steady', 'Ascent', 'Descent'];
+              const modes = ['Steady', 'Ascent', 'Descent', 'Valley', 'Hill'];
               const currentModeName = modeName.split(' ')[0]; // 移除可能的 "(0x...)" 部分
               
               modes.forEach((name, index) => {
@@ -3105,6 +3459,236 @@
                   boostBtn.style.padding = '6px 12px';
                   boostBtn.style.fontSize = '0.8rem';
               }
+          }
+
+          // 切换CleaningAssist状态 - 发送C6命令格式：C6 04 AA/00 C6
+          async function toggleCleaningAssist() {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  return;
+              }
+
+              try {
+                  // 切换状态
+                  cleaningAssistEnabled = !cleaningAssistEnabled;
+                  const commandValue = cleaningAssistEnabled ? 0xAA : 0x00;
+                  
+                  // 构造C6命令数据包：C6 04 AA/00 C6
+                  const cleaningCommand = new Uint8Array(4);
+                  cleaningCommand[0] = 0xC6;        // 起始标识
+                  cleaningCommand[1] = 0x04;        // 数据长度
+                  cleaningCommand[2] = commandValue; // AA=开启, 00=关闭
+                  cleaningCommand[3] = 0xC6;        // 结束标识
+
+                  // 发送清洁助手命令
+                  await characteristic.writeValue(cleaningCommand);
+                  
+                  const packetHex = Array.from(cleaningCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                  const action = cleaningAssistEnabled ? 'enabled' : 'disabled';
+                  
+                  log(`✓ Cleaning Assist ${action}`);
+                  log(`  Packet data: ${packetHex}`);
+                  
+                  // 更新按钮显示
+                  updateCleaningAssistButton(cleaningAssistEnabled);
+                  
+                  showNotification(`清洁助手已${cleaningAssistEnabled ? '开启' : '关闭'}`, 'success', 2000);
+                  
+              } catch (error) {
+                  // 发送失败时恢复状态
+                  cleaningAssistEnabled = !cleaningAssistEnabled;
+                  log(`✗ Failed to toggle Cleaning Assist: ${error.message}`);
+                  showNotification(`清洁助手操作失败: ${error.message}`, 'error');
+              }
+          }
+
+          // 更新CleaningAssist按钮显示
+          function updateCleaningAssistButton(isEnabled) {
+              const cleaningBtn = document.getElementById('cleaningAssistBtn');
+              if (isEnabled) {
+                  cleaningBtn.textContent = 'Stop Cleaning';
+                  cleaningBtn.className = 'btn btn-warning';
+                  cleaningBtn.style.minWidth = '150px';
+                  // 更新图标
+                  cleaningBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Cleaning';
+              } else {
+                  cleaningBtn.textContent = 'Cleaning Assist';
+                  cleaningBtn.className = 'btn btn-secondary';
+                  cleaningBtn.style.minWidth = '150px';
+                  // 更新图标
+                  cleaningBtn.innerHTML = '<i class="fas fa-broom"></i> Cleaning Assist';
+              }
+          }
+
+          // 更新当前preset对应的模式显示
+          function updateCurrentPresetModeDisplay(preset) {
+              const currentPresetModeElement = document.getElementById('currentPresetMode');
+              if (currentPresetModeElement && preset >= 1 && preset <= 5) {
+                  const presetMode = presetModes[preset];
+                  const modeName = MODE_TYPES[presetMode] || 'Unknown';
+                  currentPresetModeElement.textContent = modeName;
+              }
+          }
+
+          // ==================== Preset Hold Time 控制 ====================
+          
+          // 更新Preset Hold Time显示值（实时）
+          function updatePresetHoldTimeDisplay(preset, value) {
+              document.getElementById(`presetHoldTimeDisplay${preset}`).textContent = value + 's';
+          }
+
+          // 设置Preset Hold Time - 发送B7命令格式：B7 06 preset time_high time_low B7
+          async function setPresetHoldTime(preset, seconds) {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  return;
+              }
+
+              // 验证时间范围
+              const holdTime = parseInt(seconds);
+              if (holdTime < 10 || holdTime > 90) {
+                  log(`Error: Preset ${preset} Hold Time ${holdTime} is out of range (10-90 seconds)`);
+                  // 恢复之前的值
+                  document.getElementById(`presetHoldTime${preset}`).value = presetHoldTimes[preset];
+                  updatePresetHoldTimeDisplay(preset, presetHoldTimes[preset]);
+                  return;
+              }
+
+              try {
+                  // 构造B7命令数据包：B7 06 preset holdTime(high) holdTime(low) B7
+                  const holdTimeCommand = new Uint8Array(6);
+                  holdTimeCommand[0] = 0xB7;                      // 起始标识
+                  holdTimeCommand[1] = 0x06;                      // 数据长度
+                  holdTimeCommand[2] = preset;                    // preset (1-5)
+                  holdTimeCommand[3] = (holdTime >> 8) & 0xFF;    // holdTime高字节
+                  holdTimeCommand[4] = holdTime & 0xFF;           // holdTime低字节
+                  holdTimeCommand[5] = 0xB7;                      // 结束标识
+
+                  // 发送Preset Hold Time设置命令
+                  await characteristic.writeValue(holdTimeCommand);
+                  
+                  const packetHex = Array.from(holdTimeCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                  
+                  log(`✓ Preset ${preset} Hold Time set to ${holdTime} seconds`);
+                  log(`  Packet data: ${packetHex}`);
+                  
+                  // 更新本地存储
+                  presetHoldTimes[preset] = holdTime;
+                  
+                  showNotification(`预设${preset}保持时间设置为${holdTime}秒`, 'success', 2000);
+                  
+              } catch (error) {
+                  log(`✗ Failed to set Preset ${preset} Hold Time: ${error.message}`);
+                  showNotification(`预设${preset}保持时间设置失败: ${error.message}`, 'error');
+              }
+          }
+
+          // ==================== Preset Mode 控制 ====================
+          
+          // 设置Preset Mode - 发送B5命令格式：B5 05 preset mode B5
+          async function setPresetMode(preset, modeValue) {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  return;
+              }
+
+              try {
+                  // 解析十六进制模式值
+                  const mode = parseInt(modeValue, 16);
+                  const modeName = MODE_TYPES[mode] || 'Unknown';
+                  
+                  // 验证模式值
+                  if (!(mode in MODE_TYPES)) {
+                      log(`Error: Invalid mode value ${modeValue} for preset ${preset}`);
+                      return;
+                  }
+
+                  // 构造B5命令数据包：B5 05 preset mode B5
+                  const modeCommand = new Uint8Array(5);
+                  modeCommand[0] = 0xB5;    // 起始标识
+                  modeCommand[1] = 0x05;    // 数据长度
+                  modeCommand[2] = preset;  // preset (1-5)
+                  modeCommand[3] = mode;    // 模式值
+                  modeCommand[4] = 0xB5;    // 结束标识
+
+                  // 发送Preset Mode设置命令
+                  await characteristic.writeValue(modeCommand);
+                  
+                  const packetHex = Array.from(modeCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+                  
+                  log(`✓ Preset ${preset} Mode set to ${modeName} (${modeValue})`);
+                  log(`  Packet data: ${packetHex}`);
+                  
+                  // 更新本地存储
+                  presetModes[preset] = mode;
+                  
+                  showNotification(`预设${preset}模式设置为${modeName}`, 'success', 2000);
+                  
+              } catch (error) {
+                  log(`✗ Failed to set Preset ${preset} Mode: ${error.message}`);
+                  showNotification(`预设${preset}模式设置失败: ${error.message}`, 'error');
+              }
+          }
+
+          // ==================== 数据接收处理 ====================
+          
+          // 处理A7格式的Preset Hold Time响应数据包
+          function handlePresetHoldTimeData(data) {
+              if (data.length !== 6 || data[0] !== 0xA7 || data[5] !== 0xA7) {
+                  log(`Invalid A7 preset hold time packet format`);
+                  return;
+              }
+              
+              const preset = data[2];
+              const holdTime = (data[3] << 8) | data[4];
+              
+              // 验证preset范围
+              if (preset < 1 || preset > 5) {
+                  log(`Invalid preset index in A7 packet: ${preset}`);
+                  return;
+              }
+              
+              // 更新本地存储和UI（只在不拖动时更新）
+              presetHoldTimes[preset] = holdTime;
+              if (!draggingSliders.has(`presetHoldTime${preset}`)) {
+                  document.getElementById(`presetHoldTime${preset}`).value = holdTime;
+                  updatePresetHoldTimeDisplay(preset, holdTime);
+              }
+              
+              log(`Received preset ${preset} hold time: ${holdTime} seconds`);
+          }
+
+          // 处理A5格式的Preset Mode响应数据包
+          function handlePresetModeData(data) {
+              if (data.length !== 5 || data[0] !== 0xA5 || data[4] !== 0xA5) {
+                  log(`Invalid A5 preset mode packet format`);
+                  return;
+              }
+              
+              const preset = data[2];
+              const mode = data[3];
+              const modeName = MODE_TYPES[mode] || `Unknown (0x${mode.toString(16).padStart(2, '0')})`;
+              
+              // 验证preset范围
+              if (preset < 1 || preset > 5) {
+                  log(`Invalid preset index in A5 packet: ${preset}`);
+                  return;
+              }
+              
+              // 更新本地存储和UI
+              presetModes[preset] = mode;
+              const selectElement = document.getElementById(`presetMode${preset}`);
+              if (selectElement) {
+                  const hexValue = '0x' + mode.toString(16).padStart(2, '0').toUpperCase();
+                  selectElement.value = hexValue;
+              }
+              
+              // 如果这是当前活动的preset，更新状态监控中的显示
+              if (preset === currentPreset) {
+                  updateCurrentPresetModeDisplay(preset);
+              }
+              
+              log(`Received preset ${preset} mode: ${modeName} (0x${mode.toString(16).padStart(2, '0')})`);
           }
 
         // 只读取software revision、manufacturer和hardware version
