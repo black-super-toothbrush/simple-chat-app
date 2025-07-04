@@ -938,6 +938,7 @@
             opacity: 0.5;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -946,7 +947,7 @@
             <p>Professional Firmware Upgrade Tool</p>
         </div>
         
-        <div class="grid grid-2">
+        <div class="grid">
             <!-- 蓝牙连接卡片 -->
             <div class="card fade-in">
                 <div class="card-header">
@@ -974,20 +975,73 @@
                 </div>
             </div>
 
-            <!-- 固件文件选择卡片 -->
-            <div class="card fade-in">
-                <div class="card-header">
-                    <i class="fas fa-file-code"></i>
-                    <h3>Firmware File</h3>
+
+        </div>
+
+        <!-- 设备信息显示 -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i>
+                <h3>Device Information</h3>
+            </div>
+            
+            <div id="deviceInfoDisplay" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-group">
+                        <h4><i class="fas fa-microchip"></i> Device Details</h4>
+                        <div class="status-item">
+                            <strong>Device Name:</strong>
+                            <span id="deviceName">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Serial Number:</strong>
+                            <span id="serialNumber">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Model Name:</strong>
+                            <span id="modelName">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-cogs"></i> Version Info</h4>
+                        <div class="status-item">
+                            <strong>Hardware Version:</strong>
+                            <span id="hardwareVersion">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Software Version:</strong>
+                            <span id="softwareVersion">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Manufacturer:</strong>
+                            <span id="manufacturer">--</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="file-upload" id="fileUploadArea" onclick="document.getElementById('firmwareFile').click()">
-                    <i class="fas fa-cloud-upload-alt" id="uploadIcon"></i>
-                    <p style="margin: 8px 0; font-weight: 500;" id="uploadText">Click to select firmware file</p>
-                    <p style="font-size: 0.875rem; color: var(--gray-500);">or drag and drop here</p>
-                    <p style="font-size: 0.75rem; color: var(--gray-400); margin-top: 8px;">Supports .bin and .hex files</p>
+                
+                <!-- 原始设备信息数据 -->
+                <div style="margin-top: 24px;">
+                    <div class="status-group">
+                        <h4><i class="fas fa-code"></i> Raw Device Info Data</h4>
+                        <div class="responsive-table">
+                            <table class="table">
+                                <tr>
+                                    <td><strong>Last Info Packet:</strong></td>
+                                    <td><span id="rawDeviceInfo" style="font-family: monospace; font-size: 0.8rem;">No data</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Info Packet Count:</strong></td>
+                                    <td><span id="deviceInfoPacketCount">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Last Info Updated:</strong></td>
+                                    <td><span id="lastInfoUpdate">Never</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-                <input type="file" id="firmwareFile" accept=".bin,.hex" onchange="handleFileSelect(event)" style="display: none;">
-                <div id="fileInfo" class="file-info" style="display: none;"></div>
             </div>
         </div>
 
@@ -1185,6 +1239,11 @@
                         </div>
                     </div>
                 </div>
+                <!-- 实时温度曲线 -->
+                <div style="margin-top: 32px;">
+                    <h4 style="margin-bottom: 8px; color: #374151; font-size: 1rem;">Current 温度曲线</h4>
+                    <canvas id="currentTempChart" height="80"></canvas>
+                </div>
             </div>
         </div>
 
@@ -1252,6 +1311,7 @@
         let rxCharacteristic = null;
         let notificationsEnabled = false;
         let notifyPacketCount = 0;
+        let deviceInfoPacketCount = 0;
         let globalPresetIndex = 0;
         let globalTempF = [0,0,0,0,0,0];
         let globalTempC = [0,0,0,0,0,0];
@@ -1470,50 +1530,7 @@
             }, 600);
         }
 
-        // 文件拖放功能
-        function initializeFileDragDrop() {
-            const uploadArea = document.getElementById('fileUploadArea');
-            const uploadIcon = document.getElementById('uploadIcon');
-            const uploadText = document.getElementById('uploadText');
-            
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, preventDefaults, false);
-            });
-            
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            
-            ['dragenter', 'dragover'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, () => {
-                    uploadArea.classList.add('dragover');
-                    uploadIcon.className = 'fas fa-cloud-download-alt';
-                    uploadText.textContent = 'Release to upload file';
-                }, false);
-            });
-            
-            ['dragleave', 'drop'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, () => {
-                    uploadArea.classList.remove('dragover');
-                    uploadIcon.className = 'fas fa-cloud-upload-alt';
-                    uploadText.textContent = 'Click to select firmware file';
-                }, false);
-            });
-            
-            uploadArea.addEventListener('drop', (e) => {
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    const file = files[0];
-                    if (file.name.endsWith('.bin') || file.name.endsWith('.hex')) {
-                        loadFirmwareFile(file);
-                        showNotification(`文件 ${file.name} 上传成功`, 'success');
-                    } else {
-                        showNotification('请选择 .bin 或 .hex 格式的固件文件', 'error');
-                    }
-                }
-            }, false);
-        }
+
 
         // 添加按钮加载状态
         function setButtonLoading(buttonId, loading = true) {
@@ -1578,6 +1595,11 @@
                 return;
             }
 
+            // 检查是否是设备信息命令 C1-C7
+            if (data.length >= 2 && data[0] >= 0xC1 && data[0] <= 0xC7) {
+                handleDeviceInfoCommand(data);
+                return;
+            }
 
             //log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => String.fromCharCode(b)).join('')}`);
             
@@ -1670,6 +1692,141 @@
             log(`Received hold time: ${holdTime} seconds`);
         }
 
+        // 设备信息存储对象
+        let deviceInfo = {
+            deviceName: '',
+            serialNumber: '',
+            modelName: '',
+            hardwareVersion: '',
+            softwareVersion: '',
+            manufacturer: '',
+            c1Data: null,
+            c2Data: null
+        };
+
+        // 处理设备信息命令 C1-C7
+        // 数据包格式：命令字节(0xC1-0xC7) + 长度字节 + 数据 + 结尾命令字节
+        function handleDeviceInfoCommand(data) {
+            deviceInfoPacketCount++;
+            
+            const commandType = data[0];
+            const packetLength = data[1];
+            
+            // 验证数据包长度
+            if (data.length !== packetLength) {
+                log(`Invalid packet length: expected ${packetLength}, got ${data.length}`);
+                return;
+            }
+            
+            // 验证结尾字节
+            const endByte = data[packetLength - 1];
+            if (endByte !== commandType) {
+                log(`Invalid end byte: expected 0x${commandType.toString(16).toUpperCase()}, got 0x${endByte.toString(16).toUpperCase()}`);
+                return;
+            }
+            
+            // 提取数据部分（去掉命令字节、长度字节和结尾字节）
+            const dataPayload = data.slice(2, packetLength - 1);
+            
+            // 显示原始数据
+            const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+            document.getElementById('rawDeviceInfo').textContent = rawDataHex;
+            document.getElementById('deviceInfoPacketCount').textContent = deviceInfoPacketCount;
+            document.getElementById('lastInfoUpdate').textContent = new Date().toLocaleTimeString();
+            
+            try {
+                switch (commandType) {
+                    case 0xC1:
+                        // C1: 设备名称第一部分 (17字节数据)
+                        deviceInfo.c1Data = dataPayload;
+                        const c1Text = Array.from(dataPayload).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
+                        log(`Received C1 (Device Name Part 1, ${dataPayload.length} bytes): "${c1Text}"`);
+                        break;
+                        
+                    case 0xC2:
+                        // C2: 设备名称第二部分 (12字节数据)，与C1组合成完整设备名称
+                        deviceInfo.c2Data = dataPayload;
+                        const c2Text = Array.from(dataPayload).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
+                        log(`Received C2 (Device Name Part 2, ${dataPayload.length} bytes): "${c2Text}"`);
+                        
+                        if (deviceInfo.c1Data) {
+                            // 合并C1和C2数据组成完整设备名称
+                            const c1Part = Array.from(deviceInfo.c1Data).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
+                            const c2Part = Array.from(dataPayload).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
+                            deviceInfo.deviceName = (c1Part + c2Part).trim();
+                            document.getElementById('deviceName').textContent = deviceInfo.deviceName;
+                            log(`✓ Complete Device Name (C1+C2): "${deviceInfo.deviceName}"`);
+                        }
+                        break;
+                        
+                    case 0xC3:
+                        // C3: 序列号 (8字节数据)
+                        deviceInfo.serialNumber = Array.from(dataPayload)
+                            .map(b => String.fromCharCode(b))
+                            .join('')
+                            .replace(/\0/g, '')
+                            .trim();
+                        document.getElementById('serialNumber').textContent = deviceInfo.serialNumber;
+                        log(`✓ Received C3 (Serial Number, ${dataPayload.length} bytes): "${deviceInfo.serialNumber}"`);
+                        break;
+                        
+                    case 0xC4:
+                        // C4: 型号名称 (8字节数据)
+                        deviceInfo.modelName = Array.from(dataPayload)
+                            .map(b => String.fromCharCode(b))
+                            .join('')
+                            .replace(/\0/g, '')
+                            .trim();
+                        document.getElementById('modelName').textContent = deviceInfo.modelName;
+                        log(`✓ Received C4 (Model Name, ${dataPayload.length} bytes): "${deviceInfo.modelName}"`);
+                        break;
+                        
+                    case 0xC5:
+                        // C5: 硬件版本 (8字节数据)
+                        deviceInfo.hardwareVersion = Array.from(dataPayload)
+                            .map(b => String.fromCharCode(b))
+                            .join('')
+                            .replace(/\0/g, '')
+                            .trim();
+                        document.getElementById('hardwareVersion').textContent = deviceInfo.hardwareVersion;
+                        log(`✓ Received C5 (Hardware Version, ${dataPayload.length} bytes): "${deviceInfo.hardwareVersion}"`);
+                        break;
+                        
+                    case 0xC6:
+                        // C6: 软件版本 (12字节数据)
+                        deviceInfo.softwareVersion = Array.from(dataPayload)
+                            .map(b => String.fromCharCode(b))
+                            .join('')
+                            .replace(/\0/g, '')
+                            .trim();
+                        document.getElementById('softwareVersion').textContent = deviceInfo.softwareVersion;
+                        log(`✓ Received C6 (Software Version, ${dataPayload.length} bytes): "${deviceInfo.softwareVersion}"`);
+                        break;
+                        
+                    case 0xC7:
+                        // C7: 制造商 (12字节数据)
+                        deviceInfo.manufacturer = Array.from(dataPayload)
+                            .map(b => String.fromCharCode(b))
+                            .join('')
+                            .replace(/\0/g, '')
+                            .trim();
+                        document.getElementById('manufacturer').textContent = deviceInfo.manufacturer;
+                        log(`✓ Received C7 (Manufacturer, ${dataPayload.length} bytes): "${deviceInfo.manufacturer}"`);
+                        break;
+                        
+                    default:
+                        log(`Unknown device info command: 0x${commandType.toString(16).toUpperCase()}`);
+                        break;
+                }
+                
+                // 显示设备信息面板
+                document.getElementById('deviceInfoDisplay').style.display = 'block';
+                
+            } catch (error) {
+                log(`✗ Error processing device info command 0x${commandType.toString(16).toUpperCase()}: ${error.message}`);
+            }
+        }
+
         // 处理温度设定数据包 - 格式: 0xA3 + 长度(8) + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
         function handleTempSettingData(data) {
             // 验证数据包格式
@@ -1748,6 +1905,18 @@
             
             document.getElementById('brightness').value = status.brightness;
             updateBrightnessDisplay(status.brightness);
+            // 实时温度曲线（每次收到数据都采集）
+            if (currentTempChart) {
+                const now = new Date();
+                const label = now.toLocaleTimeString();
+                currentTempLabels.push(label);
+                currentTempData.push(status.realTemp);
+                if (currentTempLabels.length > MAX_POINTS) {
+                    currentTempLabels.shift();
+                    currentTempData.shift();
+                }
+                currentTempChart.update();
+            }
         }
 
         // 等待响应
@@ -1807,6 +1976,33 @@
                 
                 updateConnectionStatusWithAnimation(true);
                 log('Bluetooth device connected successfully!');
+
+                // 自动触发时间同步
+                log('Auto-triggering time synchronization...');
+                setTimeout(async () => {
+                    try {
+                        await syncTime();
+                        showNotification('设备时间已自动同步', 'success', 2000);
+                        
+                        // 时间同步成功后，自动开启实时监控
+                        log('Auto-enabling real-time monitoring...');
+                        setTimeout(async () => {
+                            try {
+                                if (!notificationsEnabled) {
+                                    await toggleNotifications();
+                                    log('✓ Real-time monitoring auto-enabled after time sync');
+                                }
+                            } catch (error) {
+                                log(`Auto monitoring enable failed: ${error.message}`);
+                                showNotification('自动开启监控失败', 'warning', 2000);
+                            }
+                        }, 300); // 时间同步后再延迟300ms开启监控
+                        
+                    } catch (error) {
+                        log(`Auto time sync failed: ${error.message}`);
+                        showNotification('自动时间同步失败', 'warning', 2000);
+                    }
+                }, 500); // 延迟500ms确保连接完全稳定
                 
             } catch (error) {
                 log(`Connection failed: ${error.message}`);
@@ -1823,6 +2019,31 @@
             bluetoothDevice = null;
             characteristic = null;
             rxCharacteristic = null;
+            
+            // 重置设备信息显示
+            document.getElementById('deviceInfoDisplay').style.display = 'none';
+            deviceInfoPacketCount = 0;
+            deviceInfo = {
+                deviceName: '',
+                serialNumber: '',
+                modelName: '',
+                hardwareVersion: '',
+                softwareVersion: '',
+                manufacturer: '',
+                c1Data: null,
+                c2Data: null
+            };
+            
+            // 重置设备信息显示元素
+            document.getElementById('deviceName').textContent = '--';
+            document.getElementById('serialNumber').textContent = '--';
+            document.getElementById('modelName').textContent = '--';
+            document.getElementById('hardwareVersion').textContent = '--';
+            document.getElementById('softwareVersion').textContent = '--';
+            document.getElementById('manufacturer').textContent = '--';
+            document.getElementById('rawDeviceInfo').textContent = 'No data';
+            document.getElementById('deviceInfoPacketCount').textContent = '0';
+            document.getElementById('lastInfoUpdate').textContent = 'Never';
         }
 
         async function disconnectDevice() {
@@ -1834,50 +2055,13 @@
             rxCharacteristic = null;
         }
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
 
-            loadFirmwareFile(file);
-        }
 
-        function loadFirmwareFile(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                firmwareData = new Uint8Array(e.target.result);
-                
-                // Pad firmware data to make it divisible by BLOCK_SIZE (2048 bytes)
-                const paddedLength = Math.ceil(firmwareData.length / BLOCK_SIZE) * BLOCK_SIZE;
-                const paddedData = new Uint8Array(paddedLength);
-                paddedData.fill(0xFF); // Fill with 0xFF to align with 2048-byte blocks
-                paddedData.set(firmwareData);
-                firmwareData = paddedData;
-                
-                const fileInfo = document.getElementById('fileInfo');
-                fileInfo.style.display = 'block';
-                fileInfo.innerHTML = `
-                    <strong>File Name:</strong> ${file.name}<br>
-                    <strong>Original Size:</strong> ${e.target.result.byteLength} bytes<br>
-                    <strong>Padded Size:</strong> ${firmwareData.length} bytes (aligned to ${BLOCK_SIZE}-byte blocks)<br>
-                    <strong>Estimated Packets:</strong> ${Math.ceil(firmwareData.length / CHUNK_SIZE)} packets (32 bytes each)<br>
-                    <strong>Flash Blocks:</strong> ${firmwareData.length / BLOCK_SIZE} blocks (exactly)<br>
-                    <strong>Transmission Time:</strong> ~${Math.ceil((Math.ceil(firmwareData.length / CHUNK_SIZE) * 20 + (firmwareData.length / BLOCK_SIZE) * 200) / 1000)} seconds
-                `;
-                
-                totalPackets = Math.ceil(firmwareData.length / CHUNK_SIZE);
-                
-                document.getElementById('startOtaBtn').disabled = !bluetoothDevice || !bluetoothDevice.gatt.connected;
-                
-                log(`Firmware file loaded: ${file.name}, padded size: ${firmwareData.length} bytes (${BLOCK_SIZE}-byte aligned)`);
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Load default firmware file on page load
+        // Load switch3.bin firmware file automatically
         async function loadDefaultFirmware() {
             try {
-                log('Attempting to load default firmware file: merged_24k_250611.bin');
-                const response = await fetch('./merged_24k_250611.bin');
+                log('Attempting to load firmware file: switch3.bin');
+                const response = await fetch('./switch3.bin');
                 if (response.ok) {
                     const arrayBuffer = await response.arrayBuffer();
                     const originalData = new Uint8Array(arrayBuffer);
@@ -1888,17 +2072,6 @@
                     firmwareData.fill(0xFF); // Fill with 0xFF to align with 2048-byte blocks
                     firmwareData.set(originalData);
                     
-                    const fileInfo = document.getElementById('fileInfo');
-                    fileInfo.style.display = 'block';
-                    fileInfo.innerHTML = `
-                        <strong>File Name:</strong> merged_24k_250611.bin (default)<br>
-                        <strong>Original Size:</strong> ${originalData.length} bytes<br>
-                        <strong>Padded Size:</strong> ${firmwareData.length} bytes (aligned to ${BLOCK_SIZE}-byte blocks)<br>
-                        <strong>Estimated Packets:</strong> ${Math.ceil(firmwareData.length / CHUNK_SIZE)} packets (32 bytes each)<br>
-                        <strong>Flash Blocks:</strong> ${firmwareData.length / BLOCK_SIZE} blocks (exactly)<br>
-                        <strong>Transmission Time:</strong> ~${Math.ceil((Math.ceil(firmwareData.length / CHUNK_SIZE) * 20 + (firmwareData.length / BLOCK_SIZE) * 200) / 1000)} seconds
-                    `;
-                    
                     totalPackets = Math.ceil(firmwareData.length / CHUNK_SIZE);
                     
                     // Update start button state
@@ -1907,12 +2080,19 @@
                         startBtn.disabled = !bluetoothDevice || !bluetoothDevice.gatt.connected;
                     }
                     
-                    log(`✓ Default firmware file loaded successfully: merged_24k_250611.bin, padded size: ${firmwareData.length} bytes (${BLOCK_SIZE}-byte aligned)`);
+                    log(`✓ Firmware file loaded successfully: switch3.bin`);
+                    log(`  Original size: ${originalData.length} bytes`);
+                    log(`  Padded size: ${firmwareData.length} bytes (${BLOCK_SIZE}-byte aligned)`);
+                    log(`  Estimated packets: ${totalPackets} packets (32 bytes each)`);
+                    log(`  Flash blocks: ${firmwareData.length / BLOCK_SIZE} blocks`);
+                    log(`  Estimated transmission time: ~${Math.ceil((totalPackets * 20 + (firmwareData.length / BLOCK_SIZE) * 200) / 1000)} seconds`);
                 } else {
-                    log(`✗ Default firmware file not found (HTTP ${response.status}). Please select a file manually.`);
+                    log(`✗ Firmware file not found (HTTP ${response.status}): switch3.bin`);
+                    log(`  Please ensure switch3.bin exists in the current directory`);
                 }
             } catch (error) {
-                log(`✗ Failed to load default firmware file: ${error.message}. Please select a file manually.`);
+                log(`✗ Failed to load firmware file: ${error.message}`);
+                log(`  Please ensure switch3.bin exists in the current directory`);
             }
         }
 
@@ -2138,10 +2318,9 @@
             log('Browser supports Web Bluetooth API');
         }
 
-        // Load default firmware file when page loads
+        // Load switch3.bin firmware file when page loads
         window.addEventListener('load', function() {
             loadDefaultFirmware();
-            initializeFileDragDrop();
             
             // 设置Hold Time默认值
             document.getElementById('holdTime').value = holdTime;
@@ -2162,6 +2341,7 @@
             setTimeout(() => {
                 showNotification('PY32F071 OTA升级工具已就绪', 'info', 2000);
             }, 1000);
+            initCurrentTempChart();
         });
 
         // 切换notifications开关
@@ -2575,6 +2755,47 @@
                   { byte13: brightnessValue },
                   `Brightness set to ${brightnessValue}`
               );
+          }
+
+          let currentTempChart;
+          let currentTempData = [];
+          let currentTempLabels = [];
+          const MAX_POINTS = 300; // 显示最近300个点
+
+          function initCurrentTempChart() {
+              const ctx = document.getElementById('currentTempChart').getContext('2d');
+              currentTempChart = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                      labels: currentTempLabels,
+                      datasets: [{
+                          label: 'Current 温度 (°F)',
+                          data: currentTempData,
+                          borderColor: '#667eea',
+                          backgroundColor: 'rgba(102,126,234,0.1)',
+                          tension: 0.2,
+                          pointRadius: 0,
+                          fill: true
+                      }]
+                  },
+                  options: {
+                      animation: false,
+                      responsive: true,
+                      scales: {
+                          x: {
+                              display: false
+                          },
+                          y: {
+                              beginAtZero: false,
+                              suggestedMin: 100,
+                              suggestedMax: 600
+                          }
+                      },
+                      plugins: {
+                          legend: { display: false }
+                      }
+                  }
+              });
           }
     </script>
 </body>
