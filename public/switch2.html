@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js"></script>
     <style>
         :root {
             --primary-color: #667eea;
@@ -1327,6 +1328,7 @@
                                     <option value="0x0F">Strawberry Cough</option>
                                     <option value="0x10">Florida Groves</option>
                                     <option value="0x11">Lime Light</option>
+                                    <option value="0x17">Custom Light</option>
                                 </select>
                                 <div class="led-preview" id="ledPreview"></div>
                             </div>
@@ -1401,6 +1403,30 @@
                                        disabled>
                                 <span id="holdTimeDisplay" style="font-size: 0.8rem; margin-left: 8px;">30 sec</span>
                             </div>
+                        </div>
+                    </div>
+
+                     <!-- LED Color Points 设置卡片 -->
+                    <div class="grid">
+                        <div class="card fade-in">
+                        <div class="card-header">
+                            <i class="fas fa-palette"></i>
+                            <h3>LED Color Points</h3>
+                        </div>
+                        <div style="display: flex; gap: 32px; justify-content: center; align-items: center; margin: 24px 0;">
+                            <div>
+                            <label>Color Point 1</label><br>
+                            <button id="colorPointBtn1" style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid #ccc; background: #ff0000; cursor: pointer;" onclick="openColorPicker(1)"></button>
+                            </div>
+                            <div>
+                            <label>Color Point 2</label><br>
+                            <button id="colorPointBtn2" style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid #ccc; background: #00ff00; cursor: pointer;" onclick="openColorPicker(2)"></button>
+                            </div>
+                            <div>
+                            <label>Color Point 3</label><br>
+                            <button id="colorPointBtn3" style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid #ccc; background: #0000ff; cursor: pointer;" onclick="openColorPicker(3)"></button>
+                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -1723,6 +1749,8 @@
                 <div id="logOutput" class="log"></div>
             </div>
         </div>
+
+
     </div>
 
     <!-- 通知组件 -->
@@ -1733,6 +1761,20 @@
         </div>
     </div>
 
+    <!-- IRO.js圆形调色盘弹窗 -->
+    <div id="colorPickerModal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); z-index:2000; align-items:center; justify-content:center;">
+      <div id="colorPickerContainer" style="background:#fff; border-radius:16px; padding:32px 24px 16px 24px; box-shadow:0 8px 32px rgba(0,0,0,0.18); position:relative; min-width:320px;">
+        <div id="iroColorPicker"></div>
+        <div style="text-align:right; margin-top:18px;">
+          <button id="colorPickerOkBtn" class="btn btn-primary">setting</button>
+          <button id="colorPickerCancelBtn" class="btn btn-secondary" style="margin-left:12px;">back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 先加载iro.js依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js"></script>
+    <!-- 2. 主JS代码，包含所有window.addEventListener('load', ...)和全局函数 -->
     <script>
         let bluetoothDevice;
         let characteristic;
@@ -1816,7 +1858,8 @@
             0x0E: 'Blue Dream',
             0x0F: 'Strawberry Cough',
             0x10: 'Florida Groves',
-            0x11: 'Lime Light'
+            0x11: 'Lime Light',
+            0x17: 'Custom Light'
         };
 
 
@@ -2336,6 +2379,12 @@
             if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 15) ||
                 (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 15)) {
                 handleCustomProfileData(data);
+                return;
+            }
+
+            // 新增：处理LED颜色点notify (ac/ad/ae)
+            if (data.length === 6 && (data[0] === 0xac || data[0] === 0xad || data[0] === 0xae) && data[5] === data[0]) {
+                handleColorPointData(data);
                 return;
             }
             
@@ -4520,6 +4569,220 @@
             log(`收到自定义参数包${group+1}：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
             showNotification(`收到自定义参数包${group+1}已同步到UI`,'info');
         }
+
+        // 新增：处理来自设备的颜色点数据
+        function handleColorPointData(data) {
+            const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
+            const point = pointMap[data[0]];
+            if (!point) return;
+
+            const r = data[2];
+            const g = data[3];
+            const b = data[4];
+
+            // Convert RGB to hex string #RRGGBB
+            const toHex = c => ('0' + c.toString(16)).slice(-2);
+            const hexColor = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+
+            // Update the color picker UI
+            const colorInput = document.getElementById(`colorPoint${point}`);
+            if (colorInput) {
+                colorInput.value = hexColor;
+            }
+
+            log(`Received color point ${point} data: R=${r}, G=${g}, B=${b} (${hexColor})`);
+            showNotification(`Color point ${point} updated from device.`, 'info', 2000);
+        }
+
+        async function sendColorPoint(point) {
+            if (!characteristic) {
+                log('Error: Device not connected');
+                showNotification('设备未连接，无法设置颜色', 'error');
+                return;
+            }
+            // 获取颜色
+            const colorInput = document.getElementById('colorPoint' + point);
+            const hex = colorInput.value;
+            // 解析RGB
+            const r = parseInt(hex.substr(1,2), 16);
+            const g = parseInt(hex.substr(3,2), 16);
+            const b = parseInt(hex.substr(5,2), 16);
+
+            // 组包
+            let cmd, end;
+            if (point === 1) { cmd = 0xbc; end = 0xbc; }
+            else if (point === 2) { cmd = 0xbd; end = 0xbd; }
+            else if (point === 3) { cmd = 0xbe; end = 0xbe; }
+            else { return; }
+
+            const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
+            try {
+                await characteristic.writeValue(buf);
+                log(`✓ 发送颜色点${point}: [${Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join(' ')}]`);
+                showNotification(`颜色点${point}已发送`, 'success', 1500);
+            } catch (e) {
+                log(`✗ 颜色点${point}发送失败: ${e.message}`);
+                showNotification(`颜色点${point}发送失败`, 'error');
+            }
+        }
+
+        // ========== IRO.js 圆形调色盘集成 ==========
+        let iroPicker = null;
+        let currentColorPoint = 1;
+        let iroPickerInitialColor = '#ff0000';
+
+        // 打开调色盘弹窗
+        function openColorPicker(point) {
+            currentColorPoint = point;
+            // 获取当前颜色
+            const btn = document.getElementById('colorPointBtn' + point);
+            iroPickerInitialColor = rgb2hex(btn.style.backgroundColor || '#ff0000');
+            // 初始化iro.js
+            if (!iroPicker) {
+                iroPicker = new iro.ColorPicker('#iroColorPicker', {
+                    width: 220,
+                    color: iroPickerInitialColor,
+                    borderWidth: 1,
+                    borderColor: '#ccc',
+                    layout: [
+                        { component: iro.ui.Wheel },
+                        { component: iro.ui.Slider, options: { sliderType: 'value' } }
+                    ]
+                });
+            } else {
+                iroPicker.color.set(iroPickerInitialColor);
+            }
+            document.getElementById('colorPickerModal').style.display = 'flex';
+        }
+        // 关闭调色盘弹窗
+        function closeColorPicker() {
+            document.getElementById('colorPickerModal').style.display = 'none';
+        }
+        // 颜色转hex
+        function rgb2hex(rgb) {
+            if (rgb.startsWith('#')) return rgb;
+            const result = rgb.match(/\d+/g);
+            if (!result) return '#ff0000';
+            return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
+        }
+        // 弹窗按钮事件
+        document.getElementById('colorPickerOkBtn').onclick = function() {
+            const hex = iroPicker.color.hexString;
+            // 更新按钮颜色
+            const btn = document.getElementById('colorPointBtn' + currentColorPoint);
+            btn.style.background = hex;
+            // 发送到设备
+            sendColorPoint(currentColorPoint, hex);
+            closeColorPicker();
+        };
+        document.getElementById('colorPickerCancelBtn').onclick = function() {
+            closeColorPicker();
+        };
+        // 点击弹窗外部关闭
+        document.getElementById('colorPickerModal').onclick = function(e) {
+            if (e.target === this) closeColorPicker();
+        };
+        // 修改sendColorPoint支持传入hex
+        async function sendColorPoint(point, hex) {
+            if (!characteristic) {
+                log('Error: Device not connected');
+                showNotification('设备未连接，无法设置颜色', 'error');
+                return;
+            }
+            // 获取颜色
+            hex = hex || document.getElementById('colorPointBtn' + point).style.background || '#ff0000';
+            hex = rgb2hex(hex);
+            // 解析RGB
+            const r = parseInt(hex.substr(1,2), 16);
+            const g = parseInt(hex.substr(3,2), 16);
+            const b = parseInt(hex.substr(5,2), 16);
+            // 组包
+            let cmd, end;
+            if (point === 1) { cmd = 0xbc; end = 0xbc; }
+            else if (point === 2) { cmd = 0xbd; end = 0xbd; }
+            else if (point === 3) { cmd = 0xbe; end = 0xbe; }
+            else { return; }
+            const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
+            try {
+                await characteristic.writeValue(buf);
+                log(`✓ 发送颜色点${point}: [${Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join(' ')}]`);
+                showNotification(`颜色点${point}已发送`, 'success', 1500);
+            } catch (e) {
+                log(`✗ 颜色点${point}发送失败: ${e.message}`);
+                showNotification(`颜色点${point}发送失败`, 'error');
+            }
+        }
+        // 设备notify更新颜色点时同步按钮颜色
+        function handleColorPointData(data) {
+            const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
+            const point = pointMap[data[0]];
+            if (!point) return;
+            const r = data[2];
+            const g = data[3];
+            const b = data[4];
+            const hexColor = `#${('0'+r.toString(16)).slice(-2)}${('0'+g.toString(16)).slice(-2)}${('0'+b.toString(16)).slice(-2)}`;
+            const btn = document.getElementById('colorPointBtn' + point);
+            if (btn) btn.style.background = hexColor;
+            log(`Received color point ${point} data: R=${r}, G=${g}, B=${b} (${hexColor})`);
+            showNotification(`Color point ${point} updated from device.`, 'info', 2000);
+        }
+
+        // ========== IRO.js 圆形调色盘集成 ==========
+        window.addEventListener('load', function() {
+            let iroPicker = null;
+            let currentColorPoint = 1;
+            let iroPickerInitialColor = '#ff0000';
+
+            window.openColorPicker = function(point) {
+                currentColorPoint = point;
+                // 获取当前颜色
+                const btn = document.getElementById('colorPointBtn' + point);
+                iroPickerInitialColor = rgb2hex(btn.style.backgroundColor || '#ff0000');
+                // 初始化iro.js
+                if (!iroPicker) {
+                    iroPicker = new iro.ColorPicker('#iroColorPicker', {
+                        width: 220,
+                        color: iroPickerInitialColor,
+                        borderWidth: 1,
+                        borderColor: '#ccc',
+                        layout: [
+                            { component: iro.ui.Wheel },
+                            { component: iro.ui.Slider, options: { sliderType: 'value' } }
+                        ]
+                    });
+                } else {
+                    iroPicker.color.set(iroPickerInitialColor);
+                }
+                document.getElementById('colorPickerModal').style.display = 'flex';
+            };
+
+            function closeColorPicker() {
+                document.getElementById('colorPickerModal').style.display = 'none';
+            }
+            function rgb2hex(rgb) {
+                if (rgb.startsWith('#')) return rgb;
+                const result = rgb.match(/\d+/g);
+                if (!result) return '#ff0000';
+                return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
+            }
+
+            document.getElementById('colorPickerOkBtn').onclick = function() {
+                const hex = iroPicker.color.hexString;
+                // 更新按钮颜色
+                const btn = document.getElementById('colorPointBtn' + currentColorPoint);
+                btn.style.background = hex;
+                // 发送到设备
+                sendColorPoint(currentColorPoint, hex);
+                closeColorPicker();
+            };
+            document.getElementById('colorPickerCancelBtn').onclick = function() {
+                closeColorPicker();
+            };
+            document.getElementById('colorPickerModal').onclick = function(e) {
+                if (e.target === this) closeColorPicker();
+            };
+        });
+        // sendColorPoint和handleColorPointData函数保持全局可用
     </script>
 </body>
 </html> 
