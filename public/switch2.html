@@ -1631,13 +1631,14 @@
                 <div class="card-header">
                     <i class="fas fa-cogs"></i>
                     <h3>Custom setting</h3>
+                    <h4>  (Please set time 1-8 first then set temp,Set unnecessary points to 0.) </h4>
                 </div>
                 <div style="padding: 16px;">
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
                         <template id="customConfigRowTemplate">
                             <div class="custom-config-row">
                                 <label>point<span class="custom-index"></span>：</label>
-                                <input type="number" class="custom-temp" min="0" max="65535" step="1" style="width: 70px;" placeholder="温度">
+                                <input type="number" class="custom-temp" min="250" max="650" step="1" style="width: 70px;" placeholder="温度">
                                 <span>°</span>
                                 <input type="number" class="custom-time" min="0" max="255" step="1" style="width: 50px;" placeholder="时间">
                                 <span>s</span>
@@ -1646,58 +1647,58 @@
                         <!-- 8组输入框 -->
                         <div class="custom-config-row">
                             <label>point1：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="400" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="400" style="width: 70px;">
                             <span>°</span>
                             <input type="number" class="custom-time" min="0" max="0" step="1" value="0" style="width: 50px;" readonly>
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point2：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="410" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="410" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="1" max="255" step="1" value="30" style="width: 50px;" onchange="validateCustomTime(this, 2)" oninput="validateCustomTime(this, 2)">
+                            <input type="number" class="custom-time" min="1" max="90" step="1" value="20" style="width: 50px;">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point3：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="420" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="420" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="60" style="width: 50px;" onchange="validateCustomTime(this, 3)" oninput="validateCustomTime(this, 3)">
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="30" style="width: 50px;">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point4：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="430" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="430" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="90" style="width: 50px;" onchange="validateCustomTime(this, 4)" oninput="validateCustomTime(this, 4)">
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="40" style="width: 50px;">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point5：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="440" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="440" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="120" style="width: 50px;" onchange="validateCustomTime(this, 5)" oninput="validateCustomTime(this, 5)">
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="50" style="width: 50px;">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point6：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="450" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="450" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="150" style="width: 50px;" onchange="validateCustomTime(this, 6)" oninput="validateCustomTime(this, 6)">
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="60" style="width: 50px;">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point7：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="460" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="460" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="180" style="width: 50px;" onchange="validateCustomTime(this, 7)" oninput="validateCustomTime(this, 7)">
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="70" style="width: 50px;">
                             <span>s</span>
                         </div>
                         <div class="custom-config-row">
                             <label>point8：</label>
-                            <input type="number" class="custom-temp" min="0" max="65535" step="1" value="470" style="width: 70px;">
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="470" style="width: 70px;">
                             <span>°</span>
-                            <input type="number" class="custom-time" min="0" max="255" step="1" value="210" style="width: 50px;" onchange="validateCustomTime(this, 8)" oninput="validateCustomTime(this, 8)">
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="80" style="width: 50px;">
                             <span>s</span>
                         </div>
                     </div>
@@ -1733,6 +1734,9 @@
                 </div>
             </div>
         </div>
+
+
+
         </div>
 
         <!-- 系统日志 -->
@@ -4225,7 +4229,7 @@
             }
 
             const currentDate = versionMatch[1]; // YYMMDD格式
-            const targetDate = '250626'; // SW2-250626
+            const targetDate = '250705'; // SW2-250626
 
             if (currentDate < targetDate) {
                 return { 
@@ -4340,449 +4344,441 @@
 
         // ========== Custom参数配置相关 ==========
         
-                 // 验证自定义时间点的递增逻辑
-         function validateCustomTime(input, pointIndex) {
-             const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
-             const currentValue = parseInt(input.value) || 0;
-             
-             // 获取前一个点的时间值
-             let previousValue = 0;
-             if (pointIndex > 1) {
-                 previousValue = parseInt(timeInputs[pointIndex - 2].value) || 0;
-             }
-             
-             let isValid = true;
-             let errorMessage = '';
-             
-             // 验证规则
-             if (pointIndex === 2) {
-                 // point2必须大于0
-                 if (currentValue <= 0) {
-                     isValid = false;
-                     errorMessage = 'Point2时间必须大于0';
-                 }
-             } else {
-                 // point3-8：必须大于前一个点或者为0
-                 if (currentValue !== 0 && currentValue <= previousValue) {
-                     isValid = false;
-                     errorMessage = `Point${pointIndex}时间必须大于Point${pointIndex-1}(${previousValue}s)或者为0`;
-                 }
-             }
-             
-             // 设置输入框样式
-             if (isValid) {
-                 input.style.borderColor = '';
-                 input.style.backgroundColor = '';
-                 input.title = '';
-                 
-                 // 如果验证通过，更新所有Custom模式preset的Hold Time
-                 updateCustomModeHoldTimes();
-             } else {
-                 input.style.borderColor = '#dc3545';
-                 input.style.backgroundColor = '#f8d7da';
-                 input.title = errorMessage;
-                 
-                 // 显示错误提示
-                 showNotification(errorMessage, 'warning', 3000);
-                 
-                 // 恢复到有效值
-                 setTimeout(() => {
-                     if (pointIndex === 2) {
-                         input.value = Math.max(1, previousValue + 1);
-                     } else {
-                         input.value = currentValue === 0 ? 0 : Math.max(previousValue + 1, currentValue);
-                     }
-                     validateCustomTime(input, pointIndex);
-                 }, 1500);
-             }
-             
-             // 验证后续点的时间值
-             validateSubsequentPoints(pointIndex);
-         }
-        
                  // 验证后续点的时间值（当前点改变时，检查后续点是否还有效）
-         function validateSubsequentPoints(changedPointIndex) {
+         function validateSubsequentPoints(startIndex) {
              const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
-             
-             for (let i = changedPointIndex; i < timeInputs.length; i++) {
-                 const input = timeInputs[i];
-                 if (input.readOnly) continue; // 跳过point1
-                 
-                 validateCustomTime(input, i + 1);
+             for (let i = startIndex; i < timeInputs.length; i++) {
+                 validateCustomTime(timeInputs[i], i + 1);
              }
          }
          
-         // 验证所有时间点设置是否正确
-         function validateAllCustomTimes() {
-             const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
-             let allValid = true;
-             
-             for (let i = 1; i < timeInputs.length; i++) { // 从point2开始
-                 const input = timeInputs[i];
-                 const currentValue = parseInt(input.value) || 0;
-                 const previousValue = i === 1 ? 0 : parseInt(timeInputs[i - 1].value) || 0;
-                 
-                 if (i === 1) {
-                     // point2必须大于0
-                     if (currentValue <= 0) {
-                         allValid = false;
-                         break;
-                     }
-                 } else {
-                     // point3-8：必须大于前一个点或者为0
-                     if (currentValue !== 0 && currentValue <= previousValue) {
-                         allValid = false;
-                         break;
-                     }
-                 }
+          // 从UI获取自定义曲线数据
+          function getCustomProfileFromUI() {
+              const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+              const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+              const profile = { temp: [], time: [] };
+              for (let i = 0; i < 8; i++) {
+                  profile.temp.push(parseInt(tempInputs[i].value) || 0);
+                  profile.time.push(parseInt(timeInputs[i].value) || 0);
+              }
+              return profile;
+          }
+
+          // 发送自定义曲线
+          async function sendCustomProfile() {
+             if (!characteristic) {
+                 log('Error: Device not connected');
+                 showNotification('设备未连接', 'error');
+                 return;
              }
-             
-             return allValid;
-         }
-        
-        function getCustomProfileFromUI() {
-            const temps = Array.from(document.querySelectorAll('#customConfigCard .custom-temp')).map(input => parseInt(input.value) || 0);
-            const times = Array.from(document.querySelectorAll('#customConfigCard .custom-time')).map((input, index) => {
-                // point1的时间固定为0
-                if (index === 0) return 0;
-                return parseInt(input.value) || 0;
-            });
-            return { temp: temps, time: times };
-        }
-        // 更新所有设置为Custom模式的preset的Hold Time
-        function updateCustomModeHoldTimes() {
-            const customHoldTime = getLastNonZeroTimeFromCustom();
-            
-            for (let i = 1; i <= 5; i++) {
-                const modeSelect = document.getElementById(`presetMode${i}`);
-                if (modeSelect && modeSelect.value === '0xF1') { // Custom模式
-                    const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
-                    if (holdTimeSlider) {
-                        holdTimeSlider.value = customHoldTime;
-                        updatePresetHoldTimeDisplay(i, customHoldTime);
-                        presetHoldTimes[i] = customHoldTime;
-                        
-                        // 发送更新的Hold Time到设备
-                        setPresetHoldTime(i, customHoldTime);
-                    }
-                }
-            }
-            
-            if (customHoldTime > 30) { // 只有当时间不是默认值时才显示通知
-                showNotification(`已更新所有Custom模式preset的保持时间为${customHoldTime}秒`, 'info', 2000);
-            }
-        }
+              
+             const profile = getCustomProfileFromUI();
+             // 组包并发送两包（ba/bb头尾）
+             for (let index = 0; index < 2; index++) {
+                 let ble_tx_buff = new Uint8Array(15);
+                 let ble_tx_len = 15;
+                 if (index === 0) {
+                     ble_tx_buff[0] = 0xba;
+                     ble_tx_buff[1] = ble_tx_len;
+                     ble_tx_buff[2] = profile.temp[0] >> 8;
+                     ble_tx_buff[3] = profile.temp[0] & 0xff;
+                     ble_tx_buff[4] = profile.time[0];
+                     ble_tx_buff[5] = profile.temp[1] >> 8;
+                     ble_tx_buff[6] = profile.temp[1] & 0xff;
+                     ble_tx_buff[7] = profile.time[1];
+                     ble_tx_buff[8] = profile.temp[2] >> 8;
+                     ble_tx_buff[9] = profile.temp[2] & 0xff;
+                     ble_tx_buff[10] = profile.time[2];
+                     ble_tx_buff[11] = profile.temp[3] >> 8;
+                     ble_tx_buff[12] = profile.temp[3] & 0xff;
+                     ble_tx_buff[13] = profile.time[3];
+                     ble_tx_buff[14] = 0xba;
+                 } else {
+                     ble_tx_buff[0] = 0xbb;
+                     ble_tx_buff[1] = ble_tx_len;
+                     ble_tx_buff[2] = profile.temp[4] >> 8;
+                     ble_tx_buff[3] = profile.temp[4] & 0xff;
+                     ble_tx_buff[4] = profile.time[4];
+                     ble_tx_buff[5] = profile.temp[5] >> 8;
+                     ble_tx_buff[6] = profile.temp[5] & 0xff;
+                     ble_tx_buff[7] = profile.time[5];
+                     ble_tx_buff[8] = profile.temp[6] >> 8;
+                     ble_tx_buff[9] = profile.temp[6] & 0xff;
+                     ble_tx_buff[10] = profile.time[6];
+                     ble_tx_buff[11] = profile.temp[7] >> 8;
+                     ble_tx_buff[12] = profile.temp[7] & 0xff;
+                     ble_tx_buff[13] = profile.time[7];
+                     ble_tx_buff[14] = 0xbb;
+                 }
+                 try {
+                     await characteristic.writeValue(ble_tx_buff);
+                     log(`✓ Custom参数包${index+1}已发送(ba/bb): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
+                 
+                                        // 1. 获取point1-8的最大时间值
+                        const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+                        let maxCustomTime = 0;
+                        for (let i = 0; i < timeInputs.length; i++) {
+                            const t = parseInt(timeInputs[i].value) || 0;
+                            if (t > maxCustomTime) maxCustomTime = t;
+                        }
+                        // 2. 遍历preset1-5，设置为Custom模式的hold time
+                        for (let i = 1; i <= 5; i++) {
+                            const modeSelect = document.getElementById(`presetMode${i}`);
+                            if (modeSelect && modeSelect.value === '0xF1') {
+                                // 修改滑块UI
+                                const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                                if (holdTimeSlider) {
+                                    holdTimeSlider.value = maxCustomTime;
+                                    // 可选：同步显示
+                                    if (typeof updatePresetHoldTimeDisplay === 'function') {
+                                        updatePresetHoldTimeDisplay(i, maxCustomTime);
+                                    }
+                                }
+                                // 发送蓝牙命令
+                                if (typeof setPresetHoldTime === 'function') {
+                                    setPresetHoldTime(i, maxCustomTime);
+                                }
+                            }
+                        }      
+                        showNotification(`已同步Custom模式的Hold Time为${maxCustomTime}秒`, 'info', 2000);           
+                    } catch (e) {
+                     log(`✗ Custom参数包${index+1}发送失败: ${e.message}`);
+                     showNotification(`自定义参数包${index+1}发送失败`, 'error');
+                     return;
+                 }
 
-        async function sendCustomProfile() {
-            if (!characteristic) {
-                log('Error: Device not connected');
-                showNotification('设备未连接', 'error');
-                return;
-            }
-            
-            // 发送前进行最终验证
-            if (!validateAllCustomTimes()) {
-                showNotification('请先修正时间点设置错误', 'error');
-                return;
-            }
-            
-            // 更新所有Custom模式preset的Hold Time
-            updateCustomModeHoldTimes();
-            
-            const profile = getCustomProfileFromUI();
-            // 组包并发送两包（ba/bb头尾）
-            for (let index = 0; index < 2; index++) {
-                let ble_tx_buff = new Uint8Array(15);
-                let ble_tx_len = 15;
-                if (index === 0) {
-                    ble_tx_buff[0] = 0xba;
-                    ble_tx_buff[1] = ble_tx_len;
-                    ble_tx_buff[2] = profile.temp[0] >> 8;
-                    ble_tx_buff[3] = profile.temp[0] & 0xff;
-                    ble_tx_buff[4] = profile.time[0];
-                    ble_tx_buff[5] = profile.temp[1] >> 8;
-                    ble_tx_buff[6] = profile.temp[1] & 0xff;
-                    ble_tx_buff[7] = profile.time[1];
-                    ble_tx_buff[8] = profile.temp[2] >> 8;
-                    ble_tx_buff[9] = profile.temp[2] & 0xff;
-                    ble_tx_buff[10] = profile.time[2];
-                    ble_tx_buff[11] = profile.temp[3] >> 8;
-                    ble_tx_buff[12] = profile.temp[3] & 0xff;
-                    ble_tx_buff[13] = profile.time[3];
-                    ble_tx_buff[14] = 0xba;
-                } else {
-                    ble_tx_buff[0] = 0xbb;
-                    ble_tx_buff[1] = ble_tx_len;
-                    ble_tx_buff[2] = profile.temp[4] >> 8;
-                    ble_tx_buff[3] = profile.temp[4] & 0xff;
-                    ble_tx_buff[4] = profile.time[4];
-                    ble_tx_buff[5] = profile.temp[5] >> 8;
-                    ble_tx_buff[6] = profile.temp[5] & 0xff;
-                    ble_tx_buff[7] = profile.time[5];
-                    ble_tx_buff[8] = profile.temp[6] >> 8;
-                    ble_tx_buff[9] = profile.temp[6] & 0xff;
-                    ble_tx_buff[10] = profile.time[6];
-                    ble_tx_buff[11] = profile.temp[7] >> 8;
-                    ble_tx_buff[12] = profile.temp[7] & 0xff;
-                    ble_tx_buff[13] = profile.time[7];
-                    ble_tx_buff[14] = 0xbb;
-                }
-                try {
-                    await characteristic.writeValue(ble_tx_buff);
-                    log(`✓ Custom参数包${index+1}已发送(ba/bb): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
-                } catch (e) {
-                    log(`✗ Custom参数包${index+1}发送失败: ${e.message}`);
-                    showNotification(`自定义参数包${index+1}发送失败`, 'error');
-                    return;
-                }
-            }
-            showNotification('自定义参数全部发送成功', 'success');
-        }
-        document.getElementById('sendCustomProfileBtn').onclick = sendCustomProfile;
 
-        // 新增：自定义参数包解析
-        function handleCustomProfileData(data) {
-            let group = (data[0] === 0xaa) ? 0 : 1;
-            let temps = [];
-            let times = [];
-            for(let i=0; i<4; i++) {
-                let temp = (data[2+i*3] << 8) | data[3+i*3];
-                let time = data[4+i*3];
-                temps.push(temp);
-                times.push(time);
-            }
-            
-            // 更新UI输入框
-            for(let i=0; i<4; i++) {
-                let idx = group*4 + i;
-                const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
-                const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
-                if (tempInputs[idx]) tempInputs[idx].value = temps[i];
-                if (timeInputs[idx]) {
-                    // point1的时间固定为0，不更新
-                    if (idx !== 0) {
-                        timeInputs[idx].value = times[i];
-                    }
-                }
-            }
-            
-            log(`收到自定义参数包${group+1}：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
-            showNotification(`收到自定义参数包${group+1}已同步到UI`,'info');
-        }
+             }
+             showNotification('自定义参数全部发送成功', 'success');
+          }
+          
+          // 绑定按钮事件
+          document.getElementById('sendCustomProfileBtn').onclick = sendCustomProfile;
+          
+          // 新增：自定义参数包解析
+          function handleCustomProfileData(data) {
+              let group = (data[0] === 0xaa) ? 0 : 1;
+              let temps = [];
+              let times = [];
+              for(let i=0; i<4; i++) {
+                  let temp = (data[2+i*3] << 8) | data[3+i*3];
+                  let time = data[4+i*3];
+                  temps.push(temp);
+                  times.push(time);
+              }
+              
+              // 更新UI输入框
+              for(let i=0; i<4; i++) {
+                  let idx = group*4 + i;
+                  const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+                  const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+                  if (tempInputs[idx]) tempInputs[idx].value = temps[i];
+                  if (timeInputs[idx]) {
+                      // point1的时间固定为0，不更新
+                      if (idx !== 0) {
+                          timeInputs[idx].value = times[i];
+                      }
+                  }
+              }
+              
+              log(`收到自定义参数包${group+1}：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
+              showNotification(`收到自定义参数包${group+1}已同步到UI`,'info');
+          }
 
-        // 新增：处理来自设备的颜色点数据
-        function handleColorPointData(data) {
-            const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
-            const point = pointMap[data[0]];
-            if (!point) return;
+          // 新增：处理来自设备的颜色点数据
+          function handleColorPointData(data) {
+              const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
+              const point = pointMap[data[0]];
+              if (!point) return;
 
-            const r = data[2];
-            const g = data[3];
-            const b = data[4];
+              const r = data[2];
+              const g = data[3];
+              const b = data[4];
 
-            // Convert RGB to hex string #RRGGBB
-            const toHex = c => ('0' + c.toString(16)).slice(-2);
-            const hexColor = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+              // Convert RGB to hex string #RRGGBB
+              const toHex = c => ('0' + c.toString(16)).slice(-2);
+              const hexColor = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 
-            // Update the color picker UI
-            const colorInput = document.getElementById(`colorPoint${point}`);
-            if (colorInput) {
-                colorInput.value = hexColor;
-            }
+              // Update the color picker UI
+              const colorInput = document.getElementById(`colorPoint${point}`);
+              if (colorInput) {
+                  colorInput.value = hexColor;
+              }
 
-            log(`Received color point ${point} data: R=${r}, G=${g}, B=${b} (${hexColor})`);
-            showNotification(`Color point ${point} updated from device.`, 'info', 2000);
-        }
+              log(`Received color point ${point} data: R=${r}, G=${g}, B=${b} (${hexColor})`);
+              showNotification(`Color point ${point} updated from device.`, 'info', 2000);
+          }
 
-        async function sendColorPoint(point) {
-            if (!characteristic) {
-                log('Error: Device not connected');
-                showNotification('设备未连接，无法设置颜色', 'error');
-                return;
-            }
-            // 获取颜色
-            const colorInput = document.getElementById('colorPoint' + point);
-            const hex = colorInput.value;
-            // 解析RGB
-            const r = parseInt(hex.substr(1,2), 16);
-            const g = parseInt(hex.substr(3,2), 16);
-            const b = parseInt(hex.substr(5,2), 16);
+          async function sendColorPoint(point) {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  showNotification('设备未连接，无法设置颜色', 'error');
+                  return;
+              }
+              // 获取颜色
+              const colorInput = document.getElementById('colorPoint' + point);
+              const hex = colorInput.value;
+              // 解析RGB
+              const r = parseInt(hex.substr(1,2), 16);
+              const g = parseInt(hex.substr(3,2), 16);
+              const b = parseInt(hex.substr(5,2), 16);
 
-            // 组包
-            let cmd, end;
-            if (point === 1) { cmd = 0xbc; end = 0xbc; }
-            else if (point === 2) { cmd = 0xbd; end = 0xbd; }
-            else if (point === 3) { cmd = 0xbe; end = 0xbe; }
-            else { return; }
+              // 组包
+              let cmd, end;
+              if (point === 1) { cmd = 0xbc; end = 0xbc; }
+              else if (point === 2) { cmd = 0xbd; end = 0xbd; }
+              else if (point === 3) { cmd = 0xbe; end = 0xbe; }
+              else { return; }
 
-            const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
-            try {
-                await characteristic.writeValue(buf);
-                log(`✓ 发送颜色点${point}: [${Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join(' ')}]`);
-                showNotification(`颜色点${point}已发送`, 'success', 1500);
-            } catch (e) {
-                log(`✗ 颜色点${point}发送失败: ${e.message}`);
-                showNotification(`颜色点${point}发送失败`, 'error');
-            }
-        }
+              const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
+              try {
+                  await characteristic.writeValue(buf);
+                  log(`✓ 发送颜色点${point}: [${Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join(' ')}]`);
+                  showNotification(`颜色点${point}已发送`, 'success', 1500);
+              } catch (e) {
+                  log(`✗ 颜色点${point}发送失败: ${e.message}`);
+                  showNotification(`颜色点${point}发送失败`, 'error');
+              }
+          }
 
-        // ========== IRO.js 圆形调色盘集成 ==========
-        let iroPicker = null;
-        let currentColorPoint = 1;
-        let iroPickerInitialColor = '#ff0000';
+          // ========== IRO.js 圆形调色盘集成 ==========
+          let iroPicker = null;
+          let currentColorPoint = 1;
+          let iroPickerInitialColor = '#ff0000';
 
-        // 打开调色盘弹窗
-        function openColorPicker(point) {
-            currentColorPoint = point;
-            // 获取当前颜色
-            const btn = document.getElementById('colorPointBtn' + point);
-            iroPickerInitialColor = rgb2hex(btn.style.backgroundColor || '#ff0000');
-            // 初始化iro.js
-            if (!iroPicker) {
-                iroPicker = new iro.ColorPicker('#iroColorPicker', {
-                    width: 220,
-                    color: iroPickerInitialColor,
-                    borderWidth: 1,
-                    borderColor: '#ccc',
-                    layout: [
-                        { component: iro.ui.Wheel },
-                        { component: iro.ui.Slider, options: { sliderType: 'value' } }
-                    ]
-                });
-            } else {
-                iroPicker.color.set(iroPickerInitialColor);
-            }
-            document.getElementById('colorPickerModal').style.display = 'flex';
-        }
-        // 关闭调色盘弹窗
-        function closeColorPicker() {
-            document.getElementById('colorPickerModal').style.display = 'none';
-        }
-        // 颜色转hex
-        function rgb2hex(rgb) {
-            if (rgb.startsWith('#')) return rgb;
-            const result = rgb.match(/\d+/g);
-            if (!result) return '#ff0000';
-            return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
-        }
-        // 弹窗按钮事件
-        document.getElementById('colorPickerOkBtn').onclick = function() {
-            const hex = iroPicker.color.hexString;
-            // 更新按钮颜色
-            const btn = document.getElementById('colorPointBtn' + currentColorPoint);
-            btn.style.background = hex;
-            // 发送到设备
-            sendColorPoint(currentColorPoint, hex);
-            closeColorPicker();
-        };
-        document.getElementById('colorPickerCancelBtn').onclick = function() {
-            closeColorPicker();
-        };
-        // 点击弹窗外部关闭
-        document.getElementById('colorPickerModal').onclick = function(e) {
-            if (e.target === this) closeColorPicker();
-        };
-        // 修改sendColorPoint支持传入hex
-        async function sendColorPoint(point, hex) {
-            if (!characteristic) {
-                log('Error: Device not connected');
-                showNotification('设备未连接，无法设置颜色', 'error');
-                return;
-            }
-            // 获取颜色
-            hex = hex || document.getElementById('colorPointBtn' + point).style.background || '#ff0000';
-            hex = rgb2hex(hex);
-            // 解析RGB
-            const r = parseInt(hex.substr(1,2), 16);
-            const g = parseInt(hex.substr(3,2), 16);
-            const b = parseInt(hex.substr(5,2), 16);
-            // 组包
-            let cmd, end;
-            if (point === 1) { cmd = 0xbc; end = 0xbc; }
-            else if (point === 2) { cmd = 0xbd; end = 0xbd; }
-            else if (point === 3) { cmd = 0xbe; end = 0xbe; }
-            else { return; }
-            const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
-            try {
-                await characteristic.writeValue(buf);
-                log(`✓ 发送颜色点${point}: [${Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join(' ')}]`);
-                showNotification(`颜色点${point}已发送`, 'success', 1500);
-            } catch (e) {
-                log(`✗ 颜色点${point}发送失败: ${e.message}`);
-                showNotification(`颜色点${point}发送失败`, 'error');
-            }
-        }
-        // 设备notify更新颜色点时同步按钮颜色
-        function handleColorPointData(data) {
-            const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
-            const point = pointMap[data[0]];
-            if (!point) return;
-            const r = data[2];
-            const g = data[3];
-            const b = data[4];
-            const hexColor = `#${('0'+r.toString(16)).slice(-2)}${('0'+g.toString(16)).slice(-2)}${('0'+b.toString(16)).slice(-2)}`;
-            const btn = document.getElementById('colorPointBtn' + point);
-            if (btn) btn.style.background = hexColor;
-            log(`Received color point ${point} data: R=${r}, G=${g}, B=${b} (${hexColor})`);
-            showNotification(`Color point ${point} updated from device.`, 'info', 2000);
-        }
+          // 打开调色盘弹窗
+          function openColorPicker(point) {
+              currentColorPoint = point;
+              // 获取当前颜色
+              const btn = document.getElementById('colorPointBtn' + point);
+              iroPickerInitialColor = rgb2hex(btn.style.backgroundColor || '#ff0000');
+              // 初始化iro.js
+              if (!iroPicker) {
+                  iroPicker = new iro.ColorPicker('#iroColorPicker', {
+                      width: 220,
+                      color: iroPickerInitialColor,
+                      borderWidth: 1,
+                      borderColor: '#ccc',
+                      layout: [
+                          { component: iro.ui.Wheel },
+                          { component: iro.ui.Slider, options: { sliderType: 'value' } }
+                      ]
+                  });
+              } else {
+                  iroPicker.color.set(iroPickerInitialColor);
+              }
+              document.getElementById('colorPickerModal').style.display = 'flex';
+          }
+          // 关闭调色盘弹窗
+          function closeColorPicker() {
+              document.getElementById('colorPickerModal').style.display = 'none';
+          }
+          // 颜色转hex
+          function rgb2hex(rgb) {
+              if (rgb.startsWith('#')) return rgb;
+              const result = rgb.match(/\d+/g);
+              if (!result) return '#ff0000';
+              return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
+          }
+          // 弹窗按钮事件
+          document.getElementById('colorPickerOkBtn').onclick = function() {
+              const hex = iroPicker.color.hexString;
+              // 更新按钮颜色
+              const btn = document.getElementById('colorPointBtn' + currentColorPoint);
+              btn.style.background = hex;
+              // 发送到设备
+              sendColorPoint(currentColorPoint, hex);
+              closeColorPicker();
+          };
+          document.getElementById('colorPickerCancelBtn').onclick = function() {
+              closeColorPicker();
+          };
+          // 点击弹窗外部关闭
+          document.getElementById('colorPickerModal').onclick = function(e) {
+              if (e.target === this) closeColorPicker();
+          };
+          // 修改sendColorPoint支持传入hex
+          async function sendColorPoint(point, hex) {
+              if (!characteristic) {
+                  log('Error: Device not connected');
+                  showNotification('设备未连接，无法设置颜色', 'error');
+                  return;
+              }
+              // 获取颜色
+              hex = hex || document.getElementById('colorPointBtn' + point).style.background || '#ff0000';
+              hex = rgb2hex(hex);
+              // 解析RGB
+              const r = parseInt(hex.substr(1,2), 16);
+              const g = parseInt(hex.substr(3,2), 16);
+              const b = parseInt(hex.substr(5,2), 16);
+              // 组包
+              let cmd, end;
+              if (point === 1) { cmd = 0xbc; end = 0xbc; }
+              else if (point === 2) { cmd = 0xbd; end = 0xbd; }
+              else if (point === 3) { cmd = 0xbe; end = 0xbe; }
+              else { return; }
+              const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
+              try {
+                  await characteristic.writeValue(buf);
+                  log(`✓ 发送颜色点${point}: [${Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join(' ')}]`);
+                  showNotification(`颜色点${point}已发送`, 'success', 1500);
+              } catch (e) {
+                  log(`✗ 颜色点${point}发送失败: ${e.message}`);
+                  showNotification(`颜色点${point}发送失败`, 'error');
+              }
+          }
+          // 设备notify更新颜色点时同步按钮颜色
+          function handleColorPointData(data) {
+              const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
+              const point = pointMap[data[0]];
+              if (!point) return;
+              const r = data[2];
+              const g = data[3];
+              const b = data[4];
+              const hexColor = `#${('0'+r.toString(16)).slice(-2)}${('0'+g.toString(16)).slice(-2)}${('0'+b.toString(16)).slice(-2)}`;
+              const btn = document.getElementById('colorPointBtn' + point);
+              if (btn) btn.style.background = hexColor;
+              log(`Received color point ${point} data: R=${r}, G=${g}, B=${b} (${hexColor})`);
+              showNotification(`Color point ${point} updated from device.`, 'info', 2000);
+          }
 
-        // ========== IRO.js 圆形调色盘集成 ==========
-        window.addEventListener('load', function() {
-            let iroPicker = null;
-            let currentColorPoint = 1;
-            let iroPickerInitialColor = '#ff0000';
+          // ========== IRO.js 圆形调色盘集成 ==========
+          window.addEventListener('load', function() {
+              let iroPicker = null;
+              let currentColorPoint = 1;
+              let iroPickerInitialColor = '#ff0000';
 
-            window.openColorPicker = function(point) {
-                currentColorPoint = point;
-                // 获取当前颜色
-                const btn = document.getElementById('colorPointBtn' + point);
-                iroPickerInitialColor = rgb2hex(btn.style.backgroundColor || '#ff0000');
-                // 初始化iro.js
-                if (!iroPicker) {
-                    iroPicker = new iro.ColorPicker('#iroColorPicker', {
-                        width: 220,
-                        color: iroPickerInitialColor,
-                        borderWidth: 1,
-                        borderColor: '#ccc',
-                        layout: [
-                            { component: iro.ui.Wheel },
-                            { component: iro.ui.Slider, options: { sliderType: 'value' } }
-                        ]
-                    });
-                } else {
-                    iroPicker.color.set(iroPickerInitialColor);
-                }
-                document.getElementById('colorPickerModal').style.display = 'flex';
-            };
+              window.openColorPicker = function(point) {
+                  currentColorPoint = point;
+                  // 获取当前颜色
+                  const btn = document.getElementById('colorPointBtn' + point);
+                  iroPickerInitialColor = rgb2hex(btn.style.backgroundColor || '#ff0000');
+                  // 初始化iro.js
+                  if (!iroPicker) {
+                      iroPicker = new iro.ColorPicker('#iroColorPicker', {
+                          width: 220,
+                          color: iroPickerInitialColor,
+                          borderWidth: 1,
+                          borderColor: '#ccc',
+                          layout: [
+                              { component: iro.ui.Wheel },
+                              { component: iro.ui.Slider, options: { sliderType: 'value' } }
+                          ]
+                      });
+                  } else {
+                      iroPicker.color.set(iroPickerInitialColor);
+                  }
+                  document.getElementById('colorPickerModal').style.display = 'flex';
+              };
 
-            function closeColorPicker() {
-                document.getElementById('colorPickerModal').style.display = 'none';
-            }
-            function rgb2hex(rgb) {
-                if (rgb.startsWith('#')) return rgb;
-                const result = rgb.match(/\d+/g);
-                if (!result) return '#ff0000';
-                return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
-            }
+              function closeColorPicker() {
+                  document.getElementById('colorPickerModal').style.display = 'none';
+              }
+              function rgb2hex(rgb) {
+                  if (rgb.startsWith('#')) return rgb;
+                  const result = rgb.match(/\d+/g);
+                  if (!result) return '#ff0000';
+                  return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
+              }
 
-            document.getElementById('colorPickerOkBtn').onclick = function() {
-                const hex = iroPicker.color.hexString;
-                // 更新按钮颜色
-                const btn = document.getElementById('colorPointBtn' + currentColorPoint);
-                btn.style.background = hex;
-                // 发送到设备
-                sendColorPoint(currentColorPoint, hex);
-                closeColorPicker();
-            };
-            document.getElementById('colorPickerCancelBtn').onclick = function() {
-                closeColorPicker();
-            };
-            document.getElementById('colorPickerModal').onclick = function(e) {
-                if (e.target === this) closeColorPicker();
-            };
-        });
-        // sendColorPoint和handleColorPointData函数保持全局可用
+              document.getElementById('colorPickerOkBtn').onclick = function() {
+                  const hex = iroPicker.color.hexString;
+                  // 更新按钮颜色
+                  const btn = document.getElementById('colorPointBtn' + currentColorPoint);
+                  btn.style.background = hex;
+                  // 发送到设备
+                  sendColorPoint(currentColorPoint, hex);
+                  closeColorPicker();
+              };
+              document.getElementById('colorPickerCancelBtn').onclick = function() {
+                  closeColorPicker();
+              };
+              document.getElementById('colorPickerModal').onclick = function(e) {
+                  if (e.target === this) closeColorPicker();
+              };
+          });
+          // sendColorPoint和handleColorPointData函数保持全局可用
+
+
+          // 修正版：point2~point8温度范围递归联动限制
+          window.addEventListener('DOMContentLoaded', function() {
+              const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+              const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+              function updateRangeFrom(index) {
+                  for (let i = index; i < tempInputs.length - 1; i++) {
+                    const prev = parseInt(tempInputs[i].value) || 0;
+                    const deltaT = parseInt(timeInputs[i+1].value) - parseInt(timeInputs[i].value);
+                    const min = prev - deltaT * 3;
+                    const max = prev + deltaT * 10;
+                      if(min < 250) min = 250;
+                      if(max > 650) max = 650;
+                      tempInputs[i+1].min = min;
+                      tempInputs[i+1].max = max;
+                      if(timeInputs[i+1].value != 0){
+                        let curr = parseInt(tempInputs[i+1].value) || 0;
+                        let changed = false;
+                        if (curr < min) { tempInputs[i+1].value = min; changed = true; }
+                        if (curr > max) { tempInputs[i+1].value = max; changed = true; }
+                        // 如果当前值被修正，递归修正下一个点
+                        if (changed && i+1 < tempInputs.length - 1) {
+                            // 递归修正后续点
+                            updateRangeFrom(i+1);
+                        }                        
+                      }
+
+                  }
+              }
+              // 给point0~point7加事件
+              for (let i = 0; i < tempInputs.length - 1; i++) {
+                  tempInputs[i].addEventListener('input', function() {
+                      updateRangeFrom(i);
+                  });
+              }
+              // 页面初始化时递归修正一次
+              updateRangeFrom(1);
+
+              function updateTimeRangeFrom(index) {
+                for (let i = index; i < timeInputs.length - 1; i++) {
+                      const prev = parseInt(timeInputs[i].value) || 0;
+                      let curr = parseInt(timeInputs[i+1].value) || 0;
+
+
+                      if (curr < prev) {
+                          for (let j = i+1; j < timeInputs.length; j++) {
+                              timeInputs[j].value = 0;
+                              tempInputs[j].value = 0;
+                              if(prev == 90) {
+                                timeInputs[j].min = 90;
+                              }
+                              else {
+                                timeInputs[j].min = prev+1;
+                              }
+                          }
+                          timeInputs[i+1].disabled = false;
+                          for (let j = i+2; j < timeInputs.length; j++) {
+                            timeInputs[j].disabled = true;
+                         }
+                         break; 
+                      }
+                  }
+                 // updateRangeFrom(1);
+              }
+              // point2~point7变化时递归修正后续点
+              for (let i = 1; i < timeInputs.length - 1; i++) {
+                  timeInputs[i].addEventListener('input', function() {
+                      updateTimeRangeFrom(i);
+                  });
+              }
+              // 页面初始化时递归修正一次
+              updateTimeRangeFrom(2);
+
+
+          });
+    
+    
+    
+    
+    
     </script>
 </body>
 </html> 
