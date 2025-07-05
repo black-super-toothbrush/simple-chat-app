@@ -1769,6 +1769,7 @@
     <div id="colorPickerModal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); z-index:2000; align-items:center; justify-content:center;">
       <div id="colorPickerContainer" style="background:#fff; border-radius:16px; padding:32px 24px 16px 24px; box-shadow:0 8px 32px rgba(0,0,0,0.18); position:relative; min-width:320px;">
         <div id="iroColorPicker"></div>
+        <div id="colorPickerRgbInfo" style="margin: 12px 0; text-align: center; font-size: 1.1em; color: #333;"></div>
         <div style="text-align:right; margin-top:18px;">
           <button id="colorPickerOkBtn" class="btn btn-primary">setting</button>
           <button id="colorPickerCancelBtn" class="btn btn-secondary" style="margin-left:12px;">back</button>
@@ -4564,8 +4565,18 @@
                           { component: iro.ui.Slider, options: { sliderType: 'value' } }
                       ]
                   });
+                  // 监听颜色变化，显示RGB
+                  iroPicker.on('color:change', function(color) {
+                      const rgb = color.rgb;
+                      document.getElementById('colorPickerRgbInfo').textContent =
+                          `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+                  });
               } else {
                   iroPicker.color.set(iroPickerInitialColor);
+                  // 手动显示一次
+                  const rgb = iroPicker.color.rgb;
+                  document.getElementById('colorPickerRgbInfo').textContent =
+                      `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
               }
               document.getElementById('colorPickerModal').style.display = 'flex';
           }
@@ -4665,8 +4676,18 @@
                               { component: iro.ui.Slider, options: { sliderType: 'value' } }
                           ]
                       });
+                      // 监听颜色变化，显示RGB
+                      iroPicker.on('color:change', function(color) {
+                          const rgb = color.rgb;
+                          document.getElementById('colorPickerRgbInfo').textContent =
+                              `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+                      });
                   } else {
                       iroPicker.color.set(iroPickerInitialColor);
+                      // 手动显示一次
+                      const rgb = iroPicker.color.rgb;
+                      document.getElementById('colorPickerRgbInfo').textContent =
+                          `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
                   }
                   document.getElementById('colorPickerModal').style.display = 'flex';
               };
