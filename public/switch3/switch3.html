@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>switch * Dr.Dabber</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700&family=Merriweather:wght@300;400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="design.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/ogl@0.0.101/dist/ogl.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="ribbons-container"></div>
+    <div class="container">
+        <div class="header fade-in">
+            <div id="circular-text-container" class="circular-text-container">
+                <!-- JS will populate this -->
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- 蓝牙连接卡片 -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-bluetooth"></i>
+                    <h3>Bluetooth Connection</h3>
+                </div>
+                <div id="connectionStatus" class="status status-disconnected">
+                    <span class="status-indicator disconnected" id="statusIndicator"></span>
+                    <i class="fas fa-unlink" id="statusIcon"></i>
+                    <span id="statusText">Device Not Connected</span>
+                </div>
+                <div class="controls">
+                    <div class="star-border-container">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="connectBtn" class="btn btn-primary tooltip inner-content" onclick="connectDevice()" data-tooltip="Connect to PY32F071 Bluetooth device">
+                            <i class="fas fa-link"></i>
+                            Connect Device
+                        </button>
+                    </div>
+                    <div class="star-border-container">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="disconnectBtn" class="btn btn-danger tooltip inner-content" onclick="disconnectDevice()" disabled data-tooltip="Disconnect from device">
+                            <i class="fas fa-unlink"></i>
+                            Disconnect
+                        </button>
+                    </div>
+                    <div class="star-border-container">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="syncTimeBtn" class="btn btn-secondary tooltip inner-content" onclick="syncTime()" disabled data-tooltip="Synchronize device time with system time">
+                            <i class="fas fa-clock"></i>
+                            Sync Time
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设备信息显示 -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i>
+                <h3>Device Information</h3>
+            </div>
+            
+            <div id="deviceInfoDisplay" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-group">
+                        <h4><i class="fas fa-microchip"></i> Device Details</h4>
+                        <div class="status-item">
+                            <strong>Device Name:</strong>
+                            <span id="deviceName">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Serial Number:</strong>
+                            <span id="serialNumber">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Model Name:</strong>
+                            <span id="modelName">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-cogs"></i> Version Info</h4>
+                        <div class="status-item">
+                            <strong>Hardware Version:</strong>
+                            <span id="hardwareVersion">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Software Version:</strong>
+                            <span id="softwareVersion">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Manufacturer:</strong>
+                            <span id="manufacturer">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 原始设备信息数据 -->
+                <div style="margin-top: 24px;">
+                    <div class="status-group">
+                        <h4><i class="fas fa-code"></i> Raw Device Info Data</h4>
+                        <div class="responsive-table">
+                            <table class="table">
+                                <tr>
+                                    <td><strong>Last Info Packet:</strong></td>
+                                    <td><span id="rawDeviceInfo" style="font-family: monospace; font-size: 0.8rem;">No data</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Info Packet Count:</strong></td>
+                                    <td><span id="deviceInfoPacketCount">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Last Info Updated:</strong></td>
+                                    <td><span id="lastInfoUpdate">Never</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设备状态监控 -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <i class="fas fa-chart-line"></i>
+                <h3>Device Status Monitor</h3>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="notifyToggle" onchange="toggleNotifications()">
+                    <span class="slider"></span>
+                </label>
+                <span style="margin-left: 12px; font-weight: 500;">
+                    Real-time Monitoring
+                    <span id="notifyStatus" style="margin-left: 8px; font-size: 0.875rem; color: var(--muted-foreground);">Disabled</span>
+                </span>
+            </div>
+            
+            <div id="deviceStatusInfo" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-group">
+                        <h4><i class="fas fa-thermometer-half"></i> Temperature</h4>
+                        <div class="status-item">
+                            <strong>Preset:</strong> 
+                            <div class="star-border-container" style="--star-speed: 4s;">
+                                <div class="border-gradient-bottom"></div>
+                                <div class="border-gradient-top"></div>
+                                <button id="presetBtn" class="btn btn-primary inner-content" onclick="switchPreset()" disabled style="min-width: 60px; padding: 6px 12px;">--</button>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Target:</strong>
+                            <span id="tempSetting">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Current:</strong> 
+                            <span id="realTemp">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-battery-half"></i> Power</h4>
+                        <div class="status-item">
+                            <strong>Battery:</strong>
+                            <span id="batteryLevel">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Charge State:</strong> 
+                            <span id="chargeState">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Brightness:</strong>
+                            <input type="range" id="brightness" min="0" max="100" value="25" 
+                                   style="width: 80px;" oninput="updateBrightnessDisplay(this.value)" onchange="setBrightness(this.value)" disabled>
+                            <span id="brightnessDisplay" style="font-size: 0.8rem; margin-left: 8px;">25</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-fire"></i> Session</h4>
+                        <div style="margin-bottom: 16px; text-align: center;">
+                            <div class="star-border-container" style="--star-speed: 4s;">
+                                <div class="border-gradient-bottom"></div>
+                                <div class="border-gradient-top"></div>
+                                <button id="sessionControlBtn" class="btn btn-success inner-content" onclick="toggleSession()" disabled style="min-width: 150px;">
+                                    <i class="fas fa-play"></i>
+                                    Press to Heat
+                                </button>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Auto Shut:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="autoShutTime" min="0" max="30" value="2" 
+                                       class="form-control" style="width: 60px; padding: 4px 8px;" 
+                                       onchange="setAutoShutTime(this.value)" disabled>
+                                <span style="font-size: 0.8rem;">min</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Hold Time:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" id="holdTime" min="10" max="90" value="30" 
+                                       class="form-control" style="width: 60px; padding: 4px 8px;" 
+                                       onchange="setHoldTime(this.value)" disabled>
+                                <span style="font-size: 0.8rem;">sec</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Countdown:</strong> 
+                            <span id="remainTime">--</span>s
+                        </div>
+                        <div class="status-item">
+                            <strong>Session Time:</strong> 
+                            <span id="sessionRemainTime">--</span>s
+                        </div>
+                    </div>
+                    
+                    <div class="status-group">
+                        <h4><i class="fas fa-cog"></i> Settings</h4>
+                        <div class="status-item">
+                            <strong>LED Mode:</strong>
+                            <div class="led-selector">
+                                <select id="ledPresetSelect" class="form-control" onchange="setLedPreset(this.value)" style="font-size: 0.8rem;">
+                                    <option value="0x00">Clam</option>
+                                    <option value="0x01">Stealth</option>
+                                    <option value="0x02">Purple</option>
+                                    <option value="0x03">Blue</option>
+                                    <option value="0x04">Cyan</option>
+                                    <option value="0x05">Green</option>
+                                    <option value="0x06">Yellow</option>
+                                    <option value="0x07">Orange</option>
+                                    <option value="0x08">Red</option>
+                                    <option value="0x09">Pink</option>
+                                    <option value="0x0A">Cali Sunset</option>
+                                    <option value="0x0B">Purple Haze</option>
+                                    <option value="0x0C">Northern Nights</option>
+                                    <option value="0x0D">Vegas Nights</option>
+                                    <option value="0x0E">Blue Dream</option>
+                                    <option value="0x0F">Strawberry Cough</option>
+                                    <option value="0x10">Florida Groves</option>
+                                    <option value="0x11">Lime Light</option>
+                                </select>
+                                <div class="led-preview" id="ledPreview"></div>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <strong>Current:</strong> 
+                            <span id="ledPreset">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Haptic:</strong> 
+                            <span id="hapticFeedback">--</span>
+                        </div>
+                        <div class="status-item">
+                            <strong>Boost:</strong> 
+                            <span id="sessionBoost">--</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 温度预设 -->
+                <div style="margin-top: 24px;">
+                    <div class="status-group">
+                        <h4><i class="fas fa-sliders-h"></i> Temperature Presets (300-600°F)</h4>
+                        <div class="temp-preset-grid" id="tempPresets">
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 1</div>
+                                <input type="number" id="tempF1" min="250" max="650" value="450" 
+                                       class="temp-input" onchange="setTemperature(1, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 2</div>
+                                <input type="number" id="tempF2" min="250" max="650" value="500" 
+                                       class="temp-input" onchange="setTemperature(2, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 3</div>
+                                <input type="number" id="tempF3" min="250" max="650" value="550" 
+                                       class="temp-input" onchange="setTemperature(3, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 4</div>
+                                <input type="number" id="tempF4" min="250" max="650" value="600" 
+                                       class="temp-input" onchange="setTemperature(4, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                            <div class="preset-card">
+                                <div class="preset-title">Preset 5</div>
+                                <input type="number" id="tempF5" min="250" max="650" value="613" 
+                                       class="temp-input" onchange="setTemperature(5, this.value)">
+                                <div class="temp-unit">°F</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 原始数据 -->
+                <div style="margin-top: 24px;">
+                    <div class="status-group">
+                        <h4><i class="fas fa-code"></i> Raw Data</h4>
+                        <div class="responsive-table">
+                            <table class="table">
+                                <tr>
+                                    <td><strong>Last Packet:</strong></td>
+                                    <td><span id="rawData" style="font-family: monospace; font-size: 0.8rem;">No data</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Packet Count:</strong></td>
+                                    <td><span id="packetCount">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Last Updated:</strong></td>
+                                    <td><span id="lastUpdate">Never</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- 实时温度曲线 -->
+                <div style="margin-top: 32px;">
+                    <h4 style="margin-bottom: 8px; color: var(--foreground); font-size: 1rem;">Current 温度曲线</h4>
+                    <canvas id="currentTempChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTA升级和日志 -->
+        <div class="grid">
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i>
+                    <h3>OTA Upgrade</h3>
+                </div>
+                <div class="controls">
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="startOtaBtn" class="btn btn-success tooltip inner-content" onclick="startOTA()" disabled data-tooltip="Start firmware upload to device">
+                            <i class="fas fa-rocket"></i>
+                            Start Upgrade
+                        </button>
+                    </div>
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="stopOtaBtn" class="btn btn-danger tooltip inner-content" onclick="stopOTA()" disabled data-tooltip="Cancel ongoing firmware upgrade">
+                            <i class="fas fa-stop"></i>
+                            Stop Upgrade
+                        </button>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                    <div id="progressText" style="text-align: center; margin-top: 8px; font-size: 0.875rem; color: var(--muted-foreground);">
+                        Waiting to start...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-terminal"></i>
+                    <h3>System Log</h3>
+                    <div class="star-border-container" style="--star-speed: 4s; margin-left: auto;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button class="btn btn-secondary inner-content" onclick="clearLog()" style="padding: 6px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-trash"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div id="logOutput" class="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知组件 -->
+    <div id="notification" class="notification">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-check-circle" style="color: var(--primary);"></i>
+            <span id="notificationText">Operation completed successfully!</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js?v=1.1"></script>
+</body>
+</html>
