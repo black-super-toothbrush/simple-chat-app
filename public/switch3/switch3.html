@@ -311,7 +311,35 @@
                 <!-- 温度预设 -->
                 <div style="margin-top: 24px;">
                     <div class="status-group">
-                        <h4><i class="fas fa-sliders-h"></i> Temperature Presets (300-600°F)</h4>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h4><i class="fas fa-sliders-h"></i> Temperature Presets (300-600°F)</h4>
+                            <div style="display: flex; gap: 8px;">
+                                <div class="star-border-container" style="--star-speed: 4s;">
+                                    <div class="border-gradient-bottom"></div>
+                                    <div class="border-gradient-top"></div>
+                                    <button class="btn btn-primary inner-content" onclick="collectAndUploadTemperaturePresets()" style="padding: 6px 12px; font-size: 0.8rem;">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        上传预设
+                                    </button>
+                                </div>
+                                <div class="star-border-container" style="--star-speed: 4s;">
+                                    <div class="border-gradient-bottom"></div>
+                                    <div class="border-gradient-top"></div>
+                                    <button class="btn btn-secondary inner-content" onclick="viewUploadHistory()" style="padding: 6px 12px; font-size: 0.8rem;">
+                                        <i class="fas fa-history"></i>
+                                        历史记录
+                                    </button>
+                                </div>
+                                <div class="star-border-container" style="--star-speed: 4s;">
+                                    <div class="border-gradient-bottom"></div>
+                                    <div class="border-gradient-top"></div>
+                                    <button class="btn btn-success inner-content" onclick="getGlobalTemperatureStats()" style="padding: 6px 12px; font-size: 0.8rem;">
+                                        <i class="fas fa-chart-bar"></i>
+                                        统计
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         <div class="temp-preset-grid" id="tempPresets">
                             <div class="preset-card">
                                 <div class="preset-title">Preset 1</div>
@@ -342,6 +370,39 @@
                                 <input type="number" id="tempF5" min="250" max="650" value="613" 
                                        class="temp-input" onchange="setTemperature(5, this.value)">
                                 <div class="temp-unit">°F</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 上传状态显示 -->
+                        <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                            <h5 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--muted-foreground);">
+                                <i class="fab fa-google"></i> Firebase数据收集
+                            </h5>
+                            <div class="status-item">
+                                <strong>状态:</strong>
+                                <span id="upload-status" class="upload-status ready">准备上传</span>
+                            </div>
+                            <div class="status-item">
+                                <strong>最后上传:</strong>
+                                <span id="upload-timestamp">--</span>
+                            </div>
+                            <div class="status-item">
+                                <strong>已上传预设:</strong>
+                                <span id="upload-presets">--</span>
+                            </div>
+                            <div class="status-item" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted-foreground);">
+                                <i class="fas fa-info-circle"></i>
+                                数据将保存到Firebase Firestore数据库中，支持实时同步和查询
+                            </div>
+                            <div style="margin-top: 8px; display: flex; gap: 4px;">
+                                <button class="btn btn-outline" onclick="checkFirestoreConnection()" style="padding: 4px 8px; font-size: 0.7rem;">
+                                    <i class="fas fa-link"></i>
+                                    测试连接
+                                </button>
+                                <button class="btn btn-outline" onclick="showFirestoreRulesSuggestion()" style="padding: 4px 8px; font-size: 0.7rem;">
+                                    <i class="fas fa-shield-alt"></i>
+                                    权限说明
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -445,7 +506,7 @@
         // Firebase配置和认证
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js';
 
         // Firebase配置信息
         const firebaseConfig = {
@@ -465,6 +526,7 @@
 
         // 全局变量，供其他脚本使用
         window.firebaseAuth = auth;
+        window.firebaseDb = db;
         window.currentUser = null;
 
         // 显示认证消息

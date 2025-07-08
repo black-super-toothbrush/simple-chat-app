@@ -17,6 +17,355 @@ function checkAuthentication() {
     return true;
 }
 
+// Firestore连接和权限检查函数
+async function checkFirestoreConnection() {
+    try {
+        if (!window.firebaseDb) {
+            throw new Error('Firebase数据库未初始化');
+        }
+        
+        if (!window.currentUser) {
+            throw new Error('用户未登录');
+        }
+
+        // 使用动态导入
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
+        
+        // 尝试读取用户文档以测试连接和权限
+        const userDocRef = doc(window.firebaseDb, 'users', window.currentUser.uid);
+        await getDoc(userDocRef);
+        
+        log('✓ Firestore connection and permissions verified');
+        return true;
+        
+    } catch (error) {
+        log(`✗ Firestore connection check failed: ${error.message}`);
+        if (error.code) {
+            log(`  Error code: ${error.code}`);
+        }
+        return false;
+    }
+}
+
+// 温度预设数据收集和上传功能
+async function collectAndUploadTemperaturePresets() {
+    // 检查用户是否已登录
+    if (!checkAuthentication()) {
+        return;
+    }
+    
+    // 检查Firestore连接
+    const connectionOk = await checkFirestoreConnection();
+    if (!connectionOk) {
+        showNotification('Firebase连接检查失败，请检查网络和权限设置', 'error');
+        return;
+    }
+
+    try {
+        // 收集当前温度预设数据
+        const temperaturePresets = [];
+        for (let i = 1; i <= 5; i++) {
+            const tempInput = document.getElementById(`tempF${i}`);
+            const temperature = tempInput ? parseInt(tempInput.value) || 0 : 0;
+            temperaturePresets.push(temperature);
+        }
+
+        // 收集设备信息（如果有连接的设备）
+        const deviceInfo = {
+            deviceName: document.getElementById('deviceName')?.textContent || '',
+            serialNumber: document.getElementById('serialNumber')?.textContent || '',
+            modelName: document.getElementById('modelName')?.textContent || '',
+            hardwareVersion: document.getElementById('hardwareVersion')?.textContent || '',
+            softwareVersion: document.getElementById('softwareVersion')?.textContent || '',
+            manufacturer: document.getElementById('manufacturer')?.textContent || '',
+            isConnected: bluetoothDevice && bluetoothDevice.gatt && bluetoothDevice.gatt.connected,
+            connectionTimestamp: bluetoothDevice ? new Date().toISOString() : null
+        };
+
+        // 收集会话数据
+        const sessionData = {
+            currentPreset: currentPreset,
+            ledPreset: document.getElementById('ledPresetSelect')?.value || '',
+            brightness: parseInt(document.getElementById('brightness')?.value) || 0,
+            autoShutTime: parseInt(document.getElementById('autoShutTime')?.value) || 0,
+            holdTime: parseInt(document.getElementById('holdTime')?.value) || 0,
+            globalTempF: [...globalTempF],
+            globalTempC: [...globalTempC],
+            b9State: {...currentB9State}
+        };
+
+        // 构建上传数据
+        const uploadData = {
+            userId: window.currentUser.uid,
+            userEmail: window.currentUser.email,
+            deviceInfo,
+            temperaturePresets,
+            timestamp: new Date().toISOString(),
+            sessionData
+        };
+
+        // 显示上传中状态
+        showNotification('正在上传温度预设数据到Firebase...', 'info', 1000);
+        updateUploadStatus('uploading', new Date().toISOString(), temperaturePresets);
+        
+        // 检查Firebase数据库是否可用
+        if (!window.firebaseDb) {
+            throw new Error('Firebase数据库未初始化');
+        }
+
+        // 上传到Firebase Firestore
+        // 使用动态导入来访问Firestore函数
+        const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
+        
+        // 准备Firebase数据（避免使用serverTimestamp，使用客户端时间戳）
+        const currentTimestamp = new Date().toISOString();
+        const firestoreData = {
+            ...uploadData,
+            uploadedAt: currentTimestamp,
+            clientTimestamp: currentTimestamp
+        };
+
+        log('准备上传数据到Firestore...');
+        log(`  集合: temperaturePresets`);
+        log(`  用户: ${window.currentUser.email}`);
+        log(`  预设: [${temperaturePresets.join(', ')}]°F`);
+
+        // 添加到Firestore集合
+        const docRef = await addDoc(collection(window.firebaseDb, 'temperaturePresets'), firestoreData);
+
+        log(`✓ Temperature presets uploaded to Firebase successfully`);
+        log(`  Document ID: ${docRef.id}`);
+        log(`  Presets: [${temperaturePresets.join(', ')}]°F`);
+        log(`  User: ${window.currentUser.email}`);
+        showNotification('温度预设数据已上传到Firebase！', 'success');
+        
+        // 更新上传状态显示
+        updateUploadStatus('success', new Date().toISOString(), temperaturePresets);
+
+    } catch (error) {
+        log(`✗ Failed to upload temperature presets: ${error.message}`);
+        
+        // 详细错误诊断
+        if (error.code) {
+            log(`  Error code: ${error.code}`);
+        }
+        if (error.customData) {
+            log(`  Custom data: ${JSON.stringify(error.customData)}`);
+        }
+        
+        // 常见错误原因和解决建议
+        let errorSuggestion = '';
+        if (error.code === 'permission-denied') {
+            errorSuggestion = ' - 可能是Firestore安全规则限制，请检查数据库规则配置';
+        } else if (error.code === 'unauthenticated') {
+            errorSuggestion = ' - 用户认证失败，请重新登录';
+        } else if (error.code === 'network-request-failed') {
+            errorSuggestion = ' - 网络连接问题，请检查网络连接';
+        } else if (error.message.includes('Failed to get document')) {
+            errorSuggestion = ' - Firestore数据库连接问题';
+        }
+        
+        log(`  Suggestion: ${errorSuggestion}`);
+        showNotification(`上传失败: ${error.message}${errorSuggestion}`, 'error', 8000);
+        updateUploadStatus('error', new Date().toISOString(), null);
+    }
+}
+
+// 自动上传温度预设数据（当用户修改预设时）
+async function autoUploadOnPresetChange(presetIndex, newTemp) {
+    // 只有在用户登录且设备连接时才自动上传
+    if (!window.currentUser || !bluetoothDevice || !bluetoothDevice.gatt.connected) {
+        return;
+    }
+
+    // 防抖：延迟上传，避免频繁操作
+    if (window.autoUploadTimeout) {
+        clearTimeout(window.autoUploadTimeout);
+    }
+
+    window.autoUploadTimeout = setTimeout(async () => {
+        try {
+            log(`Auto-uploading temperature presets after preset ${presetIndex} changed to ${newTemp}°F`);
+            await collectAndUploadTemperaturePresets();
+        } catch (error) {
+            log(`Auto-upload failed: ${error.message}`);
+        }
+    }, 2000); // 2秒延迟
+}
+
+// 更新上传状态显示
+function updateUploadStatus(status, timestamp, presets) {
+    const statusElement = document.getElementById('upload-status');
+    const timestampElement = document.getElementById('upload-timestamp');
+    const presetsElement = document.getElementById('upload-presets');
+    
+    if (statusElement) {
+        statusElement.className = `upload-status ${status}`;
+        statusElement.textContent = status === 'success' ? '上传成功' : 
+                                   status === 'error' ? '上传失败' : '准备上传';
+    }
+    
+    if (timestampElement) {
+        timestampElement.textContent = timestamp ? new Date(timestamp).toLocaleString('zh-CN') : '--';
+    }
+    
+    if (presetsElement && presets) {
+        presetsElement.textContent = `[${presets.join(', ')}]°F`;
+    }
+}
+
+// 查看用户的温度预设上传历史
+async function viewUploadHistory() {
+    // 检查用户是否已登录
+    if (!checkAuthentication()) {
+        return;
+    }
+
+    try {
+        if (!window.firebaseDb) {
+            throw new Error('Firebase数据库未初始化');
+        }
+
+        showNotification('正在加载上传历史...', 'info', 1000);
+
+        // 使用动态导入
+        const { collection, query, where, orderBy, getDocs, limit } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
+
+        // 查询当前用户的温度预设记录
+        const q = query(
+            collection(window.firebaseDb, 'temperaturePresets'),
+            where('userId', '==', window.currentUser.uid),
+            orderBy('timestamp', 'desc'),
+            limit(10)
+        );
+
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            showNotification('暂无上传历史记录', 'info');
+            log('No upload history found for current user');
+            return;
+        }
+
+        log(`Found ${querySnapshot.size} upload records:`);
+        
+        querySnapshot.forEach((doc, index) => {
+            const data = doc.data();
+            const uploadTime = new Date(data.timestamp).toLocaleString('zh-CN');
+            log(`${index + 1}. ${uploadTime} - Presets: [${data.temperaturePresets.join(', ')}]°F`);
+        });
+
+        showNotification(`已加载 ${querySnapshot.size} 条上传记录，请查看日志`, 'success');
+
+    } catch (error) {
+        log(`✗ Failed to load upload history: ${error.message}`);
+        showNotification(`加载历史失败: ${error.message}`, 'error');
+    }
+}
+
+// 获取所有用户的温度预设统计（管理员功能）
+async function getGlobalTemperatureStats() {
+    try {
+        if (!window.firebaseDb) {
+            throw new Error('Firebase数据库未初始化');
+        }
+
+        showNotification('正在加载全局统计...', 'info', 1000);
+
+        // 使用动态导入
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
+
+        const querySnapshot = await getDocs(collection(window.firebaseDb, 'temperaturePresets'));
+        
+        if (querySnapshot.empty) {
+            showNotification('暂无数据记录', 'info');
+            return;
+        }
+
+        const records = [];
+        const userStats = new Map();
+        
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            records.push(data);
+            
+            if (!userStats.has(data.userEmail)) {
+                userStats.set(data.userEmail, 0);
+            }
+            userStats.set(data.userEmail, userStats.get(data.userEmail) + 1);
+        });
+
+        // 计算温度预设统计
+        const tempStats = {
+            preset1: [],
+            preset2: [],
+            preset3: [],
+            preset4: [],
+            preset5: []
+        };
+
+        records.forEach(record => {
+            if (record.temperaturePresets && record.temperaturePresets.length === 5) {
+                tempStats.preset1.push(record.temperaturePresets[0]);
+                tempStats.preset2.push(record.temperaturePresets[1]);
+                tempStats.preset3.push(record.temperaturePresets[2]);
+                tempStats.preset4.push(record.temperaturePresets[3]);
+                tempStats.preset5.push(record.temperaturePresets[4]);
+            }
+        });
+
+        // 计算平均值
+        const avgTemps = Object.keys(tempStats).map(preset => {
+            const temps = tempStats[preset];
+            const avg = temps.length > 0 ? Math.round(temps.reduce((a, b) => a + b, 0) / temps.length) : 0;
+            return avg;
+        });
+
+        log(`📊 Global Temperature Statistics:`);
+        log(`  Total records: ${records.length}`);
+        log(`  Unique users: ${userStats.size}`);
+        log(`  Average presets: [${avgTemps.join(', ')}]°F`);
+        log(`  Users upload counts:`);
+        
+        Array.from(userStats.entries()).forEach(([email, count]) => {
+            log(`    ${email}: ${count} uploads`);
+        });
+
+        showNotification(`全局统计：${records.length}条记录，${userStats.size}个用户`, 'success');
+
+    } catch (error) {
+        log(`✗ Failed to load global stats: ${error.message}`);
+        showNotification(`加载统计失败: ${error.message}`, 'error');
+    }
+}
+
+// 显示Firestore安全规则配置建议
+function showFirestoreRulesSuggestion() {
+    log(`📋 Firebase Firestore安全规则配置建议:`);
+    log(`请在Firebase控制台 → Firestore → 规则中设置以下规则:`);
+    log(``);
+    log(`rules_version = '2';`);
+    log(`service cloud.firestore {`);
+    log(`  match /databases/{database}/documents {`);
+    log(`    // 允许已认证用户读写自己的数据`);
+    log(`    match /users/{userId} {`);
+    log(`      allow read, write: if request.auth != null && request.auth.uid == userId;`);
+    log(`    }`);
+    log(`    // 允许已认证用户上传温度预设数据`);
+    log(`    match /temperaturePresets/{document} {`);
+    log(`      allow create: if request.auth != null && request.auth.uid == resource.data.userId;`);
+    log(`      allow read: if request.auth != null && request.auth.uid == resource.data.userId;`);
+    log(`    }`);
+    log(`  }`);
+    log(`}`);
+    log(``);
+    log(`🔗 访问Firebase控制台: https://console.firebase.google.com/project/my-user-system/firestore/rules`);
+    log(`⚠️  如果仍有问题，可以临时使用测试规则（不安全）:`);
+    log(`allow read, write: if request.auth != null;`);
+    
+    showNotification('Firestore安全规则配置说明已显示在日志中', 'info', 5000);
+}
+
 // Notify监听相关变量
 let rxCharacteristic = null;
 let notificationsEnabled = false;
@@ -301,7 +650,7 @@ function updateLedPreview(colorValue) {
 function handleResponse(event) {
     const data = new Uint8Array(event.target.value.buffer);
     // 打印data 16进制  数据和长度
-    log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+   // log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
     // 检查是否是设备状态notify数据包 (20字节，包头包尾都是0xA9)
     if (data.length === 20 && data[0] === 0xA9 && data[19] === 0xA9) {
         handleNotifyData(data);
@@ -673,10 +1022,8 @@ async function connectDevice() {
         log('Searching for Bluetooth devices...');
         
         bluetoothDevice = await navigator.bluetooth.requestDevice({
-            filters: [
-                { name: 'PY32F071' },
-                { namePrefix: 'PY32' }
-            ],
+
+            acceptAllDevices: true,
             optionalServices: [SERVICE_UUID]
         });
 
@@ -1228,6 +1575,9 @@ async function syncTime() {
          log(`✓ Temperature preset ${presetIndex} set to ${temperature}°F (${tempC}°C)`);
          log(`  Packet data: ${packetHex}`);
          
+         // 自动上传温度预设数据
+         await autoUploadOnPresetChange(presetIndex, temperature);
+         
                    } catch (error) {
           log(`✗ Failed to set temperature: ${error.message}`);
       }
@@ -1409,7 +1759,7 @@ async function syncTime() {
               });
           }
           
-          log('✅ Heating stopped - Other controls enabled');
+       //   log('✅ Heating stopped - Other controls enabled');
       }
   }
 
