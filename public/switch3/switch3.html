@@ -13,7 +13,46 @@
 </head>
 <body>
     <div id="ribbons-container"></div>
-    <div class="container">
+    
+    <!-- 认证界面 -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-card">
+            <h1>设备控制系统</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">请登录或注册以使用设备控制功能</p>
+            
+            <div id="auth-message"></div>
+            
+            <div class="form-group">
+                <label for="auth-email">邮箱：</label>
+                <input type="email" id="auth-email" placeholder="请输入邮箱" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="auth-password">密码：</label>
+                <input type="password" id="auth-password" placeholder="请输入密码" required>
+            </div>
+            
+            <div class="auth-buttons">
+                <button class="btn btn-primary" id="auth-login-btn">登录</button>
+                <button class="btn btn-secondary" id="auth-register-btn">注册</button>
+            </div>
+            
+            <div class="auth-switch-text">
+                <p>还没有账号？点击注册按钮创建账号</p>
+                <p>已有账号？点击登录按钮登录</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="main-app" style="display: none;">
+        <!-- 用户信息栏 -->
+        <div class="user-info-bar fade-in">
+            <div class="user-info-content">
+                <span>欢迎，<span id="display-user-email"></span></span>
+                <button class="btn btn-outline" id="logout-btn">退出登录</button>
+            </div>
+        </div>
+        
         <div class="header fade-in">
             <div id="circular-text-container" class="circular-text-container">
                 <!-- JS will populate this -->
@@ -400,6 +439,186 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase认证脚本 -->
+    <script type="module">
+        // Firebase配置和认证
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js';
+
+        // Firebase配置信息
+        const firebaseConfig = {
+            apiKey: "AIzaSyAD7ZoXaGWaGj8Mm6cWQnSHnCDICWffJeg",
+            authDomain: "my-user-system.firebaseapp.com",
+            projectId: "my-user-system",
+            storageBucket: "my-user-system.firebasestorage.app",
+            messagingSenderId: "8686556726",
+            appId: "1:8686556726:web:86934b38afca467947aa97",
+            measurementId: "G-3S7Z52L589"
+        };
+
+        // 初始化Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 全局变量，供其他脚本使用
+        window.firebaseAuth = auth;
+        window.currentUser = null;
+
+        // 显示认证消息
+        function showAuthMessage(text, type = 'success') {
+            const messageDiv = document.getElementById('auth-message');
+            messageDiv.innerHTML = `<div class="auth-message ${type}">${text}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // 注册功能
+        async function register() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            
+            if (!email || !password) {
+                showAuthMessage('请输入邮箱和密码', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAuthMessage('密码长度至少6位', 'error');
+                return;
+            }
+            
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // 在Firestore中保存用户信息
+                await setDoc(doc(db, 'users', user.uid), {
+                    email: email,
+                    createdAt: new Date().toISOString(),
+                    lastLogin: new Date().toISOString()
+                });
+                
+                showAuthMessage('注册成功！正在登录...', 'success');
+            } catch (error) {
+                let errorMessage = '注册失败：';
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage += '邮箱已被使用';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage += '邮箱格式不正确';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage += '密码太弱';
+                        break;
+                    default:
+                        errorMessage += error.message;
+                }
+                showAuthMessage(errorMessage, 'error');
+            }
+        }
+
+        // 登录功能
+        async function login() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            
+            if (!email || !password) {
+                showAuthMessage('请输入邮箱和密码', 'error');
+                return;
+            }
+            
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // 更新最后登录时间
+                await setDoc(doc(db, 'users', user.uid), {
+                    lastLogin: new Date().toISOString()
+                }, { merge: true });
+                
+                showAuthMessage('登录成功！', 'success');
+            } catch (error) {
+                let errorMessage = '登录失败：';
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage += '用户不存在';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage += '密码错误';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage += '邮箱格式不正确';
+                        break;
+                    default:
+                        errorMessage += error.message;
+                }
+                showAuthMessage(errorMessage, 'error');
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await signOut(auth);
+                showAuthMessage('已退出登录', 'success');
+            } catch (error) {
+                console.error('退出失败：', error.message);
+            }
+        }
+
+        // 监听登录状态变化
+        onAuthStateChanged(auth, async (user) => {
+            const authContainer = document.getElementById('auth-container');
+            const mainApp = document.getElementById('main-app');
+            
+            if (user) {
+                // 用户已登录
+                window.currentUser = user;
+                authContainer.style.display = 'none';
+                mainApp.style.display = 'block';
+                
+                // 显示用户信息
+                document.getElementById('display-user-email').textContent = user.email;
+                
+                // 清空输入框
+                document.getElementById('auth-email').value = '';
+                document.getElementById('auth-password').value = '';
+                
+                console.log('用户已登录:', user.email);
+            } else {
+                // 用户未登录
+                window.currentUser = null;
+                authContainer.style.display = 'flex';
+                mainApp.style.display = 'none';
+                
+                console.log('用户未登录');
+            }
+        });
+
+        // 页面加载完成后绑定事件
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定认证按钮事件
+            document.getElementById('auth-login-btn').addEventListener('click', login);
+            document.getElementById('auth-register-btn').addEventListener('click', register);
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            
+            // 回车键登录
+            document.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    const authContainer = document.getElementById('auth-container');
+                    if (authContainer.style.display !== 'none') {
+                        login();
+                    }
+                }
+            });
+        });
+    </script>
+    
     <script src="script.js?v=1.1"></script>
 </body>
 </html>

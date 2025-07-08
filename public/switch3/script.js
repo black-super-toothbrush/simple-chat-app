@@ -8,6 +8,15 @@ let sentPackets = 0;
 let waitingForResponse = false;
 let responsePromise = null;
 
+// 认证检查函数
+function checkAuthentication() {
+    if (!window.currentUser) {
+        showNotification('请先登录才能使用设备功能', 'warning');
+        return false;
+    }
+    return true;
+}
+
 // Notify监听相关变量
 let rxCharacteristic = null;
 let notificationsEnabled = false;
@@ -653,6 +662,11 @@ function waitForResponse(timeoutMs = RESPONSE_TIMEOUT) {
 // 旧的updateConnectionStatus函数已被updateConnectionStatusWithAnimation替代
 
 async function connectDevice() {
+    // 检查用户是否已登录
+    if (!checkAuthentication()) {
+        return;
+    }
+    
     try {
         updateConnectionStatusWithAnimation(false, true); // 显示连接中状态
         setButtonLoading('connectBtn', true);
@@ -927,6 +941,11 @@ function updateProgress(current, total) {
 }
 
 async function startOTA() {
+    // 检查用户是否已登录
+    if (!checkAuthentication()) {
+        return;
+    }
+    
     if (!firmwareData || !characteristic) {
         log('Please select firmware file and connect device first');
         return;
@@ -1079,6 +1098,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 切换notifications开关
 async function toggleNotifications() {
+    // 检查用户是否已登录
+    if (!checkAuthentication()) {
+        return;
+    }
+    
     if (!rxCharacteristic) {
         log('Error: RX characteristic not available');
         showNotification('设备未连接，无法启用监控', 'error');
@@ -1115,6 +1139,11 @@ async function toggleNotifications() {
 
 // 同步时间功能 - 发送格式：b1 09 year(2 byte) month day hour minute b1
 async function syncTime() {
+    // 检查用户是否已登录
+    if (!checkAuthentication()) {
+        return;
+    }
+    
     if (!characteristic) {
         log('Error: Device not connected');
         return;
@@ -1157,6 +1186,11 @@ async function syncTime() {
 
  // 设置温度预设 - 发送格式：0xA3 + 8 + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
  async function setTemperature(presetIndex, tempF) {
+     // 检查用户是否已登录
+     if (!checkAuthentication()) {
+         return;
+     }
+     
      if (!characteristic) {
          log('Error: Device not connected');
          return;
@@ -1164,7 +1198,7 @@ async function syncTime() {
 
      // 验证温度范围
      const temperature = parseInt(tempF);
-     if (temperature < 300 || temperature > 600) {
+     if (temperature < 250 || temperature > 650) {
          log(`Error: Temperature ${temperature}°F is out of range (300-600°F)`);
          // 恢复之前的值
          document.getElementById(`tempF${presetIndex}`).value = document.getElementById(`tempF${presetIndex}`).defaultValue;
@@ -1256,6 +1290,11 @@ async function syncTime() {
 
   // 设置LED预设 - 调用通用B9命令函数
   async function setLedPreset(ledValue) {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
       // 解析十六进制值
       const ledPreset = parseInt(ledValue, 16);
       const colorName = LED_COLORS[ledPreset] || 'Unknown';
@@ -1376,6 +1415,11 @@ async function syncTime() {
 
   // 切换Session状态 - 调用通用B9命令函数
   async function toggleSession() {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
       // 获取当前按钮状态来判断要执行的操作
       const sessionBtn = document.getElementById('sessionControlBtn');
       const isCurrentlyHeating = sessionBtn.textContent === 'Stop Heating';
@@ -1391,6 +1435,11 @@ async function syncTime() {
 
   // 切换预设挡位 - 循环切换1→2→3→4→5→1
   async function switchPreset() {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
       // 循环切换预设值
       currentPreset = currentPreset >= 5 ? 1 : currentPreset + 1;
       
@@ -1408,6 +1457,11 @@ async function syncTime() {
 
   // 设置Auto Shut Time - 发送B9命令第8字节
   async function setAutoShutTime(minutes) {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
       // 验证时间范围
       const autoShutTime = parseInt(minutes);
       if (autoShutTime < 0 || autoShutTime > 30) {
@@ -1426,6 +1480,11 @@ async function syncTime() {
 
   // 设置Hold Time - 发送B7命令格式：B7 06 01 holdTime(high) holdTime(low) B7
   async function setHoldTime(seconds) {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
       if (!characteristic) {
           log('Error: Device not connected');
           return;
@@ -1473,6 +1532,11 @@ async function syncTime() {
 
   // 设置Brightness - 发送B9命令第13字节
   async function setBrightness(brightness) {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
       // 验证亮度范围
       const brightnessValue = parseInt(brightness);
       if (brightnessValue < 0 || brightnessValue > 100) {
