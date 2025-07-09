@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,48 +8,173 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="design.css">
     <link rel="stylesheet" href="styles.css">
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .session-data-collecting {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: var(--card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: var(--foreground);
+        }
+        
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--muted-foreground);
+            transition: color 0.2s;
+        }
+        
+        .close:hover {
+            color: var(--foreground);
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .subscription-info {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .subscription-info h3 {
+            color: var(--foreground);
+            margin-bottom: 10px;
+        }
+        
+        .subscription-info p {
+            color: var(--muted-foreground);
+            margin-bottom: 15px;
+        }
+        
+        .price {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+        
+        .payment-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .payment-section h4 {
+            color: var(--foreground);
+            margin-bottom: 15px;
+        }
+        
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .qr-code {
+            width: 200px;
+            height: auto;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+        }
+        
+        .payment-instructions {
+            color: var(--muted-foreground);
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+    </style>
     <script src="https://unpkg.com/ogl@0.0.101/dist/ogl.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div id="ribbons-container"></div>
     
-    <!-- 认证界面 -->
+    <!-- Authentication Interface -->
     <div id="auth-container" class="auth-container">
         <div class="auth-card">
-            <h1>设备控制系统</h1>
-            <p style="text-align: center; color: #666; margin-bottom: 30px;">请登录或注册以使用设备控制功能</p>
+            <h1>Device Control System</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 30px;">Please login or register to use device control features</p>
             
             <div id="auth-message"></div>
             
             <div class="form-group">
-                <label for="auth-email">邮箱：</label>
-                <input type="email" id="auth-email" placeholder="请输入邮箱" required>
+                <label for="auth-email">Email:</label>
+                <input type="email" id="auth-email" placeholder="Enter email" required>
             </div>
             
             <div class="form-group">
-                <label for="auth-password">密码：</label>
-                <input type="password" id="auth-password" placeholder="请输入密码" required>
+                <label for="auth-password">Password:</label>
+                <input type="password" id="auth-password" placeholder="Enter password" required>
             </div>
             
             <div class="auth-buttons">
-                <button class="btn btn-primary" id="auth-login-btn">登录</button>
-                <button class="btn btn-secondary" id="auth-register-btn">注册</button>
+                <button class="btn btn-primary" id="auth-login-btn">Login</button>
+                <button class="btn btn-secondary" id="auth-register-btn">Register</button>
             </div>
             
             <div class="auth-switch-text">
-                <p>还没有账号？点击注册按钮创建账号</p>
-                <p>已有账号？点击登录按钮登录</p>
+                <p>Don't have an account? Click register button to create account</p>
+                <p>Already have an account? Click login button to sign in</p>
             </div>
         </div>
     </div>
 
     <div class="container" id="main-app" style="display: none;">
-        <!-- 用户信息栏 -->
+        <!-- User Info Bar -->
         <div class="user-info-bar fade-in">
             <div class="user-info-content">
-                <span>欢迎，<span id="display-user-email"></span></span>
-                <button class="btn btn-outline" id="logout-btn">退出登录</button>
+                <span>Welcome, <span id="display-user-email"></span></span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" id="subscribe-btn">Subscribe</button>
+                    <button class="btn btn-outline" id="logout-btn">Logout</button>
+                </div>
             </div>
         </div>
         
@@ -60,7 +185,7 @@
         </div>
         
         <div class="grid">
-            <!-- 蓝牙连接卡片 -->
+            <!-- Bluetooth Connection Card -->
             <div class="card fade-in">
                 <div class="card-header">
                     <i class="fas fa-bluetooth"></i>
@@ -100,7 +225,7 @@
             </div>
         </div>
 
-        <!-- 设备信息显示 -->
+        <!-- Device Information Display -->
         <div class="card fade-in">
             <div class="card-header">
                 <i class="fas fa-info-circle"></i>
@@ -143,7 +268,7 @@
                 </div>
                 
                 <!-- 原始设备信息数据 -->
-                <div style="margin-top: 24px;">
+                <!-- <div style="margin-top: 24px;">
                     <div class="status-group">
                         <h4><i class="fas fa-code"></i> Raw Device Info Data</h4>
                         <div class="responsive-table">
@@ -163,11 +288,11 @@
                             </table>
                         </div>
                     </div>
-                </div>
+                </div> -->
             </div>
         </div>
 
-        <!-- 设备状态监控 -->
+        <!-- Device Status Monitor -->
         <div class="card fade-in">
             <div class="card-header">
                 <i class="fas fa-chart-line"></i>
@@ -235,6 +360,11 @@
                                     <i class="fas fa-play"></i>
                                     Press to Heat
                                 </button>
+                            </div>
+                            <!-- Session Data Collection Status -->
+                            <div id="sessionDataStatus" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted-foreground); display: none;">
+                                <i class="fas fa-database"></i>
+                                <span id="sessionDataStatusText">Ready to collect data</span>
                             </div>
                         </div>
                         <div class="status-item">
@@ -307,7 +437,11 @@
                         </div>
                     </div>
                 </div>
-                
+                 <!-- 实时温度曲线 -->
+                 <div style="margin-top: 32px;">
+                    <h4 style="margin-bottom: 8px; color: var(--foreground); font-size: 1rem;">Current Temperature Curve</h4>
+                    <canvas id="currentTempChart" height="80"></canvas>
+                </div>               
                 <!-- 温度预设 -->
                 <div style="margin-top: 24px;">
                     <div class="status-group">
@@ -319,7 +453,7 @@
                                     <div class="border-gradient-top"></div>
                                     <button class="btn btn-primary inner-content" onclick="collectAndUploadTemperaturePresets()" style="padding: 6px 12px; font-size: 0.8rem;">
                                         <i class="fas fa-cloud-upload-alt"></i>
-                                        上传预设
+                                        Upload Presets
                                     </button>
                                 </div>
                                 <div class="star-border-container" style="--star-speed: 4s;">
@@ -327,7 +461,7 @@
                                     <div class="border-gradient-top"></div>
                                     <button class="btn btn-secondary inner-content" onclick="viewUploadHistory()" style="padding: 6px 12px; font-size: 0.8rem;">
                                         <i class="fas fa-history"></i>
-                                        历史记录
+                                        History
                                     </button>
                                 </div>
                                 <div class="star-border-container" style="--star-speed: 4s;">
@@ -335,7 +469,7 @@
                                     <div class="border-gradient-top"></div>
                                     <button class="btn btn-success inner-content" onclick="getGlobalTemperatureStats()" style="padding: 6px 12px; font-size: 0.8rem;">
                                         <i class="fas fa-chart-bar"></i>
-                                        统计
+                                        Statistics
                                     </button>
                                 </div>
                             </div>
@@ -376,69 +510,44 @@
                         <!-- 上传状态显示 -->
                         <div style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                             <h5 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--muted-foreground);">
-                                <i class="fab fa-google"></i> Firebase数据收集
+                                <i class="fab fa-google"></i> Firebase Data Collection
                             </h5>
                             <div class="status-item">
-                                <strong>状态:</strong>
-                                <span id="upload-status" class="upload-status ready">准备上传</span>
+                                <strong>Status:</strong>
+                                <span id="upload-status" class="upload-status ready">Ready to Upload</span>
                             </div>
                             <div class="status-item">
-                                <strong>最后上传:</strong>
+                                <strong>Last Upload:</strong>
                                 <span id="upload-timestamp">--</span>
                             </div>
                             <div class="status-item">
-                                <strong>已上传预设:</strong>
+                                <strong>Uploaded Presets:</strong>
                                 <span id="upload-presets">--</span>
                             </div>
                             <div class="status-item" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted-foreground);">
                                 <i class="fas fa-info-circle"></i>
-                                数据将保存到Firebase Firestore数据库中，支持实时同步和查询
+                                Data will be saved to Firebase Firestore database, supporting real-time sync and queries
                             </div>
                             <div style="margin-top: 8px; display: flex; gap: 4px;">
                                 <button class="btn btn-outline" onclick="checkFirestoreConnection()" style="padding: 4px 8px; font-size: 0.7rem;">
                                     <i class="fas fa-link"></i>
-                                    测试连接
+                                    Test Connection
                                 </button>
                                 <button class="btn btn-outline" onclick="showFirestoreRulesSuggestion()" style="padding: 4px 8px; font-size: 0.7rem;">
                                     <i class="fas fa-shield-alt"></i>
-                                    权限说明
+                                    Permission Info
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 原始数据 -->
-                <div style="margin-top: 24px;">
-                    <div class="status-group">
-                        <h4><i class="fas fa-code"></i> Raw Data</h4>
-                        <div class="responsive-table">
-                            <table class="table">
-                                <tr>
-                                    <td><strong>Last Packet:</strong></td>
-                                    <td><span id="rawData" style="font-family: monospace; font-size: 0.8rem;">No data</span></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Packet Count:</strong></td>
-                                    <td><span id="packetCount">0</span></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Last Updated:</strong></td>
-                                    <td><span id="lastUpdate">Never</span></td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <!-- 实时温度曲线 -->
-                <div style="margin-top: 32px;">
-                    <h4 style="margin-bottom: 8px; color: var(--foreground); font-size: 1rem;">Current 温度曲线</h4>
-                    <canvas id="currentTempChart" height="80"></canvas>
-                </div>
+
+
             </div>
         </div>
 
-        <!-- OTA升级和日志 -->
+        <!-- OTA Upgrade and Log -->
         <div class="grid">
             <div class="card fade-in">
                 <div class="card-header">
@@ -491,7 +600,7 @@
         </div>
     </div>
 
-    <!-- 通知组件 -->
+    <!-- Notification Component -->
     <div id="notification" class="notification">
         <div style="display: flex; align-items: center; gap: 12px;">
             <i class="fas fa-check-circle" style="color: var(--primary);"></i>
@@ -499,16 +608,46 @@
         </div>
     </div>
 
+    <!-- Subscription Modal -->
+    <div id="subscriptionModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Premium Subscription</h2>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="subscription-info">
+                    <h3>Unlock Premium Features</h3>
+                    <p>Subscribe to access advanced device controls and exclusive features</p>
+                    <div class="price">$10 USD</div>
+                </div>
+                <div class="payment-section">
+                    <h4>Scan QR Code to Pay</h4>
+                    <div class="qr-container">
+                        <img src="receive.jpg" alt="Payment QR Code" class="qr-code">
+                    </div>
+                    <p class="payment-instructions">
+                        Open Alipay and scan the QR code to complete payment
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="cancelSubscription">Cancel</button>
+                    <button class="btn btn-primary" id="confirmPayment">I Have Paid</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Firebase认证脚本 -->
+    <!-- Firebase Authentication Script -->
     <script type="module">
-        // Firebase配置和认证
+        // Firebase configuration and authentication
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js';
 
-        // Firebase配置信息
+        // Firebase configuration info
         const firebaseConfig = {
             apiKey: "AIzaSyAD7ZoXaGWaGj8Mm6cWQnSHnCDICWffJeg",
             authDomain: "my-user-system.firebaseapp.com",
@@ -519,17 +658,17 @@
             measurementId: "G-3S7Z52L589"
         };
 
-        // 初始化Firebase
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // 全局变量，供其他脚本使用
+        // Global variables for other scripts
         window.firebaseAuth = auth;
         window.firebaseDb = db;
         window.currentUser = null;
 
-        // 显示认证消息
+        // Show authentication message
         function showAuthMessage(text, type = 'success') {
             const messageDiv = document.getElementById('auth-message');
             messageDiv.innerHTML = `<div class="auth-message ${type}">${text}</div>`;
@@ -538,18 +677,18 @@
             }, 5000);
         }
 
-        // 注册功能
+        // Registration function
         async function register() {
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             
             if (!email || !password) {
-                showAuthMessage('请输入邮箱和密码', 'error');
+                showAuthMessage('Please enter email and password', 'error');
                 return;
             }
             
             if (password.length < 6) {
-                showAuthMessage('密码长度至少6位', 'error');
+                showAuthMessage('Password must be at least 6 characters', 'error');
                 return;
             }
             
@@ -557,25 +696,25 @@
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
-                // 在Firestore中保存用户信息
+                // Save user info in Firestore
                 await setDoc(doc(db, 'users', user.uid), {
                     email: email,
                     createdAt: new Date().toISOString(),
                     lastLogin: new Date().toISOString()
                 });
                 
-                showAuthMessage('注册成功！正在登录...', 'success');
+                showAuthMessage('Registration successful! Logging in...', 'success');
             } catch (error) {
-                let errorMessage = '注册失败：';
+                let errorMessage = 'Registration failed: ';
                 switch (error.code) {
                     case 'auth/email-already-in-use':
-                        errorMessage += '邮箱已被使用';
+                        errorMessage += 'Email already in use';
                         break;
                     case 'auth/invalid-email':
-                        errorMessage += '邮箱格式不正确';
+                        errorMessage += 'Invalid email format';
                         break;
                     case 'auth/weak-password':
-                        errorMessage += '密码太弱';
+                        errorMessage += 'Password too weak';
                         break;
                     default:
                         errorMessage += error.message;
@@ -584,13 +723,13 @@
             }
         }
 
-        // 登录功能
+        // Login function
         async function login() {
             const email = document.getElementById('auth-email').value;
             const password = document.getElementById('auth-password').value;
             
             if (!email || !password) {
-                showAuthMessage('请输入邮箱和密码', 'error');
+                showAuthMessage('Please enter email and password', 'error');
                 return;
             }
             
@@ -598,23 +737,23 @@
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
-                // 更新最后登录时间
+                // Update last login time
                 await setDoc(doc(db, 'users', user.uid), {
                     lastLogin: new Date().toISOString()
                 }, { merge: true });
                 
-                showAuthMessage('登录成功！', 'success');
+                showAuthMessage('Login successful!', 'success');
             } catch (error) {
-                let errorMessage = '登录失败：';
+                let errorMessage = 'Login failed: ';
                 switch (error.code) {
                     case 'auth/user-not-found':
-                        errorMessage += '用户不存在';
+                        errorMessage += 'User does not exist';
                         break;
                     case 'auth/wrong-password':
-                        errorMessage += '密码错误';
+                        errorMessage += 'Wrong password';
                         break;
                     case 'auth/invalid-email':
-                        errorMessage += '邮箱格式不正确';
+                        errorMessage += 'Invalid email format';
                         break;
                     default:
                         errorMessage += error.message;
@@ -623,53 +762,90 @@
             }
         }
 
-        // 退出登录
+        // Logout
         async function logout() {
             try {
                 await signOut(auth);
-                showAuthMessage('已退出登录', 'success');
+                showAuthMessage('Logged out successfully', 'success');
             } catch (error) {
-                console.error('退出失败：', error.message);
+                console.error('Logout failed:', error.message);
             }
         }
 
-        // 监听登录状态变化
+        // Listen for login state changes
         onAuthStateChanged(auth, async (user) => {
             const authContainer = document.getElementById('auth-container');
             const mainApp = document.getElementById('main-app');
             
             if (user) {
-                // 用户已登录
+                // User is logged in
                 window.currentUser = user;
                 authContainer.style.display = 'none';
                 mainApp.style.display = 'block';
                 
-                // 显示用户信息
+                // Display user info
                 document.getElementById('display-user-email').textContent = user.email;
                 
-                // 清空输入框
+                // Clear input fields
                 document.getElementById('auth-email').value = '';
                 document.getElementById('auth-password').value = '';
                 
-                console.log('用户已登录:', user.email);
+                console.log('User logged in:', user.email);
             } else {
-                // 用户未登录
+                // User not logged in
                 window.currentUser = null;
                 authContainer.style.display = 'flex';
                 mainApp.style.display = 'none';
                 
-                console.log('用户未登录');
+                console.log('User not logged in');
             }
         });
 
-        // 页面加载完成后绑定事件
+        // Bind events after page load
         document.addEventListener('DOMContentLoaded', function() {
-            // 绑定认证按钮事件
+            // Bind authentication button events
             document.getElementById('auth-login-btn').addEventListener('click', login);
             document.getElementById('auth-register-btn').addEventListener('click', register);
             document.getElementById('logout-btn').addEventListener('click', logout);
             
-            // 回车键登录
+            // Subscription modal functionality
+            const subscriptionModal = document.getElementById('subscriptionModal');
+            const subscribeBtn = document.getElementById('subscribe-btn');
+            const closeModal = document.getElementById('closeModal');
+            const cancelSubscription = document.getElementById('cancelSubscription');
+            const confirmPayment = document.getElementById('confirmPayment');
+            
+            // Open modal
+            subscribeBtn.addEventListener('click', function() {
+                subscriptionModal.style.display = 'flex';
+            });
+            
+            // Close modal
+            function closeSubscriptionModal() {
+                subscriptionModal.style.display = 'none';
+            }
+            
+            closeModal.addEventListener('click', closeSubscriptionModal);
+            cancelSubscription.addEventListener('click', closeSubscriptionModal);
+            
+            // Close modal when clicking outside
+            subscriptionModal.addEventListener('click', function(event) {
+                if (event.target === subscriptionModal) {
+                    closeSubscriptionModal();
+                }
+            });
+            
+            // Confirm payment
+            confirmPayment.addEventListener('click', function() {
+                // Show success message
+                showAuthMessage('Payment confirmed! Thank you for subscribing to premium features.', 'success');
+                closeSubscriptionModal();
+                
+                // You can add additional logic here to handle the subscription
+                // For example: update user status, enable premium features, etc.
+            });
+            
+            // Enter key login
             document.addEventListener('keypress', function(event) {
                 if (event.key === 'Enter') {
                     const authContainer = document.getElementById('auth-container');

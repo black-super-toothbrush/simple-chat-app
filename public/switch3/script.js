@@ -8,6 +8,12 @@ let sentPackets = 0;
 let waitingForResponse = false;
 let responsePromise = null;
 
+// Session data collection variables
+let isSessionDataCollection = false;
+let currentSessionData = null;
+let sessionStartTime = null;
+let sessionDataPoints = [];
+
 // 认证检查函数
 function checkAuthentication() {
     if (!window.currentUser) {
@@ -364,6 +370,250 @@ function showFirestoreRulesSuggestion() {
     log(`allow read, write: if request.auth != null;`);
     
     showNotification('Firestore安全规则配置说明已显示在日志中', 'info', 5000);
+}
+
+// ========== Session Data Collection Functions ==========
+
+// Initialize session data collection
+function initializeSessionDataCollection() {
+    currentSessionData = {
+        sessionId: generateSessionId(),
+        userId: window.currentUser?.uid || '',
+        userEmail: window.currentUser?.email || '',
+        startTime: new Date().toISOString(),
+        endTime: null,
+        duration: 0,
+        deviceSettings: {
+            preset: currentPreset,
+            targetTemp: globalTempF[currentPreset - 1] || 0,
+            holdTime: parseInt(document.getElementById('holdTime')?.value) || 30,
+            autoShutTime: parseInt(document.getElementById('autoShutTime')?.value) || 2,
+            ledMode: document.getElementById('ledPresetSelect')?.selectedOptions[0]?.text || '',
+            ledValue: document.getElementById('ledPresetSelect')?.value || '',
+            brightness: parseInt(document.getElementById('brightness')?.value) || 25
+        },
+        deviceInfo: {
+            deviceName: document.getElementById('deviceName')?.textContent || '--',
+            serialNumber: document.getElementById('serialNumber')?.textContent || '--',
+            modelName: document.getElementById('modelName')?.textContent || '--',
+            hardwareVersion: document.getElementById('hardwareVersion')?.textContent || '--',
+            softwareVersion: document.getElementById('softwareVersion')?.textContent || '--',
+            manufacturer: document.getElementById('manufacturer')?.textContent || '--'
+        },
+        temperatureData: [],
+        sessionStats: {
+            maxTemp: 0,
+            minTemp: 999,
+            avgTemp: 0,
+            batteryStart: 0,
+            batteryEnd: 0,
+            totalDataPoints: 0
+        }
+    };
+    
+    sessionStartTime = Date.now();
+    sessionDataPoints = [];
+    isSessionDataCollection = true;
+    
+    log(`🔥 Session data collection started - Session ID: ${currentSessionData.sessionId}`);
+    updateSessionDataCollectionUI(true);
+}
+
+// Generate unique session ID
+function generateSessionId() {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `session_${timestamp}_${random}`;
+}
+
+// Collect real-time data point during session
+function collectSessionDataPoint(deviceStatus) {
+    if (!isSessionDataCollection || !currentSessionData) {
+        return;
+    }
+
+    const currentTime = Date.now();
+    const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
+    
+    const dataPoint = {
+        timestamp: new Date().toISOString(),
+        elapsedSeconds: elapsedSeconds,
+        temperature: deviceStatus.realTemp || 0,
+        batteryLevel: deviceStatus.batteryLevel || 0,
+        chargeState: deviceStatus.chargeState || 0,
+        brightness: deviceStatus.brightness || 0,
+        remainTime: deviceStatus.remainTime || 0,
+        sessionRemainTime: deviceStatus.sessionRemainTime || 0
+    };
+    
+    // Add to session data
+    currentSessionData.temperatureData.push(dataPoint);
+    sessionDataPoints.push(dataPoint);
+    
+    // Update session stats
+    const stats = currentSessionData.sessionStats;
+    stats.maxTemp = Math.max(stats.maxTemp, dataPoint.temperature);
+    stats.minTemp = Math.min(stats.minTemp, dataPoint.temperature);
+    stats.totalDataPoints = currentSessionData.temperatureData.length;
+    
+    // Set battery start value on first data point
+    if (stats.totalDataPoints === 1) {
+        stats.batteryStart = dataPoint.batteryLevel;
+    }
+    stats.batteryEnd = dataPoint.batteryLevel;
+    
+    // Calculate average temperature
+    const tempSum = currentSessionData.temperatureData.reduce((sum, point) => sum + point.temperature, 0);
+    stats.avgTemp = Math.round(tempSum / stats.totalDataPoints);
+}
+
+// Finalize session data collection
+function finalizeSessionDataCollection() {
+    if (!isSessionDataCollection || !currentSessionData) {
+        return null;
+    }
+    
+    const endTime = new Date().toISOString();
+    const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+    
+    currentSessionData.endTime = endTime;
+    currentSessionData.duration = duration;
+    
+    isSessionDataCollection = false;
+    
+    log(`🔥 Session data collection completed - Duration: ${duration}s, Data points: ${currentSessionData.temperatureData.length}`);
+    updateSessionDataCollectionUI(false);
+    
+    return currentSessionData;
+}
+
+// Update UI to show session data collection status
+function updateSessionDataCollectionUI(isCollecting) {
+    const statusElement = document.getElementById('sessionDataStatus');
+    const statusTextElement = document.getElementById('sessionDataStatusText');
+    
+    if (statusElement && statusTextElement) {
+        if (isCollecting) {
+            statusElement.style.display = 'block';
+            statusElement.style.color = '#22c55e'; // Green color for active recording
+            statusTextElement.innerHTML = '<i class="fas fa-circle" style="animation: pulse 1.5s infinite;"></i> Recording session data...';
+        } else {
+            statusElement.style.color = '#6b7280'; // Gray color
+            statusTextElement.innerHTML = '<i class="fas fa-check-circle"></i> Session data ready for upload';
+            
+            // Hide status after 3 seconds
+            setTimeout(() => {
+                if (statusElement) {
+                    statusElement.style.display = 'none';
+                }
+            }, 3000);
+        }
+    }
+    
+    const statusText = isCollecting ? 'Recording session data...' : 'Session data collected';
+    log(`📊 Session status: ${statusText}`);
+}
+
+// Upload session data to Firebase
+async function uploadSessionData(sessionData) {
+    if (!checkAuthentication()) {
+        log('❌ Cannot upload session data: User not authenticated');
+        return;
+    }
+    
+    if (!sessionData || !sessionData.temperatureData || sessionData.temperatureData.length === 0) {
+        log('❌ No session data to upload');
+        return;
+    }
+    
+    try {
+        // Check Firestore connection
+        const connectionOk = await checkFirestoreConnection();
+        if (!connectionOk) {
+            showNotification('Firebase connection check failed for session upload', 'error');
+            return;
+        }
+        
+        log(`📤 Uploading session data to Firebase...`);
+        showNotification('Uploading session data...', 'info');
+        
+        // Dynamic import of Firestore functions
+        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
+        
+        // Prepare upload data with server timestamp
+        const uploadData = {
+            ...sessionData,
+            uploadedAt: new Date().toISOString(),
+            serverTimestamp: serverTimestamp()
+        };
+        
+        // Add document to sessionHeatingData collection
+        const docRef = await addDoc(collection(window.firebaseDb, 'sessionHeatingData'), uploadData);
+        
+        log(`✅ Session data uploaded successfully! Document ID: ${docRef.id}`);
+        log(`📊 Session summary: ${sessionData.duration}s duration, ${sessionData.temperatureData.length} data points`);
+        log(`🌡️  Temperature: ${sessionData.sessionStats.minTemp}°F - ${sessionData.sessionStats.maxTemp}°F (avg: ${sessionData.sessionStats.avgTemp}°F)`);
+        log(`🔋 Battery: ${sessionData.sessionStats.batteryStart}% → ${sessionData.sessionStats.batteryEnd}%`);
+        
+        showNotification(`Session data uploaded! Duration: ${sessionData.duration}s, ${sessionData.temperatureData.length} data points`, 'success', 8000);
+        
+        // Update upload status UI
+        updateSessionUploadStatus('success', new Date().toLocaleString(), sessionData.sessionId);
+        
+    } catch (error) {
+        log(`❌ Failed to upload session data: ${error.message}`);
+        console.error('Session upload error:', error);
+        showNotification(`Session upload failed: ${error.message}`, 'error', 10000);
+        
+        // Update upload status UI
+        updateSessionUploadStatus('error', 'Failed', null);
+    }
+}
+
+// Update session upload status in UI
+function updateSessionUploadStatus(status, timestamp, sessionId) {
+    // Update upload status display in the Firebase section
+    const uploadStatusElement = document.getElementById('upload-status');
+    const uploadTimestampElement = document.getElementById('upload-timestamp');
+    
+    const statusMessages = {
+        'success': '✅ Session uploaded',
+        'error': '❌ Upload failed',
+        'uploading': '⏳ Uploading...'
+    };
+    
+    if (uploadStatusElement) {
+        uploadStatusElement.textContent = statusMessages[status];
+        uploadStatusElement.className = `upload-status ${status}`;
+    }
+    
+    if (uploadTimestampElement) {
+        uploadTimestampElement.textContent = timestamp;
+    }
+    
+    log(`📊 Upload status: ${statusMessages[status]} at ${timestamp}`);
+    
+    // This could be enhanced to update specific UI elements
+    if (status === 'success' && sessionId) {
+        log(`📋 Session ID: ${sessionId}`);
+        
+        // Update session data status indicator
+        const statusElement = document.getElementById('sessionDataStatus');
+        const statusTextElement = document.getElementById('sessionDataStatusText');
+        
+        if (statusElement && statusTextElement) {
+            statusElement.style.display = 'block';
+            statusElement.style.color = '#22c55e';
+            statusTextElement.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Session data uploaded successfully!';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                if (statusElement) {
+                    statusElement.style.display = 'none';
+                }
+            }, 5000);
+        }
+    }
 }
 
 // Notify监听相关变量
@@ -723,8 +973,8 @@ function handleNotifyData(data) {
     const chargeState = data[17];
     const brightness = data[18];
     
-    // 更新显示
-    updateDeviceStatus({
+    // 创建设备状态对象
+    const deviceStatus = {
         preset,
         tempSetting,
         realTemp,
@@ -739,7 +989,15 @@ function handleNotifyData(data) {
         batteryLevel,
         chargeState,
         brightness
-    });
+    };
+    
+    // 更新显示
+    updateDeviceStatus(deviceStatus);
+    
+    // 如果正在进行会话数据收集，则收集数据点
+    if (isSessionDataCollection && sessionEnable) {
+        collectSessionDataPoint(deviceStatus);
+    }
     
     // 更新原始数据显示
     const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
@@ -1440,7 +1698,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setupCircularTextHover();
     }
     initClickSpark();
-    initRibbonsEffect();
 });
 
 // 切换notifications开关
@@ -1775,6 +2032,23 @@ async function syncTime() {
       const isCurrentlyHeating = sessionBtn.textContent === 'Stop Heating';
       const newSessionState = isCurrentlyHeating ? 0x00 : 0x01;
       const action = isCurrentlyHeating ? 'stop' : 'start';
+      
+      // Session data collection logic
+      if (action === 'start') {
+          // Start session data collection
+          initializeSessionDataCollection();
+          log('🔥 Starting heating session with data collection');
+      } else if (action === 'stop') {
+          // Finalize and upload session data
+          const sessionData = finalizeSessionDataCollection();
+          if (sessionData) {
+              log('🔥 Stopping heating session - preparing to upload data');
+              // Upload session data to Firebase (will be called after command succeeds)
+              setTimeout(async () => {
+                  await uploadSessionData(sessionData);
+              }, 1000); // Delay to ensure UI updates complete
+          }
+      }
       
       // 调用通用B9命令函数，只更新Session状态（第10字节）
       await sendB9Command(
