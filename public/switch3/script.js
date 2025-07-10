@@ -629,6 +629,7 @@ let holdTime = 30;
 // 当前设备状态跟踪 - B9命令的所有字节状态
 let currentB9State = {
     byte3: 0x01,   // 预设值 (1-5)
+    byte4: 40,     // 功率设置 (20-60)
     byte6: 0x00,   // LED值
     byte8: 0x02,   // Auto Shut Time (0-30分钟)
     byte10: 0x00,  // Session状态
@@ -756,6 +757,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         const autoShutTimeInput = document.getElementById('autoShutTime');
         const holdTimeInput = document.getElementById('holdTime');
         const brightnessInput = document.getElementById('brightness');
+        const powerSettingInput = document.getElementById('powerSetting');
         const ledPresetSelect = document.getElementById('ledPresetSelect');
         
         if (sessionControlBtn) sessionControlBtn.disabled = false;
@@ -763,6 +765,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         if (autoShutTimeInput) autoShutTimeInput.disabled = false;
         if (holdTimeInput) holdTimeInput.disabled = false;
         if (brightnessInput) brightnessInput.disabled = false;
+        if (powerSettingInput) powerSettingInput.disabled = false;
         if (ledPresetSelect) ledPresetSelect.disabled = false;
         
         // 启用温度预设输入框
@@ -796,6 +799,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         const autoShutTimeInput = document.getElementById('autoShutTime');
         const holdTimeInput = document.getElementById('holdTime');
         const brightnessInput = document.getElementById('brightness');
+        const powerSettingInput = document.getElementById('powerSetting');
         const ledPresetSelect = document.getElementById('ledPresetSelect');
         
         if (sessionControlBtn) sessionControlBtn.disabled = true;
@@ -806,6 +810,11 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
             brightnessInput.disabled = true;
             brightnessInput.value = 25;
             updateBrightnessDisplay(25);
+        }
+        if (powerSettingInput) {
+            powerSettingInput.disabled = true;
+            powerSettingInput.value = 40;
+            updatePowerDisplay(40);
         }
         if (ledPresetSelect) ledPresetSelect.disabled = true;
         
@@ -1679,6 +1688,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('holdTime').value = holdTime;
     document.getElementById('brightness').value = currentB9State.byte13;
     updateBrightnessDisplay(currentB9State.byte13);
+    document.getElementById('powerSetting').value = currentB9State.byte4;
+    updatePowerDisplay(currentB9State.byte4);
     updateLedPreview(0x00);
     const cards = document.querySelectorAll('.card');
     cards.forEach((card, index) => {
@@ -1859,7 +1870,7 @@ async function syncTime() {
           command[1] = 20;          // 数据长度
           command[2] = 0x00;
           command[3] = currentB9State.byte3 || 0x01;   // 预设值 (1-5)
-          command[4] = 0x00;
+          command[4] = currentB9State.byte4 || 40;     // 功率设置 (20-60)
           command[5] = 0x00;
           command[6] = currentB9State.byte6 || 0x00;   // LED值
           command[7] = 0x00;
@@ -1933,6 +1944,7 @@ async function syncTime() {
       const autoShutTimeInput = document.getElementById('autoShutTime');
       const holdTimeInput = document.getElementById('holdTime');
       const brightnessInput = document.getElementById('brightness');
+      const powerSettingInput = document.getElementById('powerSetting');
       const ledPresetSelect = document.getElementById('ledPresetSelect');
       
       // 温度预设输入框
@@ -1962,6 +1974,9 @@ async function syncTime() {
           
           brightnessInput.disabled = true;
           brightnessInput.classList.add('heating-disabled');
+          
+          powerSettingInput.disabled = true;
+          powerSettingInput.classList.add('heating-disabled');
           
           ledPresetSelect.disabled = true;
           ledPresetSelect.classList.add('heating-disabled');
@@ -2000,6 +2015,9 @@ async function syncTime() {
               
               brightnessInput.disabled = false;
               brightnessInput.classList.remove('heating-disabled');
+              
+              powerSettingInput.disabled = false;
+              powerSettingInput.classList.remove('heating-disabled');
               
               ledPresetSelect.disabled = false;
               ledPresetSelect.classList.remove('heating-disabled');
@@ -2175,6 +2193,35 @@ async function syncTime() {
       await sendB9Command(
           { byte13: brightnessValue },
           `Brightness set to ${brightnessValue}`
+      );
+  }
+
+  // 更新功率设置显示值（实时）
+  function updatePowerDisplay(value) {
+      document.getElementById('powerDisplay').textContent = value;
+  }
+
+  // 设置Power Setting - 发送B9命令第4字节
+  async function setPowerSetting(power) {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
+      // 验证功率范围
+      const powerValue = parseInt(power);
+      if (powerValue < 20 || powerValue > 60) {
+          log(`Error: Power Setting ${powerValue} is out of range (20-60)`);
+          // 恢复之前的值
+          document.getElementById('powerSetting').value = currentB9State.byte4;
+          updatePowerDisplay(currentB9State.byte4);
+          return;
+      }
+
+      // 调用通用B9命令函数，只更新Power Setting（第4字节）
+      await sendB9Command(
+          { byte4: powerValue },
+          `Power Setting set to ${powerValue}`
       );
   }
 
