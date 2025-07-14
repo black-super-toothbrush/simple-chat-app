@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聚泰莱-中山→上川岛→珠海御温泉 2日旅行</title>
+    <!-- For production, replace CDN with local Tailwind installation: https://tailwindcss.com/docs/installation --><script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://webapi.amap.com/maps?v=2.0&key=5dd060adb873fe01259956afb55034d4"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {},
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .print-friendly {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto p-6">
+            <h1 class="text-3xl font-bold text-gray-800">聚泰莱 中山→上川岛→珠海御温泉 2日旅行规划</h1>
+            <div class="flex items-center mt-2 text-gray-600 flex-wrap">
+                <i class="fa fa-calendar-o mr-2"></i>
+                <span>2025年7月（建议避开雨天）</span>
+                <i class="fa fa-thermometer-half ml-4 mr-2"></i>
+                <span>上川岛：雷阵雨转多云（26-34℃），珠海：小雨（27-37℃）</span>
+            </div>
+        </div>
+    </header>
+
+    <section class="container mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">每日概览</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <h3 class="text-xl font-medium mb-3 flex items-center">
+                    <i class="fa fa-sun-o text-yellow-500 mr-2"></i> Day 1: 中山→上川岛
+                </h3>
+                <ul class="space-y-2">
+                    <li class="flex items-start">
+                        <i class="fa fa-ship text-blue-500 mt-1 mr-2"></i>
+                        <span>轮渡至三洲港，飞沙滩游玩</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-cutlery text-red-500 mt-1 mr-2"></i>
+                        <span>沙堤渔港海鲜午餐</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-building text-gray-500 mt-1 mr-2"></i>
+                        <span>方济阁纪念园参观</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-tree text-green-500 mt-1 mr-2"></i>
+                        <span>风车山观日落</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <h3 class="text-xl font-medium mb-3 flex items-center">
+                    <i class="fa fa-moon-o text-indigo-500 mr-2"></i> Day 2: 上川岛→珠海御温泉
+                </h3>
+                <ul class="space-y-2">
+                    <li class="flex items-start">
+                        <i class="fa fa-ship text-blue-500 mt-1 mr-2"></i>
+                        <span>轮渡返回山咀港</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-car text-gray-700 mt-1 mr-2"></i>
+                        <span>自驾前往珠海御温泉</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-tint text-blue-400 mt-1 mr-2"></i>
+                        <span>御温泉体验（灵芝汤、人参汤等）</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fa fa-home text-red-600 mt-1 mr-2"></i>
+                        <span>返回中山</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="container mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">详细时间表</h2>
+        <div class="bg-white rounded-lg shadow p-4 overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="py-2 px-4 text-left">时间</th>
+                        <th class="py-2 px-4 text-left">地点</th>
+                        <th class="py-2 px-4 text-left">活动</th>
+                        <th class="py-2 px-4 text-left">备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">07:00</td>
+                        <td class="py-2 px-4">中山火炬</td>
+                        <td class="py-2 px-4">自驾至山咀港</td>
+                        <td class="py-2 px-4">约1.5小时</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">08:30</td>
+                        <td class="py-2 px-4">山咀港</td>
+                        <td class="py-2 px-4">乘坐轮渡至上川岛</td>
+                        <td class="py-2 px-4">30分钟，单程55元</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">09:30</td>
+                        <td class="py-2 px-4">三洲港</td>
+                        <td class="py-2 px-4">岛内巴士至飞沙滩</td>
+                        <td class="py-2 px-4">15元/人，约20分钟</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">10:00-12:00</td>
+                        <td class="py-2 px-4">飞沙滩</td>
+                        <td class="py-2 px-4">沙滩游玩</td>
+                        <td class="py-2 px-4">摩托艇、赶海等项目</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">12:30</td>
+                        <td class="py-2 px-4">沙堤渔港</td>
+                        <td class="py-2 px-4">海鲜午餐</td>
+                        <td class="py-2 px-4">推荐椒盐皮皮虾</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">14:00-16:00</td>
+                        <td class="py-2 px-4">方济阁纪念园</td>
+                        <td class="py-2 px-4">参观游览</td>
+                        <td class="py-2 px-4">宗教文化景点</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">17:00</td>
+                        <td class="py-2 px-4">风车山</td>
+                        <td class="py-2 px-4">观日落</td>
+                        <td class="py-2 px-4">七仙岭观景台最佳</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">次日08:00</td>
+                        <td class="py-2 px-4">三洲港</td>
+                        <td class="py-2 px-4">乘船返回山咀港</td>
+                        <td class="py-2 px-4">8:30开船，30分钟航程</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">09:30-12:00</td>
+                        <td class="py-2 px-4">山咀港→珠海御温泉</td>
+                        <td class="py-2 px-4">自驾</td>
+                        <td class="py-2 px-4">约2.5小时，105公里</td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="py-2 px-4">14:00-18:00</td>
+                        <td class="py-2 px-4">珠海御温泉</td>
+                        <td class="py-2 px-4">温泉体验</td>
+                        <td class="py-2 px-4">灵芝汤、人参汤等特色池</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 px-4">20:00</td>
+                        <td class="py-2 px-4">珠海御温泉</td>
+                        <td class="py-2 px-4">返回中山</td>
+                        <td class="py-2 px-4">约1小时车程</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="container mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">景点介绍</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+           <!--      <img src="/feisand.webp" alt="上川岛飞沙滩" class="w-full h-48 object-cover">  -->
+<!-- 加载本地图片可以使用 <img> 标签，src 属性指定图片相对于 HTML 文件的路径 -->
+<!-- 以下示例假设 feisand.webp 文件与当前 HTML 文件在同一目录下 -->
+<!-- 如果图片在子目录中，路径需要相应调整，例如：src="./images/feisand.webp" -->
+<!-- 这里已经有了加载本地图片的代码 <img src="/feisand.webp" alt="上川岛飞沙滩" class="w-full h-48 object-cover">，使用相对路径即可 -->
+                <img src="feishatan.webp" alt="上川岛飞沙滩" class="w-full h-48 object-cover">
+
+            <div class="p-4">
+                    <h3 class="text-xl font-bold mb-2">飞沙滩</h3>
+                    <p class="text-gray-600">上川岛最著名的海滩，沙质细腻，海水清澈，适合游泳、沙滩活动。</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <img src="fanjige.webp" alt="方济阁纪念园" class="w-full h-48 object-cover">
+                <div class="p-4">
+                    <h3 class="text-xl font-bold mb-2">方济阁纪念园</h3>
+                    <p class="text-gray-600">为纪念西方传教士方济各·沙勿略而建，可俯瞰海景，具有浓厚的宗教文化氛围。</p>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <img src="yuwenquan.webp" alt="珠海御温泉" class="w-full h-48 object-cover">
+                <div class="p-4">
+                    <h3 class="text-xl font-bold mb-2">珠海御温泉</h3>
+                    <p class="text-gray-600">集温泉养生、休闲度假于一体的温泉度假村，以多种特色温泉池闻名。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="container mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">交通路线</h2>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div id="map" class="w-full h-96"></div>
+            <script>
+                // 初始化地图
+                var map = new AMap.Map('map', {willReadFrequently: true,
+                    zoom: 10,
+                    center: [113.0, 22.0]
+                });
+                // 标记点数据
+                var markers = [
+                    { position: [112.806448, 21.699485], title: '飞沙滩' },
+                    { position: [112.798188, 21.725750], title: '方济阁纪念园' },
+                    { position: [113.194654, 22.247478], title: '珠海御温泉' }
+                ];
+                // 添加标记点
+                markers.forEach(marker => {
+                    new AMap.Marker({
+                        position: marker.position,
+                        title: marker.title,
+                        map: map
+                    });
+                });
+                // 添加路线（简化版）
+                var path = [
+                    [112.806448, 21.699485], // 飞沙滩
+                    [113.194654, 22.247478]  // 珠海御温泉
+                ];
+                var polyline = new AMap.Polyline({
+                    path: path,
+                    strokeColor: '#3366FF',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.6,
+                    map: map
+                });
+                // 调整视野以显示所有标记和路线
+                map.setFitView();
+            </script>
+        </div>
+    </section>
+
+    <section class="container mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">食宿信息</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <h3 class="text-xl font-medium mb-3 flex items-center">
+                    <i class="fa fa-bed text-purple-500 mr-2"></i> 住宿推荐
+                </h3>
+                <ul class="space-y-3">
+                    <li>
+                        <strong>上川岛：飞沙滩旅游区酒店</strong>
+                        <p class="text-gray-600 text-sm">近景区，含早餐，步行5分钟可达沙滩</p>
+                    </li>
+                    <li>
+                        <strong>珠海御温泉：御瀛庄酒店</strong>
+                        <p class="text-gray-600 text-sm">含温泉门票+自助晚餐，日式风格</p>
+                    </li>
+                </ul>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <h3 class="text-xl font-medium mb-3 flex items-center">
+                    <i class="fa fa-cutlery text-red-500 mr-2"></i> 美食推荐
+                </h3>
+                <ul class="space-y-3">
+                    <li>
+                        <strong>上川岛：新海洋渔村</strong>
+                        <p class="text-gray-600 text-sm">山咀港附近，现捞海鲜，推荐椒盐皮皮虾</p>
+                    </li>
+                    <li>
+                        <strong>珠海御温泉：大餐庙会</strong>
+                        <p class="text-gray-600 text-sm">自助式温泉美食，温泉蛋、日式料理</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="container mx-auto p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">实用信息</h2>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium mb-2 flex items-center">
+                        <i class="fa fa-phone-square text-green-500 mr-2"></i> 紧急电话
+                    </h3>
+                    <ul class="text-gray-600 space-y-1">
+                        <li>报警：110</li>
+                        <li>急救：120</li>
+                        <li>上川岛旅游咨询：0750-5381881</li>
+                        <li>珠海御温泉：0756-5797128</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2 flex items-center">
+                        <i class="fa fa-exclamation-circle text-yellow-500 mr-2"></i> 注意事项
+                    </h3>
+                    <ul class="text-gray-600 space-y-1">
+                        <li>渡轮需提前在"川岛行"APP购票</li>
+                        <li>携带防晒用品、泳衣、雨具</li>
+                        <li>御温泉贵宾车需提前1天预约</li>
+                        <li>山咀港停车费30-40元/天</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-gray-800 text-white py-6 mt-8">
+        <div class="container mx-auto px-6 text-center">
+            <p>© 2025 聚泰莱旅行规划 | 打印友好版行程</p>
+            <button onclick="window.print()" class="mt-2 bg-gray-700 hover:bg-gray-600 text-white py-1 px-4 rounded">
+                <i class="fa fa-print mr-1"></i> 打印行程
+            </button>
+        </div>
+    </footer>
+</body>
+</html>
