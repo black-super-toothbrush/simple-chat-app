@@ -148,7 +148,7 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             transition: var(--transition);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .card::before {
@@ -513,6 +513,12 @@
             box-shadow: var(--shadow-md);
         }
 
+        .preset-card:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.1s ease;
+        }
+
         .preset-card.heating-disabled {
             opacity: 0.6;
             pointer-events: none;
@@ -520,6 +526,7 @@
         }
 
         .preset-title {
+            
             font-size: 0.75rem;
             font-weight: 600;
             color: var(--gray-600);
@@ -635,10 +642,6 @@
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
 
         @media (max-width: 768px) {
             .container {
@@ -944,16 +947,19 @@
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--gray-800);
+            background: #1f2937;
             color: white;
-            padding: 8px 12px;
-            border-radius: var(--border-radius-sm);
-            font-size: 0.75rem;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
             white-space: nowrap;
             opacity: 0;
             pointer-events: none;
-            transition: var(--transition);
-            z-index: 1000;
+            transition: opacity 0.3s ease;
+            z-index: 9999;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            margin-bottom: 8px;
         }
 
         .tooltip:hover::after {
@@ -998,6 +1004,25 @@
 
         .preset-control-label {
             display: block;
+        }
+
+        /* Preset卡片选中状态样式 */
+        .preset-card.selected {
+            background-color: #dcfce7; /* 浅绿色背景 */
+            border-color: #22c55e; /* 绿色边框 */
+            box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); /* 绿色阴影 */
+            transform: translateY(-2px); /* 轻微上移效果 */
+            transition: all 0.3s ease;
+        }
+
+        .preset-card.selected .preset-title {
+            color: #15803d; /* 深绿色标题 */
+            font-weight: 600;
+        }
+
+        .preset-card.selected .temp-input {
+            border-color: #22c55e;
+            background-color: #f0fdf4;
             font-size: 0.7rem;
             font-weight: 500;
             color: var(--gray-600);
@@ -1094,7 +1119,7 @@
             <!-- 蓝牙连接卡片 -->
             <div class="card fade-in">
                 <div class="card-header">
-                    <i class="fas fa-bluetooth"></i>
+                    <i class="fa-solid fa-signal"></i>
                     <h3>Bluetooth Connection</h3>
                 </div>
                 <div id="connectionStatus" class="status status-disconnected">
@@ -1103,14 +1128,23 @@
                     <span id="statusText">Device Not Connected</span>
                 </div>
                 <div class="controls">
-                    <button id="connectBtn" class="btn btn-primary tooltip" onclick="connectDevice()" data-tooltip="Connect to PY32F071 Bluetooth device">
+                    <!-- <button id="connectBtn" class="btn btn-primary tooltip" onclick="connectDevice()" data-tooltip="Connect to PY32F071 Bluetooth device">
                         <i class="fas fa-link"></i>
                         Connect Device
+                    </button> -->
+
+                    <span class="tooltip" data-tooltip="Connect to switch2 Bluetooth device">
+                    <button id="connectBtn" class="btn btn-primary" onclick="connectDevice()">
+                        <i class="fas fa-link"></i> Connect Device
                     </button>
-                    <button id="disconnectBtn" class="btn btn-danger tooltip" onclick="disconnectDevice()" disabled data-tooltip="Disconnect from device">
-                        <i class="fas fa-unlink"></i>
-                        Disconnect
-                    </button>
+                    </span>
+
+                    <span class="tooltip" data-tooltip="Disconnect from switch2 Bluetooth device">
+                        <button id="disconnectBtn" class="btn btn-danger" onclick="disconnectDevice()">
+                            <i class="fas fa-unlink"></i>
+                            Disconnect
+                        </button>
+                    </span>
 
                 </div>
             </div>
@@ -1461,7 +1495,7 @@
                     <h3>Temperature Presets (250-650°F)</h3>
                 </div>
                 <div class="temp-preset-grid" id="tempPresets">
-                    <div class="preset-card">
+                    <div class="preset-card" onclick="selectPreset(1)">
                         <div class="preset-title">Preset 1</div>
                         <input type="number" id="tempF1" min="250" max="650" value="450" 
                                class="temp-input" onchange="setTemperature(1, this.value)">
@@ -1493,7 +1527,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="preset-card">
+                    <div class="preset-card" onclick="selectPreset(2)">
                         <div class="preset-title">Preset 2</div>
                         <input type="number" id="tempF2" min="250" max="650" value="500" 
                                class="temp-input" onchange="setTemperature(2, this.value)">
@@ -1525,7 +1559,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="preset-card">
+                    <div class="preset-card" onclick="selectPreset(3)">
                         <div class="preset-title">Preset 3</div>
                         <input type="number" id="tempF3" min="250" max="650" value="550" 
                                class="temp-input" onchange="setTemperature(3, this.value)">
@@ -1557,7 +1591,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="preset-card">
+                    <div class="preset-card" onclick="selectPreset(4)">
                         <div class="preset-title">Preset 4</div>
                         <input type="number" id="tempF4" min="250" max="650" value="600" 
                                class="temp-input" onchange="setTemperature(4, this.value)">
@@ -1589,7 +1623,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="preset-card">
+                    <div class="preset-card" onclick="selectPreset(5)">
                         <div class="preset-title">Preset 5</div>
                         <input type="number" id="tempF5" min="250" max="650" value="613" 
                                class="temp-input" onchange="setTemperature(5, this.value)">
@@ -1632,6 +1666,7 @@
                     <i class="fas fa-cogs"></i>
                     <h3>Custom setting</h3>
                     <h4>  (Please set time 1-8 first then set temp,Set unnecessary points to 0.) </h4>
+
                 </div>
                 <div style="padding: 16px;">
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
@@ -1799,6 +1834,9 @@
         let presetHoldTimes = [0, 30, 30, 30, 30, 30]; // index 0 未使用，1-5对应preset 1-5
         let presetModes = [0, 0xA1, 0xA1, 0xA1, 0xA1, 0xA1]; // index 0 未使用，1-5对应preset 1-5，默认Steady模式
         
+        // 固件版本配置
+        const TARGET_FIRMWARE_DATE = '250716'; // 目标固件版本日期 (YYMMDD格式)
+        
         // 当前设备状态跟踪 - B9命令的所有字节状态
         let currentB9State = {
             byte3: 0x01,   // 预设值 (1-5)
@@ -1810,6 +1848,32 @@
             byte13: 25,    // Brightness (0-100)
             // 后续可以继续添加更多字节：byte14, byte15, byte16 等等
         };
+        
+        // 存储5套custom setting数据
+        let customSettings = {
+            1: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
+            2: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
+            3: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
+            4: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
+            5: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] }
+        };
+        
+        // 打印customSettings变化的辅助函数
+        function logCustomSettingsChange(preset, action, details = '') {
+            const timestamp = new Date().toLocaleTimeString();
+            const presetData = customSettings[preset];
+            if (presetData) {
+                console.log(`[${timestamp}] CustomSettings变化 - Preset ${preset} ${action}:`);
+                console.log(`  温度: [${presetData.temps.join(', ')}]`);
+                console.log(`  时间: [${presetData.times.join(', ')}]`);
+                if (details) {
+                    console.log(`  详情: ${details}`);
+                }
+                log(`CustomSettings Preset ${preset} ${action} - 温度:[${presetData.temps.join(', ')}] 时间:[${presetData.times.join(', ')}]${details ? ' - ' + details : ''}`);
+            }
+        }
+        
+
 
         // 模式映射
         const MODE_TYPES = {
@@ -1895,8 +1959,31 @@
 
         // 初始化温度图表
         function initTemperatureChart() {
-            const ctx = document.getElementById('temperatureChart').getContext('2d');
-            temperatureChart = new Chart(ctx, {
+            try {
+                const canvas = document.getElementById('temperatureChart');
+                if (!canvas) {
+                    console.error('Temperature chart canvas element not found');
+                    log('Error: Temperature chart canvas element not found');
+                    return;
+                }
+                
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js library not loaded');
+                    log('Error: Chart.js library not loaded');
+                    return;
+                }
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.error('Failed to get 2D context from canvas');
+                    log('Error: Failed to get 2D context from canvas');
+                    return;
+                }
+                
+                console.log('Initializing temperature chart...');
+                log('Initializing temperature chart...');
+                
+                temperatureChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
@@ -1956,7 +2043,16 @@
                     }
                 }
             });
+            
+            console.log('Temperature chart initialized successfully');
+            log('Temperature chart initialized successfully');
+            
+        } catch (error) {
+            console.error('Failed to initialize temperature chart:', error);
+            log(`Error initializing temperature chart: ${error.message}`);
+            showNotification('温度图表初始化失败', 'error', 3000);
         }
+    }
 
         // 更新图表信息显示（Y轴最大值已固定为650°F）
         function updateChartInfo() {
@@ -2381,8 +2477,9 @@
             }
             
             // 新增：自定义参数包处理（0xaa/0xab包头包尾，15字节）
-            if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 15) ||
-                (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 15)) {
+            if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 16) ||
+                (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 16)) {
+                log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
                 handleCustomProfileData(data);
                 return;
             }
@@ -2817,8 +2914,13 @@
             
             // 更新Hold Time输入框（只在不拖动时更新）
             if (!draggingSliders.has('holdTime')) {
-                document.getElementById('holdTime').value = holdTime;
-                updateHoldTimeDisplay(holdTime);
+                const holdTimeElement = document.getElementById('holdTime');
+                if (holdTimeElement) {
+                    holdTimeElement.value = holdTime;
+                    updateHoldTimeDisplay(holdTime);
+                } else {
+                    console.error('holdTime element not found in handleGlobalHoldTimeData');
+                }
             }
             
             log(`Received global hold time: ${holdTime} seconds`);
@@ -3034,6 +3136,9 @@
             currentPreset = status.preset;
             document.getElementById('presetBtn').textContent = status.preset;
             
+            // 更新preset卡片选中状态
+            updatePresetCardSelection(status.preset);
+            
             document.getElementById('tempSetting').textContent = status.tempSetting + '°F';
             document.getElementById('realTemp').textContent = status.realTemp + '°F';
             
@@ -3072,13 +3177,23 @@
             if (!skipSliderUpdate) {
                 // 只更新不在拖动中的滑块
                 if (!draggingSliders.has('autoShutTime')) {
-                    document.getElementById('autoShutTime').value = status.autoShutTime;
-                    updateAutoShutDisplay(status.autoShutTime);
+                    const autoShutTimeElement = document.getElementById('autoShutTime');
+                    if (autoShutTimeElement) {
+                        autoShutTimeElement.value = status.autoShutTime;
+                        updateAutoShutDisplay(status.autoShutTime);
+                    } else {
+                        console.error('autoShutTime element not found in updateDeviceStatus');
+                    }
                 }
                 
                 if (!draggingSliders.has('brightness')) {
-                    document.getElementById('brightness').value = status.brightness;
-                    updateBrightnessDisplay(status.brightness);
+                    const brightnessElement = document.getElementById('brightness');
+                    if (brightnessElement) {
+                        brightnessElement.value = status.brightness;
+                        updateBrightnessDisplay(status.brightness);
+                    } else {
+                        console.error('brightness element not found in updateDeviceStatus');
+                    }
                 }
             }
             
@@ -3217,16 +3332,31 @@
         window.addEventListener('load', function() {
             
             // 设置Hold Time默认值
-            document.getElementById('holdTime').value = holdTime;
-            updateHoldTimeDisplay(holdTime);
+            const holdTimeElement = document.getElementById('holdTime');
+            if (holdTimeElement) {
+                holdTimeElement.value = holdTime;
+                updateHoldTimeDisplay(holdTime);
+            } else {
+                console.error('holdTime element not found');
+            }
             
             // 设置Auto Shut Time默认值
-            document.getElementById('autoShutTime').value = currentB9State.byte8;
-            updateAutoShutDisplay(currentB9State.byte8);
+            const autoShutTimeElement = document.getElementById('autoShutTime');
+            if (autoShutTimeElement) {
+                autoShutTimeElement.value = currentB9State.byte8;
+                updateAutoShutDisplay(currentB9State.byte8);
+            } else {
+                console.error('autoShutTime element not found');
+            }
             
             // 设置Brightness默认值
-            document.getElementById('brightness').value = currentB9State.byte13;
-            updateBrightnessDisplay(currentB9State.byte13);
+            const brightnessElement = document.getElementById('brightness');
+            if (brightnessElement) {
+                brightnessElement.value = currentB9State.byte13;
+                updateBrightnessDisplay(currentB9State.byte13);
+            } else {
+                console.error('brightness element not found');
+            }
             
             // 初始化LED预览
             updateLedPreview(0x00);
@@ -3250,6 +3380,9 @@
             // 初始化当前preset对应的模式显示
             updateCurrentPresetModeDisplay(currentPreset);
             
+            // 初始化preset卡片选中状态
+            updatePresetCardSelection(currentPreset);
+            
             // 确保Boost按钮初始状态为禁用（只有加热时才能使用）
             document.getElementById('boostBtn').disabled = true;
             
@@ -3258,6 +3391,9 @@
                 initTemperatureChart();
                 log('Temperature chart initialized');
             }, 500); // 延迟初始化以确保DOM完全加载
+            
+            // 初始化Custom Preset UI
+            updateCustomUI();
             
             // 添加页面加载动画
             const cards = document.querySelectorAll('.card');
@@ -3641,6 +3777,25 @@
               );
           }
 
+          // 更新preset卡片的选中状态
+          function updatePresetCardSelection(selectedPreset) {
+              // 移除所有preset卡片的选中状态
+              for (let i = 1; i <= 5; i++) {
+                  const presetCard = document.querySelector(`#tempPresets .preset-card:nth-child(${i})`);
+                  if (presetCard) {
+                      presetCard.classList.remove('selected');
+                  }
+              }
+              
+              // 为当前选中的preset添加选中状态
+              if (selectedPreset >= 1 && selectedPreset <= 5) {
+                  const selectedCard = document.querySelector(`#tempPresets .preset-card:nth-child(${selectedPreset})`);
+                  if (selectedCard) {
+                      selectedCard.classList.add('selected');
+                  }
+              }
+          }
+
           // 切换预设挡位 - 循环切换1→2→3→4→5→1
           async function switchPreset() {
               // 循环切换预设值
@@ -3649,8 +3804,14 @@
               // 更新按钮显示
               document.getElementById('presetBtn').textContent = currentPreset;
               
+              // 更新preset卡片选中状态
+              updatePresetCardSelection(currentPreset);
+              
               // 更新当前preset对应的模式显示
               updateCurrentPresetModeDisplay(currentPreset);
+              
+              // 更新Custom配置显示
+              updateCustomUI();
               
               // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
               await sendB9Command(
@@ -3661,6 +3822,44 @@
               log(`✓ Preset switched to ${currentPreset}`);
           }
 
+          // 选择指定预设 - 通过点击预设卡片触发
+          async function selectPreset(presetNumber) {
+              // 验证预设编号范围
+              if (presetNumber < 1 || presetNumber > 5) {
+                  log(`Error: Invalid preset number ${presetNumber}`);
+                  return;
+              }
+              
+              // 如果已经是当前预设，则不需要切换
+              if (currentPreset === presetNumber) {
+                  log(`Preset ${presetNumber} is already selected`);
+                  return;
+              }
+              
+              // 设置新的预设值
+              currentPreset = presetNumber;
+              
+              // 更新按钮显示
+              document.getElementById('presetBtn').textContent = currentPreset;
+              
+              // 更新preset卡片选中状态
+              updatePresetCardSelection(currentPreset);
+              
+              // 更新当前preset对应的模式显示
+              updateCurrentPresetModeDisplay(currentPreset);
+              
+              // 更新Custom配置显示
+              updateCustomUI();
+              
+              // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
+              await sendB9Command(
+                  { byte3: currentPreset },
+                  `Preset selected: ${currentPreset}`
+              );
+              
+              log(`✓ Preset ${currentPreset} selected`);
+          }
+
           // 设置Auto Shut Time - 发送B9命令第8字节
           async function setAutoShutTime(minutes) {
               // 验证时间范围
@@ -3668,7 +3867,12 @@
               if (autoShutTime < 0 || autoShutTime > 30) {
                   log(`Error: Auto Shut Time ${autoShutTime} is out of range (0-30 minutes)`);
                   // 恢复之前的值
-                  document.getElementById('autoShutTime').value = currentB9State.byte8 || 2;
+                  const autoShutTimeElement = document.getElementById('autoShutTime');
+                  if (autoShutTimeElement) {
+                      autoShutTimeElement.value = currentB9State.byte8 || 2;
+                  } else {
+                      console.error('autoShutTime element not found in setAutoShutTime');
+                  }
                   return;
               }
 
@@ -3691,7 +3895,12 @@
               if (holdTime < 10 || holdTime > 90) {
                   log(`Error: Hold Time ${holdTime} is out of range (10-90 seconds)`);
                   // 恢复之前的值
-                  document.getElementById('holdTime').value = window.holdTime || 30;
+                  const holdTimeElement = document.getElementById('holdTime');
+                  if (holdTimeElement) {
+                      holdTimeElement.value = window.holdTime || 30;
+                  } else {
+                      console.error('holdTime element not found in setHoldTime');
+                  }
                   return;
               }
 
@@ -3733,7 +3942,12 @@
 
           // 更新Hold Time显示值（实时）
           function updateHoldTimeDisplay(value) {
-              document.getElementById('holdTimeDisplay').textContent = value + ' sec';
+              const holdTimeDisplayElement = document.getElementById('holdTimeDisplay');
+              if (holdTimeDisplayElement) {
+                  holdTimeDisplayElement.textContent = value + ' sec';
+              } else {
+                  console.error('holdTimeDisplay element not found');
+              }
           }
 
           // 滑块拖动状态管理
@@ -3779,7 +3993,12 @@
               if (brightnessValue < 0 || brightnessValue > 100) {
                   log(`Error: Brightness ${brightnessValue} is out of range (0-100)`);
                   // 恢复之前的值
-                  document.getElementById('brightness').value = currentB9State.byte13;
+                  const brightnessElement = document.getElementById('brightness');
+                  if (brightnessElement) {
+                      brightnessElement.value = currentB9State.byte13;
+                  } else {
+                      console.error('brightness element not found in setBrightness');
+                  }
                   updateBrightnessDisplay(currentB9State.byte13);
                   return;
               }
@@ -3853,7 +4072,12 @@
 
           // 更新模式显示
           function updateModeDisplay(mode, modeName) {
-              document.getElementById('currentModeDisplay').textContent = modeName;
+              const currentModeDisplayElement = document.getElementById('currentModeDisplay');
+              if (currentModeDisplayElement) {
+                  currentModeDisplayElement.textContent = modeName;
+              } else {
+                  console.error('currentModeDisplay element not found');
+              }
               
               // 更新模式序列显示，高亮当前模式
               let sequenceText = '';
@@ -3872,7 +4096,12 @@
                   }
               });
               
-              document.getElementById('modeSequence').innerHTML = sequenceText;
+              const modeSequenceElement = document.getElementById('modeSequence');
+              if (modeSequenceElement) {
+                  modeSequenceElement.innerHTML = sequenceText;
+              } else {
+                  console.error('modeSequence element not found');
+              }
           }
 
           // 切换Haptic反馈 - 发送B9命令第11字节
@@ -4230,7 +4459,7 @@
             }
 
             const currentDate = versionMatch[1]; // YYMMDD格式
-            const targetDate = '250705'; // SW2-250626
+            const targetDate = TARGET_FIRMWARE_DATE; // SW2-250716
 
             if (currentDate < targetDate) {
                 return { 
@@ -4373,47 +4602,59 @@
                  return;
              }
               
-             const profile = getCustomProfileFromUI();
-             // 组包并发送两包（ba/bb头尾）
+             // 保存当前UI数据到当前preset
+             saveCurrentCustomUI();
+             
+             // 使用当前preset的数据（从customSettings获取）
+             const currentPresetData = customSettings[currentPreset] || { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] };
+             
+             // 组包并发送两包（ba/bb头尾），包含preset信息
              for (let index = 0; index < 2; index++) {
-                 let ble_tx_buff = new Uint8Array(15);
-                 let ble_tx_len = 15;
+                 let ble_tx_buff = new Uint8Array(16); // 增加一个字节用于preset
+                 let ble_tx_len = 16;
                  if (index === 0) {
                      ble_tx_buff[0] = 0xba;
                      ble_tx_buff[1] = ble_tx_len;
-                     ble_tx_buff[2] = profile.temp[0] >> 8;
-                     ble_tx_buff[3] = profile.temp[0] & 0xff;
-                     ble_tx_buff[4] = profile.time[0];
-                     ble_tx_buff[5] = profile.temp[1] >> 8;
-                     ble_tx_buff[6] = profile.temp[1] & 0xff;
-                     ble_tx_buff[7] = profile.time[1];
-                     ble_tx_buff[8] = profile.temp[2] >> 8;
-                     ble_tx_buff[9] = profile.temp[2] & 0xff;
-                     ble_tx_buff[10] = profile.time[2];
-                     ble_tx_buff[11] = profile.temp[3] >> 8;
-                     ble_tx_buff[12] = profile.temp[3] & 0xff;
-                     ble_tx_buff[13] = profile.time[3];
-                     ble_tx_buff[14] = 0xba;
+                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
+                     ble_tx_buff[3] = currentPresetData.temps[0] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[0] & 0xff;
+                     ble_tx_buff[5] = currentPresetData.times[0];
+                     ble_tx_buff[6] = currentPresetData.temps[1] >> 8;
+                     ble_tx_buff[7] = currentPresetData.temps[1] & 0xff;
+                     ble_tx_buff[8] = currentPresetData.times[1];
+                     ble_tx_buff[9] = currentPresetData.temps[2] >> 8;
+                     ble_tx_buff[10] = currentPresetData.temps[2] & 0xff;
+                     ble_tx_buff[11] = currentPresetData.times[2];
+                     ble_tx_buff[12] = currentPresetData.temps[3] >> 8;
+                     ble_tx_buff[13] = currentPresetData.temps[3] & 0xff;
+                     ble_tx_buff[14] = currentPresetData.times[3];
+                     ble_tx_buff[15] = 0xba;
                  } else {
                      ble_tx_buff[0] = 0xbb;
                      ble_tx_buff[1] = ble_tx_len;
-                     ble_tx_buff[2] = profile.temp[4] >> 8;
-                     ble_tx_buff[3] = profile.temp[4] & 0xff;
-                     ble_tx_buff[4] = profile.time[4];
-                     ble_tx_buff[5] = profile.temp[5] >> 8;
-                     ble_tx_buff[6] = profile.temp[5] & 0xff;
-                     ble_tx_buff[7] = profile.time[5];
-                     ble_tx_buff[8] = profile.temp[6] >> 8;
-                     ble_tx_buff[9] = profile.temp[6] & 0xff;
-                     ble_tx_buff[10] = profile.time[6];
-                     ble_tx_buff[11] = profile.temp[7] >> 8;
-                     ble_tx_buff[12] = profile.temp[7] & 0xff;
-                     ble_tx_buff[13] = profile.time[7];
-                     ble_tx_buff[14] = 0xbb;
+                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
+                     ble_tx_buff[3] = currentPresetData.temps[4] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[4] & 0xff;
+                     ble_tx_buff[5] = currentPresetData.times[4];
+                     ble_tx_buff[6] = currentPresetData.temps[5] >> 8;
+                     ble_tx_buff[7] = currentPresetData.temps[5] & 0xff;
+                     ble_tx_buff[8] = currentPresetData.times[5];
+                     ble_tx_buff[9] = currentPresetData.temps[6] >> 8;
+                     ble_tx_buff[10] = currentPresetData.temps[6] & 0xff;
+                     ble_tx_buff[11] = currentPresetData.times[6];
+                     ble_tx_buff[12] = currentPresetData.temps[7] >> 8;
+                     ble_tx_buff[13] = currentPresetData.temps[7] & 0xff;
+                     ble_tx_buff[14] = currentPresetData.times[7];
+                     ble_tx_buff[15] = 0xbb;
                  }
                  try {
+                     // 如果是第二个包，添加延迟避免GATT操作冲突
+                     if (index === 1) {
+                         await new Promise(resolve => setTimeout(resolve, 100));
+                     }
+                     
                      await characteristic.writeValue(ble_tx_buff);
-                     log(`✓ Custom参数包${index+1}已发送(ba/bb): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
+                     log(`✓ Custom Preset ${currentPreset} 参数包${index+1}已发送(ba/bb): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
                  
                                         // 1. 获取point1-8的最大时间值
                         const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
@@ -4423,25 +4664,25 @@
                             if (t > maxCustomTime) maxCustomTime = t;
                         }
                         // 2. 遍历preset1-5，设置为Custom模式的hold time
-                        for (let i = 1; i <= 5; i++) {
-                            const modeSelect = document.getElementById(`presetMode${i}`);
-                            if (modeSelect && modeSelect.value === '0xF1') {
-                                // 修改滑块UI
-                                const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
-                                if (holdTimeSlider) {
-                                    holdTimeSlider.value = maxCustomTime;
-                                    // 可选：同步显示
-                                    if (typeof updatePresetHoldTimeDisplay === 'function') {
-                                        updatePresetHoldTimeDisplay(i, maxCustomTime);
-                                    }
-                                }
-                                // 发送蓝牙命令
-                                if (typeof setPresetHoldTime === 'function') {
-                                    setPresetHoldTime(i, maxCustomTime);
-                                }
-                            }
-                        }      
-                        showNotification(`已同步Custom模式的Hold Time为${maxCustomTime}秒`, 'info', 2000);           
+                        // for (let i = 1; i <= 5; i++) {
+                        //     const modeSelect = document.getElementById(`presetMode${i}`);
+                        //     if (modeSelect && modeSelect.value === '0xF1') {
+                        //         // 修改滑块UI
+                        //         const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                        //         if (holdTimeSlider) {
+                        //             holdTimeSlider.value = maxCustomTime;
+                        //             // 可选：同步显示
+                        //             if (typeof updatePresetHoldTimeDisplay === 'function') {
+                        //                 updatePresetHoldTimeDisplay(i, maxCustomTime);
+                        //             }
+                        //         }
+                        //         // 发送蓝牙命令
+                        //         if (typeof setPresetHoldTime === 'function') {
+                        //             setPresetHoldTime(i, maxCustomTime);
+                        //         }
+                        //     }
+                        // }      
+                        // showNotification(`已同步Custom模式的Hold Time为${maxCustomTime}秒`, 'info', 2000);           
                     } catch (e) {
                      log(`✗ Custom参数包${index+1}发送失败: ${e.message}`);
                      showNotification(`自定义参数包${index+1}发送失败`, 'error');
@@ -4450,7 +4691,7 @@
 
 
              }
-             showNotification('自定义参数全部发送成功', 'success');
+             showNotification(`Custom Preset ${currentPreset} 参数全部发送成功`, 'success');
           }
           
           // 绑定按钮事件
@@ -4459,32 +4700,112 @@
           // 新增：自定义参数包解析
           function handleCustomProfileData(data) {
               let group = (data[0] === 0xaa) ? 0 : 1;
+              let preset = data[2]; // 新增：读取preset信息
               let temps = [];
               let times = [];
+              
+              // 数据从data[3]开始读取
               for(let i=0; i<4; i++) {
-                  let temp = (data[2+i*3] << 8) | data[3+i*3];
-                  let time = data[4+i*3];
+                  let temp = (data[3+i*3] << 8) | data[4+i*3];
+                  let time = data[5+i*3];
                   temps.push(temp);
                   times.push(time);
               }
               
-              // 更新UI输入框
-              for(let i=0; i<4; i++) {
-                  let idx = group*4 + i;
-                  const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
-                  const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
-                  if (tempInputs[idx]) tempInputs[idx].value = temps[i];
-                  if (timeInputs[idx]) {
-                      // point1的时间固定为0，不更新
-                      if (idx !== 0) {
-                          timeInputs[idx].value = times[i];
+              // 验证preset范围
+              if (preset >= 1 && preset <= 5) {
+                  // 存储到对应的preset中
+                  if (!customSettings[preset]) {
+                      customSettings[preset] = { temps: [], times: [] };
+                  }
+                  
+                  // 更新存储的数据
+                  for(let i=0; i<4; i++) {
+                      let idx = group*4 + i;
+                      if (idx < 8) {
+                          customSettings[preset].temps[idx] = temps[i];
+                          customSettings[preset].times[idx] = times[i];
                       }
                   }
-              }
-              
-              log(`收到自定义参数包${group+1}：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
-              showNotification(`收到自定义参数包${group+1}已同步到UI`,'info');
-          }
+                  
+                  // 打印变化
+                  logCustomSettingsChange(preset, '从设备接收更新', `包${group+1}`);
+                  
+                  // 如果当前显示的preset与接收到的preset相同，则更新UI
+                  if (currentPreset === preset) {
+                      updateCustomUI();
+                  }
+                  
+                  log(`收到自定义参数包${group+1} (Preset ${preset})：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
+                  showNotification(`收到Preset ${preset}自定义参数包${group+1}已同步`,'info');
+              } else {
+                  log(`收到无效的preset值: ${preset}`);
+                  showNotification(`收到无效的preset值: ${preset}`, 'error');
+               }
+           }
+           
+           // 切换custom preset（与Temperature Presets同步）
+           function switchCustomPreset(preset) {
+               preset = parseInt(preset);
+               if (preset >= 1 && preset <= 5) {
+                   // 保存当前UI数据到当前preset
+                   saveCurrentCustomUI();
+                   
+                   // 切换到新preset（使用currentPreset变量）
+                   currentPreset = preset;
+                   
+                   // 更新UI显示
+                   updateCustomUI();
+                   
+                   // 同步Temperature Presets的选择
+                   updatePresetCardSelection(preset);
+                   
+                   log(`切换到Custom Preset ${preset}`);
+                   showNotification(`已切换到Custom Preset ${preset}`, 'info');
+               }
+           }
+           
+           // 保存当前UI数据到当前preset
+           function saveCurrentCustomUI() {
+               const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+               const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+               
+               if (!customSettings[currentPreset]) {
+                   customSettings[currentPreset] = { temps: [], times: [] };
+               }
+               
+               for (let i = 0; i < 8; i++) {
+                   if (tempInputs[i]) {
+                       customSettings[currentPreset].temps[i] = parseInt(tempInputs[i].value);
+                   }
+                   if (timeInputs[i]) {
+                       customSettings[currentPreset].times[i] = parseInt(timeInputs[i].value) || 0;
+                   }
+               }
+               
+               // 打印变化
+               logCustomSettingsChange(currentPreset, '用户手动保存', '从UI输入');
+           }
+           
+           // 更新UI显示当前preset的数据
+           function updateCustomUI() {
+               const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+               const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+               
+               if (customSettings[currentPreset]) {
+                   for (let i = 0; i < 8; i++) {
+                       if (tempInputs[i] && customSettings[currentPreset].temps[i] !== undefined) {
+                           tempInputs[i].value = customSettings[currentPreset].temps[i];
+                       }
+                       if (timeInputs[i] && customSettings[currentPreset].times[i] !== undefined) {
+                           // point1的时间固定为0，不更新
+                           if (i !== 0) {
+                               timeInputs[i].value = customSettings[currentPreset].times[i];
+                           }
+                       }
+                   }
+               }
+           }
 
           // 新增：处理来自设备的颜色点数据
           function handleColorPointData(data) {
@@ -4802,4 +5123,4 @@
     
     </script>
 </body>
-</html> 
+</html>
