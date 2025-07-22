@@ -1020,7 +1020,14 @@
 
                 // 请求蓝牙设备
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true // 接受所有设备
+                    acceptAllDevices: true, // 接受所有设备
+                    optionalServices: [
+                        SERVICE_UUID,
+                        OTA_SERVICE_UUID,
+                        'generic_access',
+                        'generic_attribute',
+                        'device_information'
+                    ]
                 });
 
                 log(`📱 找到设备: ${bluetoothDevice.name || '未知设备'}`);
