@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蓝牙设备连接控制台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .section h2 {
+            color: #444;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 15px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .log-area {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .device-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        
+        .device-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+        
+        .hex-display {
+            background: #000;
+            color: #0ff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 5px 0;
+        }
+        
+        .device-data-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .data-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .data-value {
+            color: #333;
+            font-family: monospace;
+            font-size: 14px;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .data-value.clickable {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
+        
+        .data-value.clickable:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .temp-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+        
+        .temp-slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .temp-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .temp-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .temp-display {
+            min-width: 60px;
+            text-align: center;
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔷 蓝牙设备控制台</h1>
+        
+        <div class="section">
+            <h2>📡 设备连接</h2>
+            <button id="scanBtn" class="btn">扫描并连接设备</button>
+            <button id="disconnectBtn" class="btn" disabled>断开连接</button>
+            <div id="status" class="status disconnected">状态: 未连接</div>
+            <div id="deviceInfo" class="device-info" style="display: none;">
+                <p><strong>设备名称:</strong> <span id="deviceName">-</span></p>
+                <p><strong>设备ID:</strong> <span id="deviceId">-</span></p>
+                <p><strong>连接状态:</strong> <span id="connectionState">-</span></p>
+            </div>
+        </div>
+        
+        
+        <div class="section">
+            <h2>📊 设备信息</h2>
+            <div id="deviceDataCard" class="device-data-card" style="display: none;">
+                <div class="data-grid">
+                    <div class="data-item">
+                        <span class="data-label">雾化器类型:</span>
+                        <span id="atomizerType" class="data-value clickable" title="点击切换雾化器类型">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">温度单位:</span>
+                        <span id="tempUnit" class="data-value clickable" title="点击切换温度单位">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">电池电量:</span>
+                        <span id="batteryLevel" class="data-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">当前电压:</span>
+                        <div class="temp-control">
+                            <input type="range" id="voltageSlider" min="20" max="40" step="1" value="28" class="temp-slider">
+                            <span id="currentVoltage" class="data-value temp-display">2.8V</span>
+                        </div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">当前温度(华氏):</span>
+                        <div class="temp-control">
+                            <input type="range" id="tempSlider" min="300" max="800" step="25" value="500" class="temp-slider">
+                            <span id="currentTempF" class="data-value temp-display">500°F</span>
+                        </div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">当前温度(摄氏):</span>
+                        <div class="temp-control">
+                            <input type="range" id="tempCSlider" min="149" max="427" step="1" value="260" class="temp-slider">
+                            <span id="currentTempC" class="data-value temp-display">260°C</span>
+                        </div>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">当前阻值:</span>
+                        <span id="currentResistance" class="data-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">当前功率:</span>
+                        <span id="currentPower" class="data-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Puff计数1:</span>
+                        <span id="puffCount1" class="data-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Puff计数2:</span>
+                        <span id="puffCount2" class="data-value">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🔄 OTA 固件更新</h2>
+            <div class="ota-config" style="margin-bottom: 15px; padding: 15px; background: rgba(255, 255, 255, 0.5); border-radius: 10px;">
+                <label for="otaOptimization" style="display: block; margin-bottom: 8px; font-weight: bold; color: #555;">优化级别:</label>
+                <select id="otaOptimization" style="width: 100%; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white;">
+                    <option value="conservative">保守模式 (10ms间隔)</option>
+                    <option value="balanced" selected>平衡模式 (2ms间隔) ⭐推荐</option>
+                    <option value="aggressive">激进模式 (1ms间隔)</option>
+                </select>
+                <div class="optimization-info" style="margin-top: 8px;">
+                     <small style="color: #666; font-size: 12px;">当前设置: 2ms传输间隔, 每16块读取状态, 数据预处理</small>
+                     <div id="performanceEstimate" style="margin-top: 5px; padding: 5px; background: rgba(76, 175, 80, 0.1); border-radius: 5px;">
+                         <small style="color: #4CAF50; font-weight: bold;">⚡ 预期性能提升: 约80%速度提升</small>
+                     </div>
+                 </div>
+            </div>
+            <button id="startOTABtn" class="btn" style="margin-bottom: 10px;" disabled>开始 OTA 更新</button>
+            <div id="otaStatus" class="status disconnected">OTA状态: 等待连接设备</div>
+            <div id="otaProgress" style="margin: 10px 0; display: none;">
+                <div style="background: #e0e0e0; border-radius: 10px; height: 20px; overflow: hidden;">
+                    <div id="otaProgressBar" style="background: linear-gradient(45deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <div id="otaProgressText" style="text-align: center; margin-top: 5px; font-size: 14px; color: #666;">0%</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📥 接收数据日志</h2>
+            <button id="clearLogBtn" class="btn" style="margin-bottom: 10px;">清空日志</button>
+            <div id="logArea" class="log-area">等待连接设备...</div>
+        </div>
+    </div>
+
+    <script>
+        // 蓝牙服务和特征UUID
+        const SERVICE_UUID = '00010203-0405-0607-0809-0a0b0c0d1910';
+        const RX_CHARACTERISTIC_UUID = '00010203-0405-0607-0809-0a0b0c0d2b10'; // 接收通知
+        const TX_CHARACTERISTIC_UUID = '00010203-0405-0607-0809-0a0b0c0d2b11'; // 发送数据
+        
+        // OTA 服务和特征UUID
+        const OTA_SERVICE_UUID = '00010203-0405-0607-0809-0a0b0c0d1912';
+        const OTA_CHARACTERISTIC_UUID = '00010203-0405-0607-0809-0a0b0c0d2b12';
+
+        // 全局变量
+        let bluetoothDevice;
+        let bluetoothServer;
+        let service;
+        let rxCharacteristic;
+        let txCharacteristic;
+        
+        // OTA 相关变量
+        let otaService;
+        let otaCharacteristic;
+        let firmwareArray = "";
+        let otaStartTime = 0;
+        let otaBlockCount = 0;
+        let otaConnectTrys = 0;
+        
+        // 设备状态变量
+        let currentAtomizerMode = 0xa0; // 默认温度模式
+        let currentTempUnit = 0x11; // 默认华氏度
+        let currentVoltage = 40;
+        let current_TempF = 800;
+        let current_TempC = 426;
+        
+        // 温度滑块事件处理
+        const tempSlider = document.getElementById('tempSlider');
+        const voltageSlider = document.getElementById('voltageSlider');
+        const tempCSlider = document.getElementById('tempCSlider');
+        const currentTempFDisplay = document.getElementById('currentTempF');
+        const currentTempCDisplay = document.getElementById('currentTempC');
+        const currentVoltageDisplay = document.getElementById('currentVoltage');
+        
+        // 华氏度转摄氏度
+        function fahrenheitToCelsius(fahrenheit) {
+            return Math.round((fahrenheit - 32) * 5 / 9);
+        }
+        
+        // 摄氏度转华氏度
+        function celsiusToFahrenheit(celsius) {
+            return Math.round(celsius * 9 / 5 + 32);
+        }
+        
+        // 更新所有显示的函数
+         function updateAllDisplays(tempF, tempC, voltage) {
+             current_TempF = tempF;
+             current_TempC = tempC;
+             currentVoltage = voltage;
+             
+             currentTempFDisplay.textContent = `${tempF}°F`;
+             currentTempCDisplay.textContent = `${tempC}°C`;
+             currentVoltageDisplay.textContent = `${(voltage/10).toFixed(1)}V`;
+             
+             // 更新滑块位置（避免循环触发）
+             tempSlider.value = tempF;
+             tempCSlider.value = tempC;
+             voltageSlider.value = voltage;
+             
+             // 如果设备已连接，发送温度设置命令
+             if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                 sendTemperatureSetting(tempF, tempC);
+             }
+         }
+         
+         // 华氏温度滑块变化事件
+         tempSlider.addEventListener('input', function() {
+             const tempF = parseInt(this.value);
+             const tempC = fahrenheitToCelsius(tempF);
+             const voltage = Math.round(20 + (tempF - 300) / 25);
+             
+             updateAllDisplays(tempF, tempC, voltage);
+         });
+         
+         // 电压滑块变化事件
+         voltageSlider.addEventListener('input', function() {
+             const voltage = parseInt(this.value);
+             const tempF = (voltage - 20) * 25 + 300;
+             const tempC = fahrenheitToCelsius(tempF);
+             
+             updateAllDisplays(tempF, tempC, voltage);
+         });
+         
+         // 摄氏温度滑块变化事件
+          tempCSlider.addEventListener('input', function() {
+              const tempC = parseInt(this.value);
+              // 先转换为华氏度
+              let tempF = celsiusToFahrenheit(tempC);
+              // 按照华氏度25步进调整
+              tempF = Math.round((tempF - 300) / 25) * 25 + 300;
+              // 重新计算对应的摄氏度
+              const adjustedTempC = fahrenheitToCelsius(tempF);
+              const voltage = Math.round(20 + (tempF - 300) / 25);
+              
+              updateAllDisplays(tempF, adjustedTempC, voltage);
+          });
+        
+        // 发送温度设置命令
+        async function sendTemperatureSetting(tempF, tempC) {
+            if (!txCharacteristic) {
+                return;
+            }
+            
+            try {
+                const settingData = new Uint8Array([
+                    0xcc, // 命令类型：设置
+                    0x10, // 子命令：温度设置
+                    (tempF >> 8), (tempF & 0xff), 
+                    (tempC >> 8), (tempC & 0xff), 
+                    currentTempUnit,
+                    currentVoltage,
+                    currentAtomizerMode,
+                    0x00,0x00,0x00,0x00,0x00,0x00,
+                    0xcc,
+                ]);
+                
+                await txCharacteristic.writeValue(settingData);
+                const hexDisplay = uint8ArrayToHex(settingData);
+                log(`📤 发送温度设置: <span class="hex-display">${hexDisplay}</span>`);
+            } catch (error) {
+                log(`❌ 发送温度设置失败: ${error.message}`);
+            }
+        }
+        
+        // OTA 工具函数
+        function decimalToHex(d) {
+            var hex = Number(d).toString(16);
+            while (hex.length < 4) {
+                hex = "0" + hex;
+            }
+            return hex;
+        }
+        
+        function hexToBytes(hex) {
+            var bytes = [];
+            for (var c = 0; c < hex.length; c += 2)
+                bytes.push(parseInt(hex.substr(c, 2), 16));
+            return new Uint8Array(bytes);
+        }
+        
+        function bytesToHex(data) {
+            return new Uint8Array(data).reduce(function(memo, i) {
+                return memo + ("0" + i.toString(16)).slice(-2);
+            }, "");
+        }
+        
+        function crc16_modbus(buffer) {
+            var crc = 0xFFFF;
+            var odd;
+            for (var i = 0; i < buffer.length; i++) {
+                crc = crc ^ buffer[i];
+                for (var j = 0; j < 8; j++) {
+                    odd = crc & 0x0001;
+                    crc = crc >> 1;
+                    if (odd) {
+                        crc = crc ^ 0xA001;
+                    }
+                }
+            }
+            return crc;
+        }
+        
+        function getHexCRC(data) {
+            var tempCRC = decimalToHex(crc16_modbus(hexToBytes(data)));
+            return tempCRC.substring(2, 4) + tempCRC.substring(0, 2);
+        }
+        
+        function getHexBlockCount(count) {
+            var tempHEX = decimalToHex(count);
+            return tempHEX.substring(2, 4) + tempHEX.substring(0, 2);
+        }
+        
+        // OTA 状态更新函数
+        function updateOTAStatus(message, className) {
+            const otaStatus = document.getElementById('otaStatus');
+            otaStatus.textContent = `OTA状态: ${message}`;
+            otaStatus.className = `status ${className}`;
+        }
+        
+        function updateOTAProgress(percentage, message) {
+            const progressBar = document.getElementById('otaProgressBar');
+            const progressText = document.getElementById('otaProgressText');
+            const progressContainer = document.getElementById('otaProgress');
+            
+            progressContainer.style.display = 'block';
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = message || `${percentage}%`;
+        }
+        
+        // 性能监控变量
+        let lastBlockTime = 0;
+        let transferSpeeds = [];
+        
+        // OTA优化配置
+        let otaConfig = {
+            transferDelay: 2,
+            statusReadInterval: 16
+        };
+        
+        // 更新OTA配置
+        function updateOTAConfig() {
+            const optimizationLevel = document.getElementById('otaOptimization').value;
+            const infoElement = document.querySelector('.optimization-info small');
+            const performanceElement = document.querySelector('#performanceEstimate small');
+            
+            switch(optimizationLevel) {
+                case 'conservative':
+                    otaConfig.transferDelay = 10;
+                    otaConfig.statusReadInterval = 8;
+                    infoElement.textContent = '当前设置: 10ms传输间隔, 每8块读取状态, 数据预处理';
+                    performanceElement.textContent = '⚡ 预期性能提升: 约15%速度提升 (稳定优先)';
+                    performanceElement.parentElement.style.background = 'rgba(255, 193, 7, 0.1)';
+                    performanceElement.style.color = '#FF9800';
+                    break;
+                case 'balanced':
+                    otaConfig.transferDelay = 2;
+                    otaConfig.statusReadInterval = 16;
+                    infoElement.textContent = '当前设置: 2ms传输间隔, 每16块读取状态, 数据预处理';
+                    performanceElement.textContent = '⚡ 预期性能提升: 约80%速度提升 (推荐)';
+                    performanceElement.parentElement.style.background = 'rgba(76, 175, 80, 0.1)';
+                    performanceElement.style.color = '#4CAF50';
+                    break;
+                case 'aggressive':
+                    otaConfig.transferDelay = 1;
+                    otaConfig.statusReadInterval = 32;
+                    infoElement.textContent = '当前设置: 1ms传输间隔, 每32块读取状态, 数据预处理';
+                    performanceElement.textContent = '⚡ 预期性能提升: 约150%速度提升 (最快但可能不稳定)';
+                    performanceElement.parentElement.style.background = 'rgba(244, 67, 54, 0.1)';
+                    performanceElement.style.color = '#F44336';
+                    break;
+            }
+            
+            log(`⚙️ OTA配置已更新: ${optimizationLevel}模式`);
+        }
+        
+        // 计算传输性能
+        function calculateTransferPerformance(blockNr) {
+            const currentTime = new Date().getTime();
+            
+            if (lastBlockTime > 0 && blockNr > 0) {
+                const blockTime = currentTime - lastBlockTime;
+                const speed = 16 / (blockTime / 1000); // 每秒传输的字节数 (16字节/块)
+                transferSpeeds.push(speed);
+                
+                // 保持最近20个速度记录
+                if (transferSpeeds.length > 20) {
+                    transferSpeeds.shift();
+                }
+                
+                // 计算平均速度
+                const avgSpeed = transferSpeeds.reduce((a, b) => a + b, 0) / transferSpeeds.length;
+                const remainingBlocks = otaBlockCount - blockNr;
+                const estimatedTime = (remainingBlocks * 16) / avgSpeed;
+                
+                return {
+                    currentSpeed: speed.toFixed(1),
+                    avgSpeed: avgSpeed.toFixed(1),
+                    estimatedTime: estimatedTime.toFixed(1)
+                };
+            }
+            
+            lastBlockTime = currentTime;
+            return null;
+        }
+        
+        // 加载固件文件
+        async function loadFirmware() {
+            try {
+                const response = await fetch('./ota.bin');
+                if (!response.ok) {
+                    throw new Error(`无法加载固件文件: ${response.status}`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                firmwareArray = bytesToHex(new Uint8Array(arrayBuffer));
+                
+                // 验证是否为 Telink 固件
+                if (firmwareArray.substring(16, 24) !== "4b4e4c54") {
+                    throw new Error("所选文件不是有效的 Telink 固件文件");
+                }
+                
+                log(`📁 固件文件加载成功，大小: ${firmwareArray.length / 2} 字节`);
+                
+                // 填充到16字节边界
+                if (firmwareArray.length % 32 !== 0) {
+                    var padHex = "ffffffffffffffffffffffffffffffff";
+                    firmwareArray += padHex.substr(0, 32 - firmwareArray.length % 32);
+                }
+                otaBlockCount = firmwareArray.length / 32;
+                log(`📊 数据块数量: ${otaBlockCount}`);
+                
+                // 预处理固件数据
+                preprocessFirmwareData();
+                
+                return true;
+            } catch (error) {
+                log(`❌ 固件加载失败: ${error.message}`);
+                updateOTAStatus(`固件加载失败: ${error.message}`, 'disconnected');
+                return false;
+            }
+        }
+        
+        // 连接到OTA服务
+        async function connectOTAService() {
+            try {
+                if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                    throw new Error('设备未连接');
+                }
+                
+                log('🔗 连接到 OTA 服务...');
+                otaService = await bluetoothServer.getPrimaryService(OTA_SERVICE_UUID);
+                otaCharacteristic = await otaService.getCharacteristic(OTA_CHARACTERISTIC_UUID);
+                log('✅ OTA 服务连接成功');
+                return true;
+            } catch (error) {
+                log(`❌ OTA 服务连接失败: ${error.message}`);
+                updateOTAStatus(`OTA 服务连接失败: ${error.message}`, 'disconnected');
+                return false;
+            }
+        }
+        
+        // 发送OTA数据
+        async function otaCharSend(data) {
+            return new Promise((resolve, reject) => {
+                otaCharacteristic.writeValue(hexToBytes(data)).then(() => {
+                    resolve("ok");
+                }).catch((err) => {
+                    reject("发送OTA数据时出错");
+                });
+            });
+        }
+        
+        // 开始OTA更新
+        async function startOTA() {
+            try {
+                updateOTAStatus('准备中...', 'connecting');
+                
+                // 加载固件
+                if (!(await loadFirmware())) {
+                    return;
+                }
+                
+                // 连接OTA服务
+                if (!(await connectOTAService())) {
+                    return;
+                }
+                
+                updateOTAStatus('开始OTA更新...', 'connecting');
+                log('🚀 开始 OTA 更新流程');
+                
+                // 开始OTA序列
+                await otaCharSend("00ff");
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await otaCharSend("01ff");
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                // 重置性能监控变量
+                lastBlockTime = 0;
+                transferSpeeds = [];
+                otaStartTime = new Date().getTime();
+                
+                await sendOTABlock(0);
+                
+            } catch (error) {
+                log(`❌ OTA 更新失败: ${error.message}`);
+                updateOTAStatus(`OTA 更新失败: ${error.message}`, 'disconnected');
+            }
+        }
+        
+        // 预处理的数据块数组
+        let preprocessedBlocks = [];
+        
+        // 预处理固件数据
+        function preprocessFirmwareData() {
+            preprocessedBlocks = [];
+            log('🔄 预处理固件数据，计算所有CRC...');
+            
+            for (let i = 0; i < otaBlockCount; i++) {
+                const blockNrString = getHexBlockCount(i);
+                const blockString = blockNrString + firmwareArray.substring(i * 32, i * 32 + 32);
+                const blockCRC = getHexCRC(blockString);
+                preprocessedBlocks[i] = blockString + blockCRC;
+            }
+            
+            log(`✅ 预处理完成，共 ${otaBlockCount} 个数据块`);
+        }
+        
+        // 发送OTA数据块（优化版）
+        async function sendOTABlock(blockNr) {
+            try {
+                if (blockNr >= otaBlockCount) {
+                    await sendLastOTA();
+                    return;
+                }
+                
+                const percentage = Math.floor(blockNr / (otaBlockCount * 1.0) * 100);
+                const elapsed = ((new Date().getTime() - otaStartTime) / 1000.0).toFixed(2);
+                
+                // 计算传输性能
+                const performance = calculateTransferPerformance(blockNr);
+                let statusMessage = `发送数据块 ${blockNr}/${otaBlockCount} (${percentage}%) - ${elapsed}s`;
+                let progressMessage = `${percentage}% - ${elapsed}s`;
+                
+                if (performance) {
+                    statusMessage += ` | 速度: ${performance.avgSpeed} B/s`;
+                    progressMessage += ` | 剩余: ${performance.estimatedTime}s`;
+                }
+                
+                updateOTAStatus(statusMessage, 'connecting');
+                updateOTAProgress(percentage, progressMessage);
+                
+                // 使用预处理的数据块
+                await otaCharSend(preprocessedBlocks[blockNr]);
+                
+                // 动态状态读取频率
+                if ((blockNr + 1) % otaConfig.statusReadInterval === 0) {
+                    await otaCharacteristic.readValue();
+                    log('📖 读取 OTA 状态');
+                }
+                
+                // 动态传输间隔
+                setTimeout(() => sendOTABlock(blockNr + 1), otaConfig.transferDelay);
+                
+            } catch (error) {
+                log(`❌ 发送数据块 ${blockNr} 失败: ${error.message}`);
+                updateOTAStatus(`发送数据块失败: ${error.message}`, 'disconnected');
+            }
+        }
+        
+        // 发送最后的OTA命令
+        async function sendLastOTA() {
+            try {
+                const data = "02ff" + getHexBlockCount(otaBlockCount - 1) + getHexBlockCount(~(otaBlockCount - 1) & 0xffff);
+                await otaCharSend(data);
+                
+                const totalTime = (new Date().getTime() - otaStartTime) / 1000;
+                const successMessage = `OTA 更新完成! 耗时 ${totalTime.toFixed(2)} 秒`;
+                
+                log(`✅ ${successMessage}`);
+                updateOTAStatus(successMessage, 'connected');
+                updateOTAProgress(100, '更新完成!');
+                
+            } catch (error) {
+                log(`❌ 完成 OTA 更新失败: ${error.message}`);
+                updateOTAStatus(`完成 OTA 更新失败: ${error.message}`, 'disconnected');
+            }
+        }
+        // DOM元素
+        const scanBtn = document.getElementById('scanBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const status = document.getElementById('status');
+        const deviceInfo = document.getElementById('deviceInfo');
+        const deviceName = document.getElementById('deviceName');
+        const deviceId = document.getElementById('deviceId');
+        const connectionState = document.getElementById('connectionState');
+        const logArea = document.getElementById('logArea');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const startOTABtn = document.getElementById('startOTABtn');
+
+        // 日志功能
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 更新状态显示
+        function updateStatus(message, className) {
+            status.textContent = message;
+            status.className = `status ${className}`;
+        }
+
+        // 更新UI状态
+        function updateUI(connected) {
+            scanBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            startOTABtn.disabled = !connected;
+            
+            if (connected) {
+                deviceInfo.style.display = 'block';
+                deviceName.textContent = bluetoothDevice.name || '未知设备';
+                deviceId.textContent = bluetoothDevice.id;
+                connectionState.textContent = '已连接';
+                updateOTAStatus('设备已连接，可以开始OTA更新', 'connected');
+            } else {
+                deviceInfo.style.display = 'none';
+                // 隐藏设备数据卡片
+                document.getElementById('deviceDataCard').style.display = 'none';
+                updateOTAStatus('等待连接设备', 'disconnected');
+                // 隐藏进度条
+                document.getElementById('otaProgress').style.display = 'none';
+            }
+        }
+
+        // 16进制字符串转换为Uint8Array
+        function hexStringToUint8Array(hexString) {
+            // 移除空格和非16进制字符
+            const cleanHex = hexString.replace(/[^0-9A-Fa-f]/g, '');
+            
+            // 确保是偶数长度
+            const paddedHex = cleanHex.length % 2 ? '0' + cleanHex : cleanHex;
+            
+            const bytes = new Uint8Array(paddedHex.length / 2);
+            for (let i = 0; i < paddedHex.length; i += 2) {
+                bytes[i / 2] = parseInt(paddedHex.substr(i, 2), 16);
+            }
+            return bytes;
+        }
+
+        // Uint8Array转换为16进制字符串
+        function uint8ArrayToHex(bytes) {
+            return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+        }
+
+        // 处理接收到的数据
+        function handleNotification(event) {
+            const value = event.target.value;
+            const bytes = new Uint8Array(value.buffer);
+            const hexString = uint8ArrayToHex(bytes);
+            
+            log(`📥 接收数据: <span class="hex-display">${hexString}</span>`);
+            log(`📥 原始数据: [${Array.from(bytes).join(', ')}]`);
+            
+            // 解析设备数据
+            parseDeviceData(bytes);
+        }
+        
+        // 解析设备数据
+        function parseDeviceData(bytes) {
+            if (bytes.length < 20) {
+                log('⚠️ 数据包长度不足，无法解析设备信息');
+                return;
+            }
+            
+            try {
+
+                const atomizerType = getAtomizerType(bytes[2]); // Byte3: 雾化器类型
+                const tempUnit = getTempUnit(bytes[3]); // Byte4: 温度单位
+
+
+        //                 let currentAtomizerMode = 0xa0; // 默认温度模式
+        // let currentTempUnit = 0x11; // 默认华氏度
+        // let currentVoltage = 40;
+        // let currentTempF = 800;
+        // let currentTempC = 426;
+
+
+                currentAtomizerMode = bytes[2];
+                currentTempUnit = bytes[3];
+                const batteryLevel = bytes[4]; // Byte5: 电池电量百分比
+                
+                // 电压设置 (Byte6): 30~3.0V
+                const voltageValue = (bytes[5] / 10).toFixed(1);
+                
+                // 当前温度设置(华氏度) Byte7是低位，Byte8是高位
+                const currentTempF = (bytes[6] << 8) + bytes[7];
+                
+                // 当前温度设置(摄氏度) Byte9是低位，Byte10是高位  
+                const currentTempC = (bytes[8] << 8) + bytes[9];
+                
+                // 当前阻值 Byte11是低位，Byte12是高位 (单位: mΩ)
+                const currentResistance = (((bytes[10] << 8) + bytes[11]) / 100).toFixed(2);
+                
+                // 当前功率 Byte13是低位，Byte14是高位 (单位: mW)
+                const currentPower = (((bytes[12] << 8) + bytes[13]) / 10).toFixed(1);
+                
+                // Puff计数1 Byte15是低位，Byte16是高位
+                const puffCount1 = (bytes[14] << 8) + bytes[15];
+                
+                // Puff计数2 Byte17是低位，Byte18是高位
+                const puffCount2 = (bytes[16] << 8) + bytes[17];
+                
+
+                currentVoltage = bytes[5];
+                current_TempF = currentTempF;
+                current_TempC = currentTempC;
+
+                // 更新UI显示
+                updateDeviceDataDisplay({
+                    atomizerType,
+                    tempUnit,
+                    batteryLevel: `${batteryLevel}%`,
+                    currentVoltage: `${voltageValue}V`,
+                    currentTempF: `${currentTempF}°F`,
+                    currentTempC: `${currentTempC}°C`,
+                    currentResistance: `${currentResistance}Ω`,
+                    currentPower: `${currentPower}W`,
+                    puffCount1,
+                    puffCount2
+                });
+                
+                // 显示设备数据卡片
+                document.getElementById('deviceDataCard').style.display = 'block';
+                
+            } catch (error) {
+                log(`❌ 解析设备数据失败: ${error.message}`);
+            }
+        }
+        
+        // 获取雾化器类型
+        function getAtomizerType(byte) {
+            switch(byte) {
+                case 0xa0: return 'Temp mode';
+                case 0x60: return 'Voltage mode';
+                case 0x00: return 'No Atomizer';
+                default: return `Unknown (0x${byte.toString(16).toUpperCase()})`;
+            }
+        }
+        
+        // 获取温度单位
+        function getTempUnit(byte) {
+            switch(byte) {
+                case 0x11: return 'Fahrenheit';
+                case 0x22: return 'Celsius';
+                default: return `Unknown (0x${byte.toString(16).toUpperCase()})`;
+            }
+        }
+        
+        // 更新设备数据显示
+        function updateDeviceDataDisplay(data) {
+            document.getElementById('atomizerType').textContent = data.atomizerType;
+            document.getElementById('tempUnit').textContent = data.tempUnit;
+            document.getElementById('batteryLevel').textContent = data.batteryLevel;
+            document.getElementById('currentVoltage').textContent = data.currentVoltage;
+            document.getElementById('currentTempF').textContent = data.currentTempF;
+            document.getElementById('currentTempC').textContent = data.currentTempC;
+            document.getElementById('currentResistance').textContent = data.currentResistance;
+            document.getElementById('currentPower').textContent = data.currentPower;
+            document.getElementById('puffCount1').textContent = data.puffCount1;
+            document.getElementById('puffCount2').textContent = data.puffCount2;
+            
+            // 更新当前状态变量，保持同步
+            if (data.atomizerType === 'Temp mode') {
+                currentAtomizerMode = 0xa0;
+            } else if (data.atomizerType === 'Voltage mode') {
+                currentAtomizerMode = 0x60;
+            } else if (data.atomizerType === 'No Atomizer') {
+                currentAtomizerMode = 0x00;
+            }
+            
+            if (data.tempUnit === 'Fahrenheit') {
+                currentTempUnit = 0x11;
+            } else if (data.tempUnit === 'Celsius') {
+                currentTempUnit = 0x22;
+            }
+        }
+
+        // 扫描并连接设备
+        async function scanAndConnect() {
+            try {
+                updateStatus('正在扫描设备...', 'connecting');
+                log('🔍 开始扫描蓝牙设备...');
+
+                // 请求蓝牙设备
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true // 接受所有设备
+                });
+
+                log(`📱 找到设备: ${bluetoothDevice.name || '未知设备'}`);
+                log(`📱 设备ID: ${bluetoothDevice.id}`);
+
+                // 监听断开连接事件
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                updateStatus('正在连接...', 'connecting');
+                log('🔗 正在连接到设备...');
+
+                // 连接到GATT服务器
+                bluetoothServer = await bluetoothDevice.gatt.connect();
+                log('✅ GATT服务器连接成功');
+
+                // 等待一段时间让设备准备好
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                log('⏳ 等待设备准备就绪...');
+
+                // 获取所有可用服务
+                let services;
+                try {
+                    services = await bluetoothServer.getPrimaryServices();
+                    log(`✅ 发现 ${services.length} 个服务`);
+                } catch (error) {
+                    log(`❌ 获取服务失败: ${error.message}`);
+                    // 尝试使用已知的服务UUID
+                    try {
+                        const knownService = await bluetoothServer.getPrimaryService(SERVICE_UUID);
+                        services = [knownService];
+                        log('✅ 使用已知服务UUID成功');
+                    } catch (e) {
+                        throw new Error('无法获取任何服务，设备可能不兼容');
+                    }
+                }
+                
+                // 尝试找到包含通知特征的服务
+                let foundService = null;
+                let foundRxChar = null;
+                let foundTxChar = null;
+                
+                for (const svc of services) {
+                    try {
+                        const characteristics = await svc.getCharacteristics();
+                        log(`服务 ${svc.uuid} 有 ${characteristics.length} 个特征`);
+                        
+                        for (const char of characteristics) {
+                            if (char.properties.notify || char.properties.indicate) {
+                                foundRxChar = char;
+                                foundService = svc;
+                                log(`✅ 找到通知特征: ${char.uuid}`);
+                            }
+                            if (char.properties.write || char.properties.writeWithoutResponse) {
+                                foundTxChar = char;
+                                log(`✅ 找到写入特征: ${char.uuid}`);
+                            }
+                        }
+                        
+                        if (foundRxChar && foundTxChar) {
+                            break;
+                        }
+                    } catch (e) {
+                        log(`跳过服务 ${svc.uuid}: ${e.message}`);
+                    }
+                }
+                
+                if (!foundService || !foundRxChar) {
+                    throw new Error('未找到合适的服务和特征');
+                }
+                
+                service = foundService;
+                rxCharacteristic = foundRxChar;
+                txCharacteristic = foundTxChar;
+                log('✅ 获取到服务和特征');
+
+                // 启用通知
+                await rxCharacteristic.startNotifications();
+                rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
+                log('✅ 通知功能已启用');
+
+                updateStatus('连接成功', 'connected');
+                updateUI(true);
+                log('🎉 设备连接成功，可以开始通信了！');
+
+            } catch (error) {
+                log(`❌ 连接失败: ${error.message}`);
+                updateStatus('连接失败', 'disconnected');
+                updateUI(false);
+            }
+        }
+
+        // 断开连接
+        function disconnect() {
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                bluetoothDevice.gatt.disconnect();
+                log('🔌 手动断开连接');
+            }
+        }
+
+        // 处理断开连接事件
+        function onDisconnected() {
+            log('❌ 设备已断开连接');
+            updateStatus('连接已断开', 'disconnected');
+            updateUI(false);
+            
+            // 清理变量
+            bluetoothDevice = null;
+            bluetoothServer = null;
+            service = null;
+            rxCharacteristic = null;
+            txCharacteristic = null;
+        }
+
+
+        // 清空日志
+        function clearLog() {
+            logArea.innerHTML = '日志已清空<br>';
+        }
+        
+        // 切换雾化器类型
+        function toggleAtomizerType() {
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                log('❌ 设备未连接，无法切换雾化器类型');
+                return;
+            }
+            
+            // 切换雾化器模式
+            if (currentAtomizerMode === 0xa0) {
+                currentAtomizerMode = 0x60; // 切换到电压模式
+            } else {
+                currentAtomizerMode = 0xa0; // 切换到温度模式
+            }
+            
+            // 更新显示
+            const atomizerTypeElement = document.getElementById('atomizerType');
+            atomizerTypeElement.textContent = getAtomizerType(currentAtomizerMode);
+            
+            // 发送设置命令
+            sendAtomizerTypeSetting();
+            
+            log(`🔄 雾化器类型已切换为: ${getAtomizerType(currentAtomizerMode)}`);
+        }
+        
+        // 切换温度单位
+        function toggleTempUnit() {
+            if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+                log('❌ 设备未连接，无法切换温度单位');
+                return;
+            }
+            
+            // 切换温度单位
+            if (currentTempUnit === 0x11) {
+                currentTempUnit = 0x22; // 切换到摄氏度
+            } else {
+                currentTempUnit = 0x11; // 切换到华氏度
+            }
+            
+            // 更新显示
+            const tempUnitElement = document.getElementById('tempUnit');
+            tempUnitElement.textContent = getTempUnit(currentTempUnit);
+            
+            // 发送设置命令
+            sendTempUnitSetting();
+            
+            log(`🔄 温度单位已切换为: ${getTempUnit(currentTempUnit)}`);
+        }
+        
+        // 发送雾化器类型设置命令
+        async function sendAtomizerTypeSetting() {
+            if (!txCharacteristic) {
+                log('❌ TX特征不可用，无法发送设置命令');
+                return;
+            }
+            
+            try {
+                // 构造设置命令数据包 (根据协议文档调整)
+                const settingData = new Uint8Array([
+                    0xcc, // 命令类型：设置
+                    0x10, // 子命令：雾化器类型
+                    (current_TempF >> 8), (current_TempF & 0xff), 
+                    (current_TempC >> 8), (current_TempC & 0xff), 
+                    currentTempUnit,
+                    currentVoltage,
+                    currentAtomizerMode,
+                    0x00,0x00,0x00,0x00,0x00,0x00,
+                    0xcc,
+                ]);
+                
+                await txCharacteristic.writeValue(settingData);
+                const hexDisplay = uint8ArrayToHex(settingData);
+                log(`📤 发送雾化器设置: <span class="hex-display">${hexDisplay}</span>`);
+            } catch (error) {
+                log(`❌ 发送雾化器设置失败: ${error.message}`);
+            }
+        }
+        
+        // 发送温度单位设置命令
+        async function sendTempUnitSetting() {
+            if (!txCharacteristic) {
+                log('❌ TX特征不可用，无法发送设置命令');
+                return;
+            }
+            
+            try {
+                // 构造设置命令数据包 (根据协议文档调整)
+                const settingData = new Uint8Array([
+                    0xcc, // 命令类型：设置
+                    0x10, // 子命令：雾化器类型
+                    (current_TempF >> 8), (current_TempF & 0xff), 
+                    (current_TempC >> 8), (current_TempC & 0xff), 
+                    currentTempUnit,
+                    currentVoltage,
+                    currentAtomizerMode,
+                    0x00,0x00,0x00,0x00,0x00,0x00,
+                    0xcc,
+                ]);
+                
+                await txCharacteristic.writeValue(settingData);
+                const hexDisplay = uint8ArrayToHex(settingData);
+                log(`📤 发送温度单位设置: <span class="hex-display">${hexDisplay}</span>`);
+            } catch (error) {
+                log(`❌ 发送温度单位设置失败: ${error.message}`);
+            }
+        }
+
+        // 事件监听器
+        scanBtn.addEventListener('click', scanAndConnect);
+        disconnectBtn.addEventListener('click', disconnect);
+        startOTABtn.addEventListener('click', startOTA);
+        
+        // OTA优化级别选择事件
+        document.getElementById('otaOptimization').addEventListener('change', updateOTAConfig);
+        clearLogBtn.addEventListener('click', clearLog);
+        
+        // 页面加载完成后添加事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 为雾化器类型添加点击事件
+            const atomizerTypeElement = document.getElementById('atomizerType');
+            if (atomizerTypeElement) {
+                atomizerTypeElement.addEventListener('click', toggleAtomizerType);
+            }
+            
+            // 为温度单位添加点击事件
+            const tempUnitElement = document.getElementById('tempUnit');
+            if (tempUnitElement) {
+                tempUnitElement.addEventListener('click', toggleTempUnit);
+            }
+            
+            // 初始化温度显示
+             const initialTempF = 500;
+             const initialTempC = fahrenheitToCelsius(initialTempF);
+             const initialVoltage = Math.round(20 + (initialTempF - 300) / 25);
+             
+             // 使用统一的更新函数初始化所有显示
+              updateAllDisplays(initialTempF, initialTempC, initialVoltage);
+              
+              // 确保滑块范围正确
+              tempCSlider.min = fahrenheitToCelsius(300);
+              tempCSlider.max = fahrenheitToCelsius(800);
+              
+              // 初始化OTA状态
+              updateOTAStatus('等待连接设备', 'disconnected');
+        });
+        
+        
+
+
+        // 检查浏览器支持
+        if (!navigator.bluetooth) {
+            log('❌ 此浏览器不支持Web Bluetooth API');
+            scanBtn.disabled = true;
+        } else {
+            log('✅ 浏览器支持Web Bluetooth API，可以开始使用');
+        }
+    </script>
+</body>
+</html>
+
+
+
+
