@@ -1052,6 +1052,11 @@
                 try {
                     services = await bluetoothServer.getPrimaryServices();
                     log(`✅ 发现 ${services.length} 个服务`);
+                    
+                    // 详细列出所有发现的服务
+                    for (const svc of services) {
+                        log(`📋 服务: ${svc.uuid}`);
+                    }
                 } catch (error) {
                     log(`❌ 获取服务失败: ${error.message}`);
                     // 尝试使用已知的服务UUID
@@ -1064,38 +1069,107 @@
                     }
                 }
                 
-                // 尝试找到包含通知特征的服务
+                // 首先尝试连接到主服务 (1910)
                 let foundService = null;
                 let foundRxChar = null;
                 let foundTxChar = null;
                 
+                // 优先查找主服务 SERVICE_UUID (1910)
                 for (const svc of services) {
+                    if (svc.uuid === SERVICE_UUID || svc.uuid.includes('1910')) {
+                        try {
+                            const characteristics = await svc.getCharacteristics();
+                            log(`🎯 主服务 ${svc.uuid} 有 ${characteristics.length} 个特征`);
+                            
+                            for (const char of characteristics) {
+                                log(`  特征: ${char.uuid}, 属性: ${JSON.stringify(char.properties)}`);
+                                if (char.properties.notify || char.properties.indicate) {
+                                    foundRxChar = char;
+                                    foundService = svc;
+                                    log(`✅ 主服务找到通知特征: ${char.uuid}`);
+                                }
+                                if (char.properties.write || char.properties.writeWithoutResponse) {
+                                    foundTxChar = char;
+                                    log(`✅ 主服务找到写入特征: ${char.uuid}`);
+                                }
+                            }
+                            
+                            if (foundRxChar && foundTxChar) {
+                                log('🎉 主服务连接成功！');
+                                break;
+                            }
+                        } catch (e) {
+                            log(`主服务 ${svc.uuid} 访问失败: ${e.message}`);
+                        }
+                    }
+                }
+                
+                // 如果主服务没有找到合适的特征，再尝试其他服务
+                if (!foundService || !foundRxChar || !foundTxChar) {
+                    log('⚠️ 主服务未找到合适特征，尝试其他服务...');
+                    
+                    for (const svc of services) {
+                        if (svc.uuid === SERVICE_UUID || svc.uuid.includes('1910')) {
+                            continue; // 跳过已经尝试过的主服务
+                        }
+                        
+                        try {
+                            const characteristics = await svc.getCharacteristics();
+                            log(`🔍 备用服务 ${svc.uuid} 有 ${characteristics.length} 个特征`);
+                            
+                            for (const char of characteristics) {
+                                if (char.properties.notify || char.properties.indicate) {
+                                    foundRxChar = char;
+                                    foundService = svc;
+                                    log(`✅ 备用服务找到通知特征: ${char.uuid}`);
+                                }
+                                if (char.properties.write || char.properties.writeWithoutResponse) {
+                                    foundTxChar = char;
+                                    log(`✅ 备用服务找到写入特征: ${char.uuid}`);
+                                }
+                            }
+                            
+                            if (foundRxChar && foundTxChar) {
+                                log('✅ 备用服务连接成功！');
+                                break;
+                            }
+                        } catch (e) {
+                            log(`跳过服务 ${svc.uuid}: ${e.message}`);
+                        }
+                    }
+                }
+                
+                // 如果仍然没有找到合适的服务，尝试直接连接到已知的主服务
+                if (!foundService || !foundRxChar) {
+                    log('🔄 尝试直接连接到主服务 1910...');
                     try {
-                        const characteristics = await svc.getCharacteristics();
-                        log(`服务 ${svc.uuid} 有 ${characteristics.length} 个特征`);
+                        const mainService = await bluetoothServer.getPrimaryService(SERVICE_UUID);
+                        const characteristics = await mainService.getCharacteristics();
+                        log(`🎯 直连主服务 ${mainService.uuid} 有 ${characteristics.length} 个特征`);
                         
                         for (const char of characteristics) {
+                            log(`  特征: ${char.uuid}, 属性: ${JSON.stringify(char.properties)}`);
                             if (char.properties.notify || char.properties.indicate) {
                                 foundRxChar = char;
-                                foundService = svc;
-                                log(`✅ 找到通知特征: ${char.uuid}`);
+                                foundService = mainService;
+                                log(`✅ 直连找到通知特征: ${char.uuid}`);
                             }
                             if (char.properties.write || char.properties.writeWithoutResponse) {
                                 foundTxChar = char;
-                                log(`✅ 找到写入特征: ${char.uuid}`);
+                                log(`✅ 直连找到写入特征: ${char.uuid}`);
                             }
                         }
                         
                         if (foundRxChar && foundTxChar) {
-                            break;
+                            log('🎉 直连主服务成功！');
                         }
                     } catch (e) {
-                        log(`跳过服务 ${svc.uuid}: ${e.message}`);
+                        log(`❌ 直连主服务失败: ${e.message}`);
                     }
                 }
                 
                 if (!foundService || !foundRxChar) {
-                    throw new Error('未找到合适的服务和特征');
+                    throw new Error('未找到合适的服务和特征，请检查设备是否支持或尝试重新连接');
                 }
                 
                 service = foundService;
