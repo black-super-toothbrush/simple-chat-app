@@ -1736,6 +1736,20 @@
                             <input type="number" class="custom-time" min="0" max="90" step="1" value="80" style="width: 50px;">
                             <span>s</span>
                         </div>
+                        <div class="custom-config-row">
+                            <label>point9：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="480" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="90" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point10：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="490" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="100" style="width: 50px;">
+                            <span>s</span>
+                        </div>
                     </div>
                     <div style="margin-top: 18px; text-align: right;">
                         <button class="btn btn-primary" id="sendCustomProfileBtn" style="min-width: 180px;">send custom</button>
@@ -1835,7 +1849,7 @@
         let presetModes = [0, 0xA1, 0xA1, 0xA1, 0xA1, 0xA1]; // index 0 未使用，1-5对应preset 1-5，默认Steady模式
         
         // 固件版本配置
-        const TARGET_FIRMWARE_DATE = '250717'; // 目标固件版本日期 (YYMMDD格式)
+        const TARGET_FIRMWARE_DATE = '250728'; // 目标固件版本日期 (YYMMDD格式)
         
         // 当前设备状态跟踪 - B9命令的所有字节状态
         let currentB9State = {
@@ -1849,13 +1863,13 @@
             // 后续可以继续添加更多字节：byte14, byte15, byte16 等等
         };
         
-        // 存储5套custom setting数据
+        // 存储5套custom setting数据 (扩展到10个点)
         let customSettings = {
-            1: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
-            2: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
-            3: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
-            4: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] },
-            5: { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] }
+            1: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+            2: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+            3: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+            4: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+            5: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
         };
         
         // 打印customSettings变化的辅助函数
@@ -2476,16 +2490,17 @@
                 return;
             }
             
-            // 新增：自定义参数包处理（0xaa/0xab包头包尾，15字节）
+            // 新增：自定义参数包处理（0xaa/0xab/0xbc包头包尾，16字节）
             if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 16) ||
-                (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 16)) {
+                (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 16) ||
+                (data[0] === 0xac && data[data.length-1] === 0xac && data.length === 16)) {
                 log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
                 handleCustomProfileData(data);
                 return;
             }
 
             // 新增：处理LED颜色点notify (ac/ad/ae)
-            if (data.length === 6 && (data[0] === 0xac || data[0] === 0xad || data[0] === 0xae) && data[5] === data[0]) {
+            if (data.length === 6 && (data[0] === 0xad || data[0] === 0xae || data[0] === 0xaf) && data[5] === data[0]) {
                 handleColorPointData(data);
                 return;
             }
@@ -4340,23 +4355,23 @@
                   }
 
                   // 如果模式是Custom(0xF1)，自动设置Hold Time为Custom setting中最后一个非0点的时间值
-                  if (mode === 0xF1) {
-                      const customHoldTime = getLastNonZeroTimeFromCustom();
+                //   if (mode === 0xF1) {
+                //       const customHoldTime = getLastNonZeroTimeFromCustom();
                       
-                      // 更新UI滑块
-                      const holdTimeSlider = document.getElementById(`presetHoldTime${preset}`);
-                      if (holdTimeSlider) {
-                          holdTimeSlider.value = customHoldTime;
-                          updatePresetHoldTimeDisplay(preset, customHoldTime);
-                          presetHoldTimes[preset] = customHoldTime;
-                      }
+                //       // 更新UI滑块
+                //       const holdTimeSlider = document.getElementById(`presetHoldTime${preset}`);
+                //       if (holdTimeSlider) {
+                //           holdTimeSlider.value = customHoldTime;
+                //           updatePresetHoldTimeDisplay(preset, customHoldTime);
+                //           presetHoldTimes[preset] = customHoldTime;
+                //       }
                       
-                      // 发送Hold Time设置命令
-                      await setPresetHoldTime(preset, customHoldTime);
+                //       // 发送Hold Time设置命令
+                //       await setPresetHoldTime(preset, customHoldTime);
                       
-                      log(`✓ Auto-set Preset ${preset} Hold Time to ${customHoldTime}s (last non-zero custom time)`);
-                      showNotification(`预设${preset}保持时间自动设置为${customHoldTime}秒（基于Custom配置）`, 'info', 3000);
-                  }
+                //       log(`✓ Auto-set Preset ${preset} Hold Time to ${customHoldTime}s (last non-zero custom time)`);
+                //       showNotification(`预设${preset}保持时间自动设置为${customHoldTime}秒（基于Custom配置）`, 'info', 3000);
+                //   }
 
                   // 构造B5命令数据包：B5 05 preset mode B5
                   const modeCommand = new Uint8Array(5);
@@ -4573,21 +4588,13 @@
         }
 
         // ========== Custom参数配置相关 ==========
-        
-                 // 验证后续点的时间值（当前点改变时，检查后续点是否还有效）
-         function validateSubsequentPoints(startIndex) {
-             const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
-             for (let i = startIndex; i < timeInputs.length; i++) {
-                 validateCustomTime(timeInputs[i], i + 1);
-             }
-         }
          
           // 从UI获取自定义曲线数据
           function getCustomProfileFromUI() {
               const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
               const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
               const profile = { temp: [], time: [] };
-              for (let i = 0; i < 8; i++) {
+              for (let i = 0; i < 10; i++) { // 扩展到10个点
                   profile.temp.push(parseInt(tempInputs[i].value) || 0);
                   profile.time.push(parseInt(timeInputs[i].value) || 0);
               }
@@ -4606,10 +4613,10 @@
              saveCurrentCustomUI();
              
              // 使用当前preset的数据（从customSettings获取）
-             const currentPresetData = customSettings[currentPreset] || { temps: [400, 410, 420, 430, 440, 450, 460, 470], times: [0, 20, 30, 40, 50, 60, 70, 80] };
+             const currentPresetData = customSettings[currentPreset] || { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 20, 30, 40, 50, 60, 70, 80, 90, 100] };
              
-             // 组包并发送两包（ba/bb头尾），包含preset信息
-             for (let index = 0; index < 2; index++) {
+             // 组包并发送三包（ba/bb/bc头尾），包含preset信息，支持10个点
+             for (let index = 0; index < 3; index++) {
                  let ble_tx_buff = new Uint8Array(16); // 增加一个字节用于preset
                  let ble_tx_len = 16;
                  if (index === 0) {
@@ -4629,7 +4636,7 @@
                      ble_tx_buff[13] = currentPresetData.temps[3] & 0xff;
                      ble_tx_buff[14] = currentPresetData.times[3];
                      ble_tx_buff[15] = 0xba;
-                 } else {
+                 } else if (index === 1) {
                      ble_tx_buff[0] = 0xbb;
                      ble_tx_buff[1] = ble_tx_len;
                      ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
@@ -4646,15 +4653,35 @@
                      ble_tx_buff[13] = currentPresetData.temps[7] & 0xff;
                      ble_tx_buff[14] = currentPresetData.times[7];
                      ble_tx_buff[15] = 0xbb;
+                 } else {
+                     // 第三个包 (0xbc) - point9和point10
+                     ble_tx_buff[0] = 0xbc;
+                     ble_tx_buff[1] = ble_tx_len;
+                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
+                     ble_tx_buff[3] = currentPresetData.temps[8] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[8] & 0xff;
+                     ble_tx_buff[5] = currentPresetData.times[8];
+                     ble_tx_buff[6] = currentPresetData.temps[9] >> 8;
+                     ble_tx_buff[7] = currentPresetData.temps[9] & 0xff;
+                     ble_tx_buff[8] = currentPresetData.times[9];
+                     // 剩余字节填充0或保留
+                     ble_tx_buff[9] = 0x00;
+                     ble_tx_buff[10] = 0x00;
+                     ble_tx_buff[11] = 0x00;
+                     ble_tx_buff[12] = 0x00;
+                     ble_tx_buff[13] = 0x00;
+                     ble_tx_buff[14] = 0x00;
+                     ble_tx_buff[15] = 0xbc;
                  }
                  try {
-                     // 如果是第二个包，添加延迟避免GATT操作冲突
-                     if (index === 1) {
+                     // 如果不是第一个包，添加延迟避免GATT操作冲突
+                     if (index > 0) {
                          await new Promise(resolve => setTimeout(resolve, 100));
                      }
                      
                      await characteristic.writeValue(ble_tx_buff);
-                     log(`✓ Custom Preset ${currentPreset} 参数包${index+1}已发送(ba/bb): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
+                     const packetType = index === 0 ? 'ba' : index === 1 ? 'bb' : 'bc';
+                     log(`✓ Custom Preset ${currentPreset} 参数包${index+1}已发送(${packetType}): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
                  
                                         // 1. 获取point1-8的最大时间值
                         const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
@@ -4697,19 +4724,35 @@
           // 绑定按钮事件
           document.getElementById('sendCustomProfileBtn').onclick = sendCustomProfile;
           
-          // 新增：自定义参数包解析
+          // 新增：自定义参数包解析 (支持10个点)
           function handleCustomProfileData(data) {
-              let group = (data[0] === 0xaa) ? 0 : 1;
+              let group;
+              if (data[0] === 0xaa) group = 0;      // 第一包：point1-4
+              else if (data[0] === 0xab) group = 1; // 第二包：point5-8
+              else if (data[0] === 0xac) group = 2; // 第三包：point9-10
+              else return; // 未知包类型
+              
               let preset = data[2]; // 新增：读取preset信息
               let temps = [];
               let times = [];
               
               // 数据从data[3]开始读取
-              for(let i=0; i<4; i++) {
-                  let temp = (data[3+i*3] << 8) | data[4+i*3];
-                  let time = data[5+i*3];
-                  temps.push(temp);
-                  times.push(time);
+              if (group === 2) {
+                  // 第三包只有2个点的数据
+                  for(let i=0; i<2; i++) {
+                      let temp = (data[3+i*3] << 8) | data[4+i*3];
+                      let time = data[5+i*3];
+                      temps.push(temp);
+                      times.push(time);
+                  }
+              } else {
+                  // 前两包各有4个点的数据
+                  for(let i=0; i<4; i++) {
+                      let temp = (data[3+i*3] << 8) | data[4+i*3];
+                      let time = data[5+i*3];
+                      temps.push(temp);
+                      times.push(time);
+                  }
               }
               
               // 验证preset范围
@@ -4720,9 +4763,10 @@
                   }
                   
                   // 更新存储的数据
-                  for(let i=0; i<4; i++) {
+                  const pointCount = group === 2 ? 2 : 4;
+                  for(let i=0; i<pointCount; i++) {
                       let idx = group*4 + i;
-                      if (idx < 8) {
+                      if (idx < 10) { // 扩展到10个点
                           customSettings[preset].temps[idx] = temps[i];
                           customSettings[preset].times[idx] = times[i];
                       }
@@ -4736,7 +4780,7 @@
                       updateCustomUI();
                   }
                   
-                  log(`收到自定义参数包${group+1} (Preset ${preset})：温度=[${temps.join(', ')}]，时间=[${times.join(', ')}]`);
+                  log(`收到自定义参数包${group+1} (Preset ${preset})：温度=[${temps.join(', ')}]，时间=[${temps.join(', ')}]`);
                   showNotification(`收到Preset ${preset}自定义参数包${group+1}已同步`,'info');
               } else {
                   log(`收到无效的preset值: ${preset}`);
@@ -4774,7 +4818,7 @@
                    customSettings[currentPreset] = { temps: [], times: [] };
                }
                
-               for (let i = 0; i < 8; i++) {
+               for (let i = 0; i < 10; i++) { // 扩展到10个点
                    if (tempInputs[i]) {
                        customSettings[currentPreset].temps[i] = parseInt(tempInputs[i].value);
                    }
@@ -4793,7 +4837,7 @@
                const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
                
                if (customSettings[currentPreset]) {
-                   for (let i = 0; i < 8; i++) {
+                   for (let i = 0; i < 10; i++) { // 扩展到10个点
                        if (tempInputs[i] && customSettings[currentPreset].temps[i] !== undefined) {
                            tempInputs[i].value = customSettings[currentPreset].temps[i];
                        }
@@ -4809,7 +4853,7 @@
 
           // 新增：处理来自设备的颜色点数据
           function handleColorPointData(data) {
-              const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
+              const pointMap = { 0xad: 1, 0xae: 2, 0xaf: 3 };
               const point = pointMap[data[0]];
               if (!point) return;
 
@@ -4847,9 +4891,9 @@
 
               // 组包
               let cmd, end;
-              if (point === 1) { cmd = 0xbc; end = 0xbc; }
-              else if (point === 2) { cmd = 0xbd; end = 0xbd; }
-              else if (point === 3) { cmd = 0xbe; end = 0xbe; }
+              if (point === 1) { cmd = 0xbd; end = 0xbd; }
+              else if (point === 2) { cmd = 0xbe; end = 0xbe; }
+              else if (point === 3) { cmd = 0xbf; end = 0xbf; }
               else { return; }
 
               const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
@@ -4945,9 +4989,9 @@
               const b = parseInt(hex.substr(5,2), 16);
               // 组包
               let cmd, end;
-              if (point === 1) { cmd = 0xbc; end = 0xbc; }
-              else if (point === 2) { cmd = 0xbd; end = 0xbd; }
-              else if (point === 3) { cmd = 0xbe; end = 0xbe; }
+              if (point === 1) { cmd = 0xbd; end = 0xbd; }
+              else if (point === 2) { cmd = 0xbe; end = 0xbe; }
+              else if (point === 3) { cmd = 0xbf; end = 0xbf; }
               else { return; }
               const buf = new Uint8Array([cmd, 0x06, r, g, b, end]);
               try {
@@ -4961,7 +5005,7 @@
           }
           // 设备notify更新颜色点时同步按钮颜色
           function handleColorPointData(data) {
-              const pointMap = { 0xac: 1, 0xad: 2, 0xae: 3 };
+              const pointMap = { 0xad: 1, 0xae: 2, 0xaf: 3 };
               const point = pointMap[data[0]];
               if (!point) return;
               const r = data[2];
@@ -5042,11 +5086,12 @@
           // sendColorPoint和handleColorPointData函数保持全局可用
 
 
-          // 修正版：point2~point8温度范围递归联动限制
+          // 修正版：point2~point10温度范围递归联动限制 (扩展到10个点)
           window.addEventListener('DOMContentLoaded', function() {
               const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
               const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
               function updateRangeFrom(index) {
+                  let hasChanged = false;
                   for (let i = index; i < tempInputs.length - 1; i++) {
                     const prev = parseInt(tempInputs[i].value) || 0;
                     const deltaT = parseInt(timeInputs[i+1].value) - parseInt(timeInputs[i].value);
@@ -5062,15 +5107,22 @@
                         if (curr < min) { tempInputs[i+1].value = min; changed = true; }
                         if (curr > max) { tempInputs[i+1].value = max; changed = true; }
                         // 如果当前值被修正，递归修正下一个点
-                        if (changed && i+1 < tempInputs.length - 1) {
-                            // 递归修正后续点
-                            updateRangeFrom(i+1);
+                        if (changed) {
+                            hasChanged = true;
+                            if (i+1 < tempInputs.length - 1) {
+                                // 递归修正后续点
+                                updateRangeFrom(i+1);
+                            }
                         }                        
                       }
 
                   }
+                  // 如果有值被修改，同步更新customSettings
+                  if (hasChanged) {
+                      saveCurrentCustomUI();
+                  }
               }
-              // 给point0~point7加事件
+              // 给point0~point9加事件 (扩展到10个点)
               for (let i = 0; i < tempInputs.length - 1; i++) {
                   tempInputs[i].addEventListener('input', function() {
                       updateRangeFrom(i);
@@ -5080,6 +5132,7 @@
               updateRangeFrom(1);
 
               function updateTimeRangeFrom(index) {
+                let hasChanged = false;
                 for (let i = index; i < timeInputs.length - 1; i++) {
                       const prev = parseInt(timeInputs[i].value) || 0;
                       let curr = parseInt(timeInputs[i+1].value) || 0;
@@ -5100,12 +5153,17 @@
                           for (let j = i+2; j < timeInputs.length; j++) {
                             timeInputs[j].disabled = true;
                          }
+                         hasChanged = true;
                          break; 
                       }
                   }
+                 // 如果有值被修改，同步更新customSettings
+                 if (hasChanged) {
+                     saveCurrentCustomUI();
+                 }
                  // updateRangeFrom(1);
               }
-              // point2~point7变化时递归修正后续点
+              // point2~point9变化时递归修正后续点 (扩展到10个点)
               for (let i = 1; i < timeInputs.length - 1; i++) {
                   timeInputs[i].addEventListener('input', function() {
                       updateTimeRangeFrom(i);
