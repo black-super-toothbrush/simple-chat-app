@@ -428,7 +428,7 @@
                         </div>
                         <div class="status-item">
                             <strong>Haptic:</strong> 
-                            <span id="hapticFeedback">--</span>
+                            <button id="hapticFeedback" class="toggle-btn" onclick="toggleHaptic()">--</button>
                         </div>
                         <div class="status-item">
                             <strong>Boost:</strong> 
@@ -486,6 +486,15 @@
                                         class="temp-input" onchange="setHoldTime(1, this.value)">
                                     <span class="temp-unit">s</span>
                                 </div>
+                                <div class="temp-container">
+                                    <select id="profile1" class="temp-input" onchange="setProfile(1, this.value)" style="font-size: 0.8rem;">
+                                        <option value="0xa1">Steady</option>
+                                        <option value="0xb1">Ascent</option>
+                                        <option value="0xc1">Descent</option>
+                                        <option value="0xd1">Valley</option>
+                                        <option value="0xe1">Hill</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="preset-card">
                                 <div class="preset-title">Preset 2</div>
@@ -498,6 +507,15 @@
                                     <input type="number" id="holdTime2" min="10" max="90" value="30" 
                                         class="temp-input" onchange="setHoldTime(2, this.value)">
                                     <span class="temp-unit">s</span>
+                                </div>
+                                <div class="temp-container">
+                                    <select id="profile2" class="temp-input" onchange="setProfile(2, this.value)" style="font-size: 0.8rem;">
+                                        <option value="0xa1">Steady</option>
+                                        <option value="0xb1">Ascent</option>
+                                        <option value="0xc1">Descent</option>
+                                        <option value="0xd1">Valley</option>
+                                        <option value="0xe1">Hill</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="preset-card">
@@ -512,6 +530,15 @@
                                         class="temp-input" onchange="setHoldTime(3, this.value)">
                                     <span class="temp-unit">s</span>
                                 </div>
+                                <div class="temp-container">
+                                    <select id="profile3" class="temp-input" onchange="setProfile(3, this.value)" style="font-size: 0.8rem;">
+                                        <option value="0xa1">Steady</option>
+                                        <option value="0xb1">Ascent</option>
+                                        <option value="0xc1">Descent</option>
+                                        <option value="0xd1">Valley</option>
+                                        <option value="0xe1">Hill</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="preset-card">
                                 <div class="preset-title">Preset 4</div>
@@ -525,6 +552,15 @@
                                         class="temp-input" onchange="setHoldTime(4, this.value)">
                                     <span class="temp-unit">s</span>
                                 </div>
+                                <div class="temp-container">
+                                    <select id="profile4" class="temp-input" onchange="setProfile(4, this.value)" style="font-size: 0.8rem;">
+                                        <option value="0xa1">Steady</option>
+                                        <option value="0xb1">Ascent</option>
+                                        <option value="0xc1">Descent</option>
+                                        <option value="0xd1">Valley</option>
+                                        <option value="0xe1">Hill</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="preset-card">
                                 <div class="preset-title">Preset 5</div>
@@ -537,6 +573,15 @@
                                     <input type="number" id="holdTime5" min="10" max="90" value="30" 
                                         class="temp-input" onchange="setHoldTime(5, this.value)">
                                     <span class="temp-unit">s</span>
+                                </div>
+                                <div class="temp-container">
+                                    <select id="profile5" class="temp-input" onchange="setProfile(5, this.value)" style="font-size: 0.8rem;">
+                                        <option value="0xa1">Steady</option>
+                                        <option value="0xb1">Ascent</option>
+                                        <option value="0xc1">Descent</option>
+                                        <option value="0xd1">Valley</option>
+                                        <option value="0xe1">Hill</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>

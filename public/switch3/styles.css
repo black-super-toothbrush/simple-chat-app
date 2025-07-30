@@ -185,6 +185,34 @@ body {
     display: none;
 }
 
+.toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 40px;
+}
+
+.toggle-btn:hover {
+    background: var(--muted);
+    border-color: var(--primary);
+}
+
+.toggle-btn.active {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+}
+
 .status {
     display: inline-flex;
     align-items: center;

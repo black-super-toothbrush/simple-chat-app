@@ -96,6 +96,14 @@ async function collectAndUploadTemperaturePresets() {
             holdTimePresets.push(holdTimeValue);
         }
 
+        // 收集各预设的profile数据
+        const profilePresets = [];
+        for (let i = 1; i <= 5; i++) {
+            const profileSelect = document.getElementById(`profile${i}`);
+            const profileValue = profileSelect ? parseInt(profileSelect.value) || 0xa1 : 0xa1;
+            profilePresets.push(profileValue);
+        }
+
         // 收集会话数据
         const sessionData = {
             currentPreset: currentPreset,
@@ -103,6 +111,7 @@ async function collectAndUploadTemperaturePresets() {
             brightness: parseInt(document.getElementById('brightness')?.value) || 0,
             autoShutTime: parseInt(document.getElementById('autoShutTime')?.value) || 0,
             holdTime: holdTimePresets, // 现在是数组
+            profile: profilePresets, // 各预设的profile数据
             globalTempF: [...globalTempF],
             globalTempC: [...globalTempC],
             b9State: {...currentB9State}
@@ -634,6 +643,7 @@ let globalTempF = [0,0,0,0,0,0];
 let globalTempC = [0,0,0,0,0,0];
 let currentPreset = 1; // 当前预设值 (1-5)
 let holdTime = [30, 30, 30, 30, 30, 30]; // holdTime[0]为原来的全局设置，holdTime[1-5]为各预设的Hold Time
+let profile = [0xa1, 0xa1, 0xa1, 0xa1, 0xa1, 0xa1]; // profile[0]为原来的全局设置，profile[1-5]为各预设的Profile模式
 // 当前设备状态跟踪 - B9命令的所有字节状态
 let currentB9State = {
     byte3: 0x01,   // 预设值 (1-5)
@@ -641,8 +651,9 @@ let currentB9State = {
     byte6: 0x00,   // LED值
     byte8: 0x02,   // Auto Shut Time (0-30分钟)
     byte10: 0x00,  // Session状态
+    byte11: 0x00,  // Haptic反馈 (0/1)
     byte13: 25,    // Brightness (0-100)
-    // 后续可以继续添加更多字节：byte11, byte12, byte14 等等
+    // 后续可以继续添加更多字节：byte12, byte14 等等
 };
 
 // LED颜色映射
@@ -763,7 +774,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         const sessionControlBtn = document.getElementById('sessionControlBtn');
         const presetBtn = document.getElementById('presetBtn');
         const autoShutTimeInput = document.getElementById('autoShutTime');
-        const holdTimeInput = document.getElementById('holdTime');
+        // const holdTimeInput = document.getElementById('holdTime');
         const brightnessInput = document.getElementById('brightness');
 
         const ledPresetSelect = document.getElementById('ledPresetSelect');
@@ -771,7 +782,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         if (sessionControlBtn) sessionControlBtn.disabled = false;
         if (presetBtn) presetBtn.disabled = false;
         if (autoShutTimeInput) autoShutTimeInput.disabled = false;
-        if (holdTimeInput) holdTimeInput.disabled = false;
+        // if (holdTimeInput) holdTimeInput.disabled = false;
         if (brightnessInput) brightnessInput.disabled = false;
 
         if (ledPresetSelect) ledPresetSelect.disabled = false;
@@ -805,7 +816,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         const sessionControlBtn = document.getElementById('sessionControlBtn');
         const presetBtn = document.getElementById('presetBtn');
         const autoShutTimeInput = document.getElementById('autoShutTime');
-        const holdTimeInput = document.getElementById('holdTime');
+        // const holdTimeInput = document.getElementById('holdTime');
         const brightnessInput = document.getElementById('brightness');
 
         const ledPresetSelect = document.getElementById('ledPresetSelect');
@@ -813,7 +824,7 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         if (sessionControlBtn) sessionControlBtn.disabled = true;
         if (presetBtn) presetBtn.disabled = true;
         if (autoShutTimeInput) autoShutTimeInput.disabled = true;
-        if (holdTimeInput) holdTimeInput.disabled = true;
+        // if (holdTimeInput) holdTimeInput.disabled = true;
         if (brightnessInput) {
             brightnessInput.disabled = true;
             brightnessInput.value = 25;
@@ -928,6 +939,11 @@ function handleResponse(event) {
 
     if (data.length === 6 && data[0] === 0xA7 && data[5] === 0xA7) {
         handleTempTimeData(data);
+        return;
+    }
+
+    if (data.length === 6 && data[0] === 0xA8 && data[5] === 0xA8) {
+        handleProfileData(data);
         return;
     }
 
@@ -1048,6 +1064,30 @@ function handleTempTimeData(data) {
     }
     
     log(`Received hold time for preset ${preset}: ${holdTimeValue} seconds`);
+}
+
+// 处理Profile数据 (A8命令)
+function handleProfileData(data) {
+    if (data[1] !== 6) {
+        log(`Invalid profile packet length field: ${data[1]}`);
+        return;
+    }    
+    const preset = data[2]; // 挡位值
+    const profileValue = data[4]; // profile值
+    
+    // 更新profile数组
+    profile[preset] = profileValue;
+    
+    // 更新对应的Profile下拉框
+    if (preset >= 1 && preset <= 5) {
+        const element = document.getElementById(`profile${preset}`);
+        if (element) {
+            // 将数值转换为十六进制字符串格式以匹配option值
+            element.value = `0x${profileValue.toString(16).toLowerCase()}`;
+        }
+    }
+    
+    log(`Received profile for preset ${preset}: ${getProfileName(profileValue)} (0x${profileValue.toString(16).toUpperCase()})`);
 }
 
 // 设备信息存储对象
@@ -1253,7 +1293,13 @@ function updateDeviceStatus(status) {
     document.getElementById('autoShutTime').value = status.autoShutTime;
     document.getElementById('remainTime').textContent = status.remainTime;
     document.getElementById('sessionRemainTime').textContent = status.sessionRemainTime;
-    document.getElementById('hapticFeedback').textContent = status.hapticFeedback ? 'On' : 'Off';
+    // 更新Haptic按钮显示和状态
+    const hapticButton = document.getElementById('hapticFeedback');
+    const hapticState = status.hapticFeedback ? 'On' : 'Off';
+    hapticButton.textContent = hapticState;
+    hapticButton.className = status.hapticFeedback ? 'toggle-btn active' : 'toggle-btn';
+    // 同步到currentB9State
+    currentB9State.byte11 = status.hapticFeedback ? 0x01 : 0x00;
     document.getElementById('sessionBoost').textContent = status.sessionBoost ? 'Enabled' : 'Disabled';
     document.getElementById('batteryLevel').textContent = status.batteryLevel + '%';
     
@@ -1710,6 +1756,15 @@ document.addEventListener('DOMContentLoaded', () => {
             element.value = holdTime[i];
         }
     }
+    
+    // 初始化各预设的profile下拉框
+    for (let i = 1; i <= 5; i++) {
+        const element = document.getElementById(`profile${i}`);
+        if (element) {
+            element.value = profile[i];
+        }
+    }
+    
     // 初始化Hold Time显示
     updateHoldTimeDisplay();
     document.getElementById('brightness').value = currentB9State.byte13;
@@ -1980,7 +2035,7 @@ async function syncTime() {
       // 获取需要控制的元素
       const presetBtn = document.getElementById('presetBtn');
       const autoShutTimeInput = document.getElementById('autoShutTime');
-      const holdTimeInput = document.getElementById('holdTime');
+    //   const holdTimeInput = document.getElementById('holdTime');
       const brightnessInput = document.getElementById('brightness');
 
       const ledPresetSelect = document.getElementById('ledPresetSelect');
@@ -2007,8 +2062,8 @@ async function syncTime() {
           autoShutTimeInput.disabled = true;
           autoShutTimeInput.classList.add('heating-disabled');
           
-          holdTimeInput.disabled = true;
-          holdTimeInput.classList.add('heating-disabled');
+        //   holdTimeInput.disabled = true;
+        //   holdTimeInput.classList.add('heating-disabled');
           
           brightnessInput.disabled = true;
           brightnessInput.classList.add('heating-disabled');
@@ -2047,8 +2102,8 @@ async function syncTime() {
               autoShutTimeInput.disabled = false;
               autoShutTimeInput.classList.remove('heating-disabled');
               
-              holdTimeInput.disabled = false;
-              holdTimeInput.classList.remove('heating-disabled');
+            //   holdTimeInput.disabled = false;
+            //   holdTimeInput.classList.remove('heating-disabled');
               
               brightnessInput.disabled = false;
               brightnessInput.classList.remove('heating-disabled');
@@ -2215,6 +2270,62 @@ async function syncTime() {
       }
   }
 
+  // 设置Profile模式 - 发送B8命令格式：B8 06 preset 0 profile B8
+  async function setProfile(preset, profileValue) {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
+      if (!characteristic) {
+          log('Error: Device not connected');
+          return;
+      }
+
+      try {
+          // 将字符串形式的十六进制值转换为数字
+          const profileHex = parseInt(profileValue, 16);
+          
+          // 构造B8命令数据包：B8 06 preset 0 profile B8
+          const profileCommand = new Uint8Array(6);
+          profileCommand[0] = 0xB8;                      // 起始标识
+          profileCommand[1] = 0x06;                      // 数据长度
+          profileCommand[2] = preset;                    // 当前挡位
+          profileCommand[3] = 0x00;                      // 固定为0
+          profileCommand[4] = profileHex;                // profile模式值
+          profileCommand[5] = 0xB8;                      // 结束标识
+
+          // 发送Profile设置命令
+          await characteristic.writeValue(profileCommand);
+          
+          const packetHex = Array.from(profileCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+          
+          // 获取模式名称
+          const modeName = getProfileName(profileHex);
+          
+          log(`✓ Profile for Preset ${preset} set to ${modeName} (${profileValue})`);
+          log(`  Packet data: ${packetHex}`);
+          
+          // 更新profile数组
+          profile[preset] = profileHex;
+          
+      } catch (error) {
+          log(`✗ Failed to set Profile: ${error.message}`);
+      }
+  }
+
+  // 获取Profile模式名称
+  function getProfileName(profileValue) {
+      switch(profileValue) {
+          case 0xa1: return 'Steady';
+          case 0xb1: return 'Ascent';
+          case 0xc1: return 'Descent';
+          case 0xd1: return 'Valley';
+          case 0xe1: return 'Hill';
+          default: return 'Unknown';
+      }
+  }
+
   // 更新亮度显示值（实时）
   function updateBrightnessDisplay(value) {
       document.getElementById('brightnessDisplay').textContent = value;
@@ -2242,6 +2353,29 @@ async function syncTime() {
           { byte13: brightnessValue },
           `Brightness set to ${brightnessValue}`
       );
+  }
+
+  // 切换Haptic反馈状态 - 发送B9命令第11字节
+  async function toggleHaptic() {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
+      
+      try {
+          // 切换状态：0变1，1变0
+          const newHapticState = currentB9State.byte11 === 0x01 ? 0x00 : 0x01;
+          
+          // 调用通用B9命令函数，只更新Haptic状态（第11字节）
+          await sendB9Command(
+              { byte11: newHapticState },
+              `Haptic ${newHapticState === 0x01 ? 'enabled' : 'disabled'}`
+          );
+          
+          log(`✓ Haptic feedback ${newHapticState === 0x01 ? 'enabled' : 'disabled'}`);
+      } catch (error) {
+          log(`✗ Failed to toggle Haptic: ${error.message}`);
+      }
   }
 
 
