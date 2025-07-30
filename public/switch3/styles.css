@@ -426,6 +426,11 @@ body {
     outline: none;
 }
 
+.temp-container {
+    display: inline-flex;
+    align-items: center;
+}
+
 .temp-unit {
     font-size: 0.75rem;
     color: var(--muted-foreground);

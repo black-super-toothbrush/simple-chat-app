@@ -88,13 +88,21 @@ async function collectAndUploadTemperaturePresets() {
             connectionTimestamp: bluetoothDevice ? new Date().toISOString() : null
         };
 
+        // 收集各预设的holdTime数据
+        const holdTimePresets = [];
+        for (let i = 1; i <= 5; i++) {
+            const holdTimeInput = document.getElementById(`holdTime${i}`);
+            const holdTimeValue = holdTimeInput ? parseInt(holdTimeInput.value) || 0 : 0;
+            holdTimePresets.push(holdTimeValue);
+        }
+
         // 收集会话数据
         const sessionData = {
             currentPreset: currentPreset,
             ledPreset: document.getElementById('ledPresetSelect')?.value || '',
             brightness: parseInt(document.getElementById('brightness')?.value) || 0,
             autoShutTime: parseInt(document.getElementById('autoShutTime')?.value) || 0,
-            holdTime: parseInt(document.getElementById('holdTime')?.value) || 0,
+            holdTime: holdTimePresets, // 现在是数组
             globalTempF: [...globalTempF],
             globalTempC: [...globalTempC],
             b9State: {...currentB9State}
@@ -618,14 +626,14 @@ function updateSessionUploadStatus(status, timestamp, sessionId) {
 
 // Notify监听相关变量
 let rxCharacteristic = null;
-let notificationsEnabled = false;
+let notificationsEnabled = true;
 let notifyPacketCount = 0;
 let deviceInfoPacketCount = 0;
 let globalPresetIndex = 0;
 let globalTempF = [0,0,0,0,0,0];
 let globalTempC = [0,0,0,0,0,0];
 let currentPreset = 1; // 当前预设值 (1-5)
-let holdTime = 30;
+let holdTime = [30, 30, 30, 30, 30, 30]; // holdTime[0]为原来的全局设置，holdTime[1-5]为各预设的Hold Time
 // 当前设备状态跟踪 - B9命令的所有字节状态
 let currentB9State = {
     byte3: 0x01,   // 预设值 (1-5)
@@ -1020,12 +1028,26 @@ function handleTempTimeData(data) {
         log(`Invalid temp time packet length field: ${data[1]}`);
         return;
     }    
-    holdTime = (data[3] << 8) | data[4];
+    const preset = data[2]; // 挡位值
+    const holdTimeValue = (data[3] << 8) | data[4];
     
-    // 更新Hold Time输入框
-    document.getElementById('holdTime').value = holdTime;
+    // 更新holdTime数组
+    holdTime[preset] = holdTimeValue;
     
-    log(`Received hold time: ${holdTime} seconds`);
+    // 更新对应的Hold Time输入框
+    if (preset >= 1 && preset <= 5) {
+        const element = document.getElementById(`holdTime${preset}`);
+        if (element) {
+            element.value = holdTimeValue;
+        }
+    }
+    
+    // 如果更新的是当前选定的挡位，更新Hold Time显示
+    if (preset === currentPreset) {
+        updateHoldTimeDisplay();
+    }
+    
+    log(`Received hold time for preset ${preset}: ${holdTimeValue} seconds`);
 }
 
 // 设备信息存储对象
@@ -1681,7 +1703,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize original functionalities from the old 'load' event
     loadDefaultFirmware();
-    document.getElementById('holdTime').value = holdTime;
+    // 初始化各预设的holdTime输入框
+    for (let i = 1; i <= 5; i++) {
+        const element = document.getElementById(`holdTime${i}`);
+        if (element) {
+            element.value = holdTime[i];
+        }
+    }
+    // 初始化Hold Time显示
+    updateHoldTimeDisplay();
     document.getElementById('brightness').value = currentB9State.byte13;
     updateBrightnessDisplay(currentB9State.byte13);
 
@@ -1704,6 +1734,19 @@ document.addEventListener('DOMContentLoaded', () => {
         setupCircularTextHover();
     }
     initClickSpark();
+    
+    // 设置Device Status Monitor默认为开启状态
+    const notifyToggle = document.getElementById('notifyToggle');
+    const notifyStatus = document.getElementById('notifyStatus');
+    if (notifyToggle && notifyStatus) {
+        notifyToggle.checked = true;
+        notifyStatus.textContent = 'Enabled';
+        // 显示设备状态信息区域
+        const deviceStatusInfo = document.getElementById('deviceStatusInfo');
+        if (deviceStatusInfo) {
+            deviceStatusInfo.style.display = 'block';
+        }
+    }
 });
 
 // 切换notifications开关
@@ -2081,6 +2124,9 @@ async function syncTime() {
       // 更新按钮显示
       document.getElementById('presetBtn').textContent = currentPreset;
       
+      // 更新Hold Time显示
+      updateHoldTimeDisplay();
+      
       // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
       await sendB9Command(
           { byte3: currentPreset },
@@ -2088,6 +2134,14 @@ async function syncTime() {
       );
       
       log(`✓ Preset switched to ${currentPreset}`);
+  }
+
+  // 更新Hold Time显示
+  function updateHoldTimeDisplay() {
+      const holdTimeDisplay = document.getElementById('holdTimeDisplay');
+      if (holdTimeDisplay && currentPreset >= 1 && currentPreset <= 5) {
+          holdTimeDisplay.textContent = holdTime[currentPreset] || 30;
+      }
   }
 
   // 设置Auto Shut Time - 发送B9命令第8字节
@@ -2114,7 +2168,7 @@ async function syncTime() {
   }
 
   // 设置Hold Time - 发送B7命令格式：B7 06 01 holdTime(high) holdTime(low) B7
-  async function setHoldTime(seconds) {
+  async function setHoldTime(preset, seconds) {
       // 检查用户是否已登录
       if (!checkAuthentication()) {
           return;
@@ -2130,16 +2184,17 @@ async function syncTime() {
       if (holdTime < 10 || holdTime > 90) {
           log(`Error: Hold Time ${holdTime} is out of range (10-90 seconds)`);
           // 恢复之前的值
-          document.getElementById('holdTime').value = window.holdTime || 30;
+          const elementId = preset === 0 ? 'holdTime' : `holdTime${preset}`;
+          document.getElementById(elementId).value = window.holdTime[preset] || 30;
           return;
       }
 
       try {
-          // 构造B7命令数据包：B7 06 01 holdTime(high) holdTime(low) B7
+          // 构造B7命令数据包：B7 06 preset holdTime(high) holdTime(low) B7
           const holdTimeCommand = new Uint8Array(6);
           holdTimeCommand[0] = 0xB7;                      // 起始标识
           holdTimeCommand[1] = 0x06;                      // 数据长度
-          holdTimeCommand[2] = 0x01;                      // 固定字节
+          holdTimeCommand[2] = preset;                    // 当前挡位
           holdTimeCommand[3] = (holdTime >> 8) & 0xFF;    // holdTime高字节
           holdTimeCommand[4] = holdTime & 0xFF;           // holdTime低字节
           holdTimeCommand[5] = 0xB7;                      // 结束标识
@@ -2149,11 +2204,11 @@ async function syncTime() {
           
           const packetHex = Array.from(holdTimeCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
           
-          log(`✓ Hold Time set to ${holdTime} seconds`);
+          log(`✓ Hold Time for Preset ${preset} set to ${holdTime} seconds`);
           log(`  Packet data: ${packetHex}`);
           
-          // 更新全局holdTime变量
-          window.holdTime = holdTime;
+          // 更新holdTime数组
+          window.holdTime[preset] = holdTime;
           
       } catch (error) {
           log(`✗ Failed to set Hold Time: ${error.message}`);
