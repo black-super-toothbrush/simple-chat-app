@@ -1782,7 +1782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStarBorderEffect(); // Initial check
 
     // Initialize new visual effects
-    const titleText = "switch3*Dr.Dabber*";
+    const titleText = "EVO2*Dr.Dabber*";
     const circularTextContainer = document.getElementById('circular-text-container');
     if(circularTextContainer) {
         createCircularText(circularTextContainer, titleText);
