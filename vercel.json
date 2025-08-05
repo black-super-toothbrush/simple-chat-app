@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/maodazeng/(.*)",
+      "destination": "https://moon-97hlsbbeq-toothbrushs-projects-53fb0eff.vercel.app/$1"
+    }
+  ]
+}
