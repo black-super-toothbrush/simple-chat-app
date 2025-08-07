@@ -48,6 +48,13 @@
   <button id="sendAsciiBtn">📝 Send ASCII</button>
   </div>
 
+  <!-- Percentage Slider -->
+  <div class="form">
+  <label for="percentSlider">Percentage Control (0-100):</label>
+  <input type="range" id="percentSlider" min="0" max="100" value="50" style="width: 60%;">
+  <span id="percentValue">50</span>%
+  </div>
+
 </div>
 
 <div class="panel" id="statusPanel">
@@ -388,6 +395,34 @@ document.getElementById('sendBinBtn').addEventListener('click', async () => {
 window.addEventListener('DOMContentLoaded', () => {
   const otaInput = document.getElementById('otaUrl');
   otaInput.value = `${location.origin}/simple_ota.bin`;
+  
+  // 滑动条事件处理
+  const percentSlider = document.getElementById('percentSlider');
+  const percentValue = document.getElementById('percentValue');
+  
+  // 实时更新显示值
+  percentSlider.addEventListener('input', () => {
+    percentValue.textContent = percentSlider.value;
+  });
+  
+  // 滑动完成后发送蓝牙数据
+  percentSlider.addEventListener('change', async () => {
+    const percent = parseInt(percentSlider.value);
+    
+    if (!characteristicToWrite) {
+      alert('未连接蓝牙设备或未找到可写特征值');
+      return;
+    }
+    
+    try {
+      // 构建数据包: B1 04 percent B1
+      const data = new Uint8Array([0xB1, 0x04, percent, 0xB1]);
+      await characteristicToWrite.writeValue(data);
+      console.log(`已发送百分比数据: B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1`);
+    } catch (e) {
+      alert('发送失败: ' + e.message);
+    }
+  });
 });
 
 
