@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telink B91 OTA Web Flasher - Debug</title>
+  <style>
+    :root { --bg:#0b1020; --card:#111831; --muted:#aab2d5; --acc:#6ee7ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,var(--bg),#090e1b);color:#e8edff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial} a{color:var(--acc)}
+    header{padding:24px 16px;text-align:center}
+    h1{margin:0 0 8px;font-weight:800;letter-spacing:.5px}
+    .wrap{max-width:980px;margin:0 auto;padding:0 16px 48px}
+    .card{background:var(--card);border:1px solid #1b2445;border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.3);margin:16px 0}
+    .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    .row > *{flex:1 1 220px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type="file"],select,input[type="number"],input[type="text"]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #213069;background:#0d1430;color:#e8edff}
+    button{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;background:#13224b;color:#e8edff;border:1px solid #203168;transition:transform .05s ease,background .2s}
+    button:hover{background:#182a5d}
+    button.primary{background:linear-gradient(180deg,#1a7bd6,#1557a6);border-color:#2268c7}
+    button.success{background:linear-gradient(180deg,#1e9e5a,#177a46);border-color:#1f9957}
+    button.warn{background:linear-gradient(180deg,#f59e0b,#b16c01);border-color:#b16c01}
+    .muted{color:var(--muted)}
+    .progress{height:12px;background:#0b1332;border-radius:999px;overflow:hidden;border:1px solid #203168}
+    .bar{height:100%;width:0;background:linear-gradient(90deg,#37b3ff,#6ef2ff);transition:width .2s}
+    .log{font-family:ui-monospace,Consolas,Menlo,monospace;background:#070b18;border:1px solid #1c274d;padding:12px;border-radius:12px;min-height:100px;white-space:pre-wrap;max-height:300px;overflow-y:auto}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #24376f;background:#0c1535;color:#cfe3ff;font-size:12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .hex{font-family:ui-monospace,Consolas,Menlo,monospace;color:#6ef2ff;font-size:11px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Telink B91 OTA</h1>
+    <div class="muted">Version 0.0.1</div>
+  </header>
+  <div class="wrap">
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>Firmware binary (.bin)</label>
+          <input id="file" type="file" accept=".bin,application/octet-stream" />
+        </div>
+        <div>
+          <label>Protocol</label>
+          <select id="proto" disabled>
+            <option value="legacy" selected>Legacy (CMD_OTA_START / CMD_OTA_END)</option>
+            <option value="extend">Extend (CMD_OTA_START_EXT)</option>
+          </select>
+        </div>
+        <div>
+          <label>PDU length (bytes, 16-byte aligned; default 16)</label>
+          <input id="pdu" type="number" min="16" step="16" value="16" disabled/>
+        </div>
+        <div>
+          <label>Characteristic UUID (override, optional)</label>
+          <input id="uuid" type="text" placeholder="auto-detect Telink OTA characteristic" disabled/>
+        </div>
+        <div>
+          <label>CRC Algorithm</label>
+          <select id="crcAlg" disabled>
+            <option value="telink-original" selected>Telink Original (from reverse engineering)</option>
+            <option value="ccitt-1021">CRC16-CCITT (0x1021) - Standard</option>
+            <option value="ccitt-8408">CRC16-CCITT (0x8408) - Reflected</option>
+            <option value="crc16-arc">CRC16-ARC (0x8005)</option>
+            <option value="crc16-modbus">CRC16-MODBUS (0x8005) Reflected</option>
+            <option value="xmodem">CRC16-XMODEM (0x1021) Init 0x0000</option>
+          </select>
+        </div>
+        <div>
+          <label>CRC Input Data</label>
+          <select id="crc" disabled>
+            <option value="data-ffff">data only, seed 0xFFFF</option>
+            <option value="data-0000">data only, seed 0x0000</option>
+            <option value="seqdata-ffff" selected>seq+data, seed 0xFFFF</option>
+            <option value="seqdata-0000">seq+data, seed 0x0000</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnConnect" class="primary">Connect</button>
+        <button id="btnFlash" class="success">Flash OTA</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <!--
+        <button id="btnTest" class="warn" disabled>Test CRC</button>
+        <button id="btnAbort" class="warn" disabled>Abort</button>
+        -->
+        <span class="pill" id="state">Idle</span>
+      </div>
+      <div style="margin-top:12px">
+        <div class="progress"><div class="bar" id="bar"></div></div>
+      </div>
+      <div style="margin-top:12px" class="log" id="log" aria-live="polite"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const log = (m) => { const el = $("log"); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+  const setState = (s) => { $("state").textContent = s; };
+  const setProgress = (v) => { $("bar").style.width = Math.max(0, Math.min(100, v)) + "%"; };
+
+  // Hex dump helper
+  const toHex = (arr) => Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(' ');
+
+  // Telink OTA UUIDs
+  const OTA_SERVICE_UUID = '00010203-0405-0607-0809-0a0b0c0d1912';
+  const OTA_CHAR_UUID    = '00010203-0405-0607-0809-0a0b0c0d2b12';
+
+  // Telink OTA opcodes
+  const OPC = {
+    CMD_OTA_VERSION: 0xff00,
+    CMD_OTA_START:   0xff01,
+    CMD_OTA_END:     0xff02,
+    CMD_OTA_START_EXT: 0xff03,
+    CMD_OTA_FW_VERSION_REQ: 0xff04,
+    CMD_OTA_FW_VERSION_RSP: 0xff05,
+    CMD_OTA_RESULT:  0xff06,
+  };
+
+  const RESULT_NAMES = {
+    0: 'SUCCESS', 1: 'DATA_PACKET_SEQ_ERR', 2: 'PACKET_INVALID', 3: 'DATA_CRC_ERR',
+    4: 'WRITE_FLASH_ERR', 5: 'DATA_UNCOMPLETE', 6: 'FLOW_ERR', 7: 'FW_CHECK_ERR',
+    8: 'VERSION_COMPARE_ERR', 9: 'PDU_LEN_ERR', 10: 'FIRMWARE_MARK_ERR', 11: 'FW_SIZE_ERR'
+  };
+
+  let device, server, otaChar, notifyChar;
+  let aborting = false;
+
+  // Multiple CRC implementations
+  function crc16_ccitt_1021(buf, seed = 0xFFFF) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= (buf[i] << 8);
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_ccitt_8408(buf, seed = 0xFFFF) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x0001) ? ((crc >> 1) ^ 0x8408) : (crc >> 1);
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_arc(buf, seed = 0x0000) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x0001) ? ((crc >> 1) ^ 0xA001) : (crc >> 1);
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_modbus(buf, seed = 0xFFFF) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x0001) ? ((crc >> 1) ^ 0xA001) : (crc >> 1);
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_xmodem(buf, seed = 0x0000) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= (buf[i] << 8);
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  // Original Telink CRC-16 implementation from reverse engineering
+  function crc16_telink(data) {
+    const crcTable = [0, 40961];
+    let crc = 0xFFFF;
+    
+    for (let i = 0; i < data.length; i++) {
+      let byte = data[i];
+      for (let bit = 0; bit < 8; bit++) {
+        crc = crcTable[(crc ^ byte) & 1] ^ (crc >> 1);
+        byte = byte >> 1;
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function getCRC(algorithm, buf, seed) {
+    switch (algorithm) {
+      case 'telink-original': return crc16_telink(buf);
+      case 'ccitt-1021': return crc16_ccitt_1021(buf, seed);
+      case 'ccitt-8408': return crc16_ccitt_8408(buf, seed);
+      case 'crc16-arc': return crc16_arc(buf, seed);
+      case 'crc16-modbus': return crc16_modbus(buf, seed);
+      case 'xmodem': return crc16_xmodem(buf, seed);
+      default: return crc16_telink(buf);
+    }
+  }
+
+  function padToMultiple(arr, blockSize) {
+    const rem = arr.length % blockSize;
+    if (rem === 0) return arr;
+    const pad = blockSize - rem;
+    const out = new Uint8Array(arr.length + pad);
+    out.set(arr, 0);
+    out.fill(0xFF, arr.length);
+    return out;
+  }
+
+  async function writeChunk(buf) {
+    if (!otaChar) throw new Error('OTA characteristic not ready');
+    if (otaChar.properties.writeWithoutResponse) {
+      await otaChar.writeValueWithoutResponse(buf);
+    } else {
+      await otaChar.writeValue(buf);
+    }
+  }
+
+  async function connect() {
+    setState("Scanning…");
+    log("Requesting device…");
+    try {
+      device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [OTA_SERVICE_UUID]
+      });
+      device.addEventListener('gattserverdisconnected', () => setState('Disconnected'));
+
+      setState("Connecting…");
+      server = await device.gatt.connect();
+      log("Connected to " + (device.name || "Unnamed"));
+
+      const svc = await server.getPrimaryService(OTA_SERVICE_UUID);
+
+      const uuidOverride = $("uuid").value.trim();
+      if (uuidOverride) {
+        try { otaChar = await svc.getCharacteristic(uuidOverride); }
+        catch (e) { log("Override UUID not found on service: " + e.message); }
+      }
+
+      if (!otaChar) {
+        try { otaChar = await svc.getCharacteristic(OTA_CHAR_UUID); }
+        catch (_) { /* fallback below */ }
+      }
+
+      if (!otaChar) {
+        const chars = await svc.getCharacteristics();
+        otaChar = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+      }
+
+      if (!otaChar) throw new Error("OTA characteristic not found. Provide the characteristic UUID and try again.");
+
+      log("OTA characteristic: " + otaChar.uuid);
+      setState("Ready");
+
+      // notifications
+      notifyChar = otaChar;
+      if (notifyChar.properties.notify || notifyChar.properties.indicate) {
+        await notifyChar.startNotifications();
+        notifyChar.addEventListener('characteristicvaluechanged', (ev) => {
+          const dv = ev.target.value;
+          const opcode = dv.getUint16(0, true);
+          if (opcode === OPC.CMD_OTA_RESULT) {
+            const result = dv.getUint8(2);
+            const name = (result in RESULT_NAMES) ? RESULT_NAMES[result] : `0x${result.toString(16)}`;
+            log(`OTA_RESULT received: ${result} (${name})`);
+            setState(result === 0 ? "Success" : `Result: ${result}`);
+          } else {
+            log(`Received notification: opcode=0x${opcode.toString(16).padStart(4, '0')}, data=${toHex(new Uint8Array(dv.buffer))}`);
+          }
+        });
+      }
+    } catch (err) {
+      log("Connect error: " + err.message);
+      setState("Error");
+    }
+  }
+
+  function buildCmd(opcode, payloadBytes=[]) {
+    const buf = new Uint8Array(2 + payloadBytes.length);
+    const dv = new DataView(buf.buffer);
+    dv.setUint16(0, opcode, true);
+    buf.set(payloadBytes, 2);
+    return buf;
+  }
+
+  function buildStartExt(pduLen, versionCompare=0){
+    const payload = new Uint8Array(18);
+    payload[0] = pduLen & 0xFF;
+    payload[1] = versionCompare & 0xFF;
+    return buildCmd(OPC.CMD_OTA_START_EXT, payload);
+  }
+
+  async function testCRC() {
+    const file = $("file").files[0];
+    if (!file) { log("Choose a firmware .bin first to test CRC."); return; }
+
+    const data = new Uint8Array(await file.arrayBuffer());
+    const testData = data.subarray(0, Math.min(16, data.length));
+    
+    log("\n=== CRC Test for first 16 bytes ===");
+    log("Test data: " + toHex(testData));
+    
+    const mode = $("crc").value;
+    const seed = (mode.endsWith('0000')) ? 0x0000 : 0xFFFF;
+    const adrIndex = 0;
+    
+    let crcInput;
+    if (mode.startsWith('seqdata')) {
+      crcInput = new Uint8Array(2 + testData.length);
+      new DataView(crcInput.buffer).setUint16(0, adrIndex, true);
+      crcInput.set(testData, 2);
+      log("CRC input (seq+data): " + toHex(crcInput));
+    } else {
+      crcInput = testData;
+      log("CRC input (data only): " + toHex(crcInput));
+    }
+    
+    log(`CRC mode: ${mode}, seed: 0x${seed.toString(16).padStart(4, '0')}`);
+    log("CRC calculations:");
+    
+    const algorithms = ['ccitt-1021', 'ccitt-8408', 'crc16-arc', 'crc16-modbus', 'xmodem'];
+    algorithms.forEach(alg => {
+      const crc = getCRC(alg, crcInput, seed);
+      log(`  ${alg}: 0x${crc.toString(16).padStart(4, '0')} (${crc})`);
+    });
+    
+    // Show what the actual packet would look like
+    const algorithm = $("crcAlg").value;
+    const crc = getCRC(algorithm, crcInput, seed);
+    const pkt = new Uint8Array(2 + 16 + 2);
+    const dv = new DataView(pkt.buffer);
+    dv.setUint16(0, adrIndex, true);
+    pkt.set(testData, 2);
+    dv.setUint16(2 + 16, crc, true);
+    
+    log(`\nSelected algorithm (${algorithm}) packet:`);
+    log("Full packet: " + toHex(pkt));
+    log("  Seq: " + toHex(pkt.subarray(0, 2)));
+    log("  Data: " + toHex(pkt.subarray(2, 18)));
+    log("  CRC: " + toHex(pkt.subarray(18, 20)));
+  }
+
+  async function flash() {
+    if (!otaChar) { log("Not connected."); return; }
+    aborting = false;
+
+    const file = $("file").files[0];
+    if (!file) { log("Choose a firmware .bin first."); return; }
+
+    const proto = $("proto").value;
+    let pduLen = Math.max(16, (parseInt($("pdu").value,10) || 16));
+    if (pduLen % 16 !== 0) {
+      pduLen = Math.floor(pduLen / 16) * 16;
+      log(`Adjusted PDU length to ${pduLen} (must be 16-byte aligned).`);
+    }
+    if (pduLen > 240) { pduLen = 240; log("Clamped PDU length to 240."); }
+
+    const data = new Uint8Array(await file.arrayBuffer());
+    const algorithm = $("crcAlg").value;
+
+    setState("Starting…");
+    setProgress(1);
+
+    if (proto === 'extend') {
+      log(`Sending CMD_OTA_START_EXT (pduLen=${pduLen})…`);
+      await writeChunk(buildStartExt(pduLen, 0));
+      await new Promise(r => setTimeout(r, 20));
+    } else {
+      if (pduLen !== 16) log("Legacy mode forces PDU length to 16.");
+      pduLen = 16;
+      log("Sending CMD_OTA_START…");
+      const startCmd = buildCmd(OPC.CMD_OTA_START);
+      log("CMD_OTA_START packet: " + toHex(startCmd));
+      await writeChunk(startCmd);
+    }
+
+    const DATA_LEN = (proto === 'extend') ? pduLen : 16;
+    const firmware = padToMultiple(data, DATA_LEN);
+
+    const totalBlocks = Math.ceil(firmware.length / DATA_LEN);
+    const t0 = performance.now();
+    let offset = 0, adrIndex = 0;
+
+    while (offset < firmware.length) {
+      if (aborting) throw new Error('Aborted');
+      const payload = firmware.subarray(offset, offset + DATA_LEN);
+
+      let pkt;
+      if (proto === 'extend') {
+        pkt = new Uint8Array(2 + DATA_LEN);
+        const dv = new DataView(pkt.buffer);
+        dv.setUint16(0, adrIndex, true);
+        pkt.set(payload, 2);
+      } else {
+        pkt = new Uint8Array(2 + 16 + 2);
+        const dv = new DataView(pkt.buffer);
+        dv.setUint16(0, adrIndex, true);
+        pkt.set(payload, 2);
+
+        const mode = $("crc").value;
+        const seed = (mode.endsWith('0000')) ? 0x0000 : 0xFFFF;
+        let crcInput;
+        if (mode.startsWith('seqdata')) {
+          crcInput = new Uint8Array(2 + 16);
+          new DataView(crcInput.buffer).setUint16(0, adrIndex, true);
+          crcInput.set(payload, 2);
+        } else {
+          crcInput = payload;
+        }
+        const crc = getCRC(algorithm, crcInput, seed);
+        dv.setUint16(2 + 16, crc, true);
+
+        // Debug first few packets
+        if (adrIndex < 3) {
+          log(`Packet ${adrIndex}: ${toHex(pkt)}`);
+          log(`  Seq: 0x${adrIndex.toString(16).padStart(4, '0')}, CRC: 0x${crc.toString(16).padStart(4, '0')} (${algorithm})`);
+        }
+      }
+
+      await writeChunk(pkt);
+
+      offset += DATA_LEN;
+      adrIndex++;
+      if (adrIndex % 8 === 0) await new Promise(r => setTimeout(r, 0));
+      setProgress(Math.round((offset / firmware.length) * 100));
+    }
+
+    const adrMax = Math.max(0, (adrIndex - 1)) & 0xFFFF;
+    const xor = adrMax ^ 0xFFFF;
+    const endPayload = new Uint8Array(4);
+    new DataView(endPayload.buffer).setUint16(0, adrMax, true);
+    new DataView(endPayload.buffer).setUint16(2, xor, true);
+
+    log(`Sending CMD_OTA_END (adr_max=${adrMax}, xor=0x${xor.toString(16)})…`);
+    const endCmd = buildCmd(OPC.CMD_OTA_END, endPayload);
+    log("CMD_OTA_END packet: " + toHex(endCmd));
+    await writeChunk(endCmd);
+
+    if (!otaChar.properties.writeWithoutResponse) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+
+    const dt = ((performance.now() - t0)/1000).toFixed(2);
+    setState("Waiting for result…");
+    log(`Sent ${firmware.length} bytes in ${dt}s across ${totalBlocks} blocks (pduLen=${DATA_LEN}, proto=${proto}, crc=${algorithm}).`);
+  }
+
+  $("btnConnect").addEventListener('click', connect);
+  $("btnFlash").addEventListener('click', () => flash().catch(e => { log("Flash error: " + e.message); setState("Error"); }));
+  $("btnTest").addEventListener('click', testCRC);
+  $("btnAbort").addEventListener('click', () => { aborting = true; setState("Aborting…"); });
+})();
+</script>
+</body>
+</html>
