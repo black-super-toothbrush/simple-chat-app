@@ -1109,29 +1109,19 @@ function handleDeviceInfoCommand(data) {
     
     const commandType = data[0];
     const packetLength = data[1];
-    
     // 验证数据包长度
     if (data.length !== packetLength) {
         log(`Invalid packet length: expected ${packetLength}, got ${data.length}`);
         return;
     }
-    
     // 验证结尾字节
     const endByte = data[packetLength - 1];
     if (endByte !== commandType) {
         log(`Invalid end byte: expected 0x${commandType.toString(16).toUpperCase()}, got 0x${endByte.toString(16).toUpperCase()}`);
         return;
-    }
-    
+    }  
     // 提取数据部分（去掉命令字节、长度字节和结尾字节）
     const dataPayload = data.slice(2, packetLength - 1);
-    
-    // 显示原始数据
-    const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
-    document.getElementById('rawDeviceInfo').textContent = rawDataHex;
-    document.getElementById('deviceInfoPacketCount').textContent = deviceInfoPacketCount;
-    document.getElementById('lastInfoUpdate').textContent = new Date().toLocaleTimeString();
-    
     try {
         switch (commandType) {
             case 0xC1:
@@ -1219,7 +1209,6 @@ function handleDeviceInfoCommand(data) {
         
         // 显示设备信息面板
         document.getElementById('deviceInfoDisplay').style.display = 'block';
-        
     } catch (error) {
         log(`✗ Error processing device info command 0x${commandType.toString(16).toUpperCase()}: ${error.message}`);
     }
