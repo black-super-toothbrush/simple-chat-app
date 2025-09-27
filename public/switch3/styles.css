@@ -429,6 +429,15 @@ body {
     background: var(--muted);
 }
 
+.preset-card.selected {
+    background: #e6f9ec;        /* 浅绿色背景 */
+    border-color: #4caf50;      /* 绿色边框 */
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3); /* 绿色阴影 */
+    transform: translateY(-2px); /* 轻微上移效果 */
+}
+
+
+
 .preset-title {
     font-size: 0.75rem;
     font-weight: 600;

@@ -474,7 +474,7 @@
                             </div>
                         </div>
                         <div class="temp-preset-grid" id="tempPresets">
-                            <div class="preset-card">
+                            <div class="preset-card" onclick="selectPreset(1)">
                                 <div class="preset-title">Preset 1</div>
                                 <div class="temp-container"> 
                                     <input type="number" id="tempF1" min="250" max="650" value="450" 
@@ -493,10 +493,11 @@
                                         <option value="0xc1">Descent</option>
                                         <option value="0xd1">Valley</option>
                                         <option value="0xe1">Hill</option>
+                                        <option value="0xf1">Custom</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="preset-card">
+                            <div class="preset-card" onclick="selectPreset(2)">
                                 <div class="preset-title">Preset 2</div>
                                 <div class="temp-container"> 
                                     <input type="number" id="tempF2" min="250" max="650" value="500" 
@@ -515,10 +516,11 @@
                                         <option value="0xc1">Descent</option>
                                         <option value="0xd1">Valley</option>
                                         <option value="0xe1">Hill</option>
+                                        <option value="0xf1">Custom</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="preset-card">
+                            <div class="preset-card" onclick="selectPreset(3)">
                                 <div class="preset-title">Preset 3</div>
                                 <div class="temp-container"> 
                                     <input type="number" id="tempF3" min="250" max="650" value="550" 
@@ -537,10 +539,11 @@
                                         <option value="0xc1">Descent</option>
                                         <option value="0xd1">Valley</option>
                                         <option value="0xe1">Hill</option>
+                                        <option value="0xf1">Custom</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="preset-card">
+                            <div class="preset-card" onclick="selectPreset(4)">
                                 <div class="preset-title">Preset 4</div>
                                 <div class="temp-container"> 
                                     <input type="number" id="tempF4" min="250" max="650" value="600" 
@@ -559,10 +562,11 @@
                                         <option value="0xc1">Descent</option>
                                         <option value="0xd1">Valley</option>
                                         <option value="0xe1">Hill</option>
+                                        <option value="0xf1">Custom</option>
                                     </select>
                                 </div>
                             </div>
-                            <div class="preset-card">
+                            <div class="preset-card" onclick="selectPreset(5)">
                                 <div class="preset-title">Preset 5</div>
                                 <div class="temp-container"> 
                                     <input type="number" id="tempF5" min="250" max="650" value="613" 
@@ -581,6 +585,7 @@
                                         <option value="0xc1">Descent</option>
                                         <option value="0xd1">Valley</option>
                                         <option value="0xe1">Hill</option>
+                                        <option value="0xf1">Custom</option>
                                     </select>
                                 </div>
                             </div>
@@ -620,11 +625,111 @@
                         </div>
                     </div>
                 </div>
-                
-
-
             </div>
         </div>
+
+
+        <!-- Custom setting -->
+        <div class="grid">
+            <div class="card fade-in" id="customConfigCard">
+                <div class="card-header">
+                    <i class="fas fa-cogs"></i>
+                    <h3>Custom setting</h3>
+                    <h4>  (Please set time 1-8 first then set temp,Set unnecessary points to 0.) </h4>
+
+                </div>
+                <div style="padding: 16px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                        <template id="customConfigRowTemplate">
+                            <div class="custom-config-row">
+                                <label>point<span class="custom-index"></span>：</label>
+                                <input type="number" class="custom-temp" min="250" max="650" step="1" style="width: 70px;" placeholder="温度">
+                                <span>°</span>
+                                <input type="number" class="custom-time" min="0" max="255" step="1" style="width: 50px;" placeholder="时间">
+                                <span>s</span>
+                            </div>
+                        </template>
+                        <!-- 8组输入框 -->
+                        <div class="custom-config-row">
+                            <label>point1：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="400" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="0" step="1" value="0" style="width: 50px;" readonly>
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point2：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="410" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="1" max="90" step="1" value="20" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point3：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="420" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="30" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point4：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="430" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="40" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point5：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="440" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="50" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point6：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="450" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="60" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point7：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="460" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="70" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point8：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="470" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="80" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point9：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="480" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="90" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                        <div class="custom-config-row">
+                            <label>point10：</label>
+                            <input type="number" class="custom-temp" min="250" max="650" step="1" value="490" style="width: 70px;">
+                            <span>°</span>
+                            <input type="number" class="custom-time" min="0" max="90" step="1" value="100" style="width: 50px;">
+                            <span>s</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 18px; text-align: right;">
+                        <button class="btn btn-primary" id="sendCustomProfileBtn" style="min-width: 180px;">send custom</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
 
         <!-- OTA Upgrade and Log -->
         <div class="grid">

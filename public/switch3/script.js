@@ -14,6 +14,17 @@ let currentSessionData = null;
 let sessionStartTime = null;
 let sessionDataPoints = [];
 
+
+// 存储5套custom setting数据 (扩展到10个点)
+let customSettings = {
+    1: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+    2: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+    3: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+    4: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+    5: { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90] },
+};
+
+
 // 认证检查函数
 function checkAuthentication() {
     if (!window.currentUser) {
@@ -737,6 +748,71 @@ function showNotification(message, type = 'success', duration = 3000) {
     }, duration);
 }
 
+        // 更新preset卡片的选中状态
+        function updatePresetCardSelection(selectedPreset) {
+            // 移除所有preset卡片的选中状态
+            for (let i = 1; i <= 5; i++) {
+                const presetCard = document.querySelector(`#tempPresets .preset-card:nth-child(${i})`);
+                if (presetCard) {
+                    presetCard.classList.remove('selected');
+                }
+            }
+            
+            // 为当前选中的preset添加选中状态
+            if (selectedPreset >= 1 && selectedPreset <= 5) {
+                const selectedCard = document.querySelector(`#tempPresets .preset-card:nth-child(${selectedPreset})`);
+                if (selectedCard) {
+                    selectedCard.classList.add('selected');
+                }
+            }
+        }
+
+
+
+    async function selectPreset(presetNumber) {
+        // 验证预设编号范围
+        if (presetNumber < 1 || presetNumber > 5) {
+            log(`Error: Invalid preset number ${presetNumber}`);
+            return;
+        }
+        
+        // 如果已经是当前预设，则不需要切换
+        if (currentPreset === presetNumber) {
+            log(`Preset ${presetNumber} is already selected`);
+            return;
+        }
+        
+        // 设置新的预设值
+        currentPreset = presetNumber;
+        
+        // 更新按钮显示
+        document.getElementById('presetBtn').textContent = currentPreset;
+        
+        // 更新preset卡片选中状态
+        updatePresetCardSelection(currentPreset);
+        
+        // 更新当前preset对应的模式显示
+    //    updateCurrentPresetModeDisplay(currentPreset);
+        
+        // 更新Custom配置显示
+        updateCustomUI();
+        
+        // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
+        await sendB9Command(
+            { byte3: currentPreset },
+            `Preset selected: ${currentPreset}`
+        );
+        
+        log(`✓ Preset ${currentPreset} selected`);
+    }
+
+
+
+
+
+
+
+
 // 添加连接状态动画
 function updateConnectionStatusWithAnimation(connected, connecting = false) {
     const statusElement = document.getElementById('connectionStatus');
@@ -924,7 +1000,6 @@ function updateLedPreview(colorValue) {
 function handleResponse(event) {
     const data = new Uint8Array(event.target.value.buffer);
     // 打印data 16进制  数据和长度
-   // log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
     // 检查是否是设备状态notify数据包 (20字节，包头包尾都是0xA9)
     if (data.length === 20 && data[0] === 0xA9 && data[19] === 0xA9) {
         handleNotifyData(data);
@@ -946,6 +1021,16 @@ function handleResponse(event) {
         handleProfileData(data);
         return;
     }
+
+    if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 16) ||
+        (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 16) ||
+        (data[0] === 0xac && data[data.length-1] === 0xac && data.length === 16)) {
+        log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+        handleCustomProfileData(data);
+        return;
+    }
+
+
 
     // 检查是否是设备信息命令 C1-C7
     if (data.length >= 2 && data[0] >= 0xC1 && data[0] <= 0xC7) {
@@ -1029,12 +1114,12 @@ function handleNotifyData(data) {
     }
     
     // 更新原始数据显示
-    const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
-    document.getElementById('rawData').textContent = rawDataHex;
-    document.getElementById('packetCount').textContent = notifyPacketCount;
-    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    // const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+    // document.getElementById('rawData').textContent = rawDataHex;
+    // document.getElementById('packetCount').textContent = notifyPacketCount;
+    // document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
     
-    //log(`Received device status notify: temp=${realTemp}°${tempUnit}, battery=${batteryLevel}%, preset=${preset}`);
+
 }
 
 
@@ -1088,6 +1173,247 @@ function handleProfileData(data) {
     }
     
     log(`Received profile for preset ${preset}: ${getProfileName(profileValue)} (0x${profileValue.toString(16).toUpperCase()})`);
+}
+
+
+function updateCustomUI() {
+    const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+    const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+    
+    if (customSettings[currentPreset]) {
+        for (let i = 0; i < 10; i++) { // 扩展到10个点
+            if (tempInputs[i] && customSettings[currentPreset].temps[i] !== undefined) {
+                tempInputs[i].value = customSettings[currentPreset].temps[i];
+            }
+            if (timeInputs[i] && customSettings[currentPreset].times[i] !== undefined) {
+                // point1的时间固定为0，不更新
+                if (i !== 0) {
+                    timeInputs[i].value = customSettings[currentPreset].times[i];
+                }
+            }
+        }
+    }
+}
+
+            function logCustomSettingsChange(preset, action, details = '') {
+                const timestamp = new Date().toLocaleTimeString();
+                const presetData = customSettings[preset];
+                if (presetData) {
+                    console.log(`[${timestamp}] CustomSettings变化 - Preset ${preset} ${action}:`);
+                    console.log(`  温度: [${presetData.temps.join(', ')}]`);
+                    console.log(`  时间: [${presetData.times.join(', ')}]`);
+                    if (details) {
+                        console.log(`  详情: ${details}`);
+                    }
+                    log(`CustomSettings Preset ${preset} ${action} - 温度:[${presetData.temps.join(', ')}] 时间:[${presetData.times.join(', ')}]${details ? ' - ' + details : ''}`);
+                }
+            }
+
+           function saveCurrentCustomUI() {
+               const tempInputs = document.querySelectorAll('#customConfigCard .custom-temp');
+               const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+               
+               if (!customSettings[currentPreset]) {
+                   customSettings[currentPreset] = { temps: [], times: [] };
+               }
+               
+               for (let i = 0; i < 10; i++) { // 扩展到10个点
+                   if (tempInputs[i]) {
+                       customSettings[currentPreset].temps[i] = parseInt(tempInputs[i].value);
+                   }
+                   if (timeInputs[i]) {
+                       customSettings[currentPreset].times[i] = parseInt(timeInputs[i].value) || 0;
+                   }
+               }
+               
+               // 打印变化
+               logCustomSettingsChange(currentPreset, '用户手动保存', '从UI输入');
+           }
+
+
+
+          async function sendCustomProfile() {
+             if (!characteristic) {
+                 log('Error: Device not connected');
+                 showNotification('设备未连接', 'error');
+                 return;
+             }
+              
+             // 保存当前UI数据到当前preset
+             saveCurrentCustomUI();
+             
+             // 使用当前preset的数据（从customSettings获取）
+             const currentPresetData = customSettings[currentPreset] || { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 20, 30, 40, 50, 60, 70, 80, 90, 100] };
+             
+             // 组包并发送三包（ba/bb/bc头尾），包含preset信息，支持10个点
+             for (let index = 0; index < 3; index++) {
+                 let ble_tx_buff = new Uint8Array(16); // 增加一个字节用于preset
+                 let ble_tx_len = 16;
+                 if (index === 0) {
+                     ble_tx_buff[0] = 0xba;
+                     ble_tx_buff[1] = ble_tx_len;
+                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
+                     ble_tx_buff[3] = currentPresetData.temps[0] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[0] & 0xff;
+                     ble_tx_buff[5] = currentPresetData.times[0];
+                     ble_tx_buff[6] = currentPresetData.temps[1] >> 8;
+                     ble_tx_buff[7] = currentPresetData.temps[1] & 0xff;
+                     ble_tx_buff[8] = currentPresetData.times[1];
+                     ble_tx_buff[9] = currentPresetData.temps[2] >> 8;
+                     ble_tx_buff[10] = currentPresetData.temps[2] & 0xff;
+                     ble_tx_buff[11] = currentPresetData.times[2];
+                     ble_tx_buff[12] = currentPresetData.temps[3] >> 8;
+                     ble_tx_buff[13] = currentPresetData.temps[3] & 0xff;
+                     ble_tx_buff[14] = currentPresetData.times[3];
+                     ble_tx_buff[15] = 0xba;
+                 } else if (index === 1) {
+                     ble_tx_buff[0] = 0xbb;
+                     ble_tx_buff[1] = ble_tx_len;
+                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
+                     ble_tx_buff[3] = currentPresetData.temps[4] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[4] & 0xff;
+                     ble_tx_buff[5] = currentPresetData.times[4];
+                     ble_tx_buff[6] = currentPresetData.temps[5] >> 8;
+                     ble_tx_buff[7] = currentPresetData.temps[5] & 0xff;
+                     ble_tx_buff[8] = currentPresetData.times[5];
+                     ble_tx_buff[9] = currentPresetData.temps[6] >> 8;
+                     ble_tx_buff[10] = currentPresetData.temps[6] & 0xff;
+                     ble_tx_buff[11] = currentPresetData.times[6];
+                     ble_tx_buff[12] = currentPresetData.temps[7] >> 8;
+                     ble_tx_buff[13] = currentPresetData.temps[7] & 0xff;
+                     ble_tx_buff[14] = currentPresetData.times[7];
+                     ble_tx_buff[15] = 0xbb;
+                 } else {
+                     // 第三个包 (0xbc) - point9和point10
+                     ble_tx_buff[0] = 0xbc;
+                     ble_tx_buff[1] = ble_tx_len;
+                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
+                     ble_tx_buff[3] = currentPresetData.temps[8] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[8] & 0xff;
+                     ble_tx_buff[5] = currentPresetData.times[8];
+                     ble_tx_buff[6] = currentPresetData.temps[9] >> 8;
+                     ble_tx_buff[7] = currentPresetData.temps[9] & 0xff;
+                     ble_tx_buff[8] = currentPresetData.times[9];
+                     // 剩余字节填充0或保留
+                     ble_tx_buff[9] = 0x00;
+                     ble_tx_buff[10] = 0x00;
+                     ble_tx_buff[11] = 0x00;
+                     ble_tx_buff[12] = 0x00;
+                     ble_tx_buff[13] = 0x00;
+                     ble_tx_buff[14] = 0x00;
+                     ble_tx_buff[15] = 0xbc;
+                 }
+                 try {
+                     // 如果不是第一个包，添加延迟避免GATT操作冲突
+                     if (index > 0) {
+                         await new Promise(resolve => setTimeout(resolve, 100));
+                     }
+                     
+                     await characteristic.writeValue(ble_tx_buff);
+                     const packetType = index === 0 ? 'ba' : index === 1 ? 'bb' : 'bc';
+                     log(`✓ Custom Preset ${currentPreset} 参数包${index+1}已发送(${packetType}): [${Array.from(ble_tx_buff).map(b=>b.toString(16).padStart(2,'0')).join(' ')}]`);
+                 
+                                        // 1. 获取point1-8的最大时间值
+                        const timeInputs = document.querySelectorAll('#customConfigCard .custom-time');
+                        let maxCustomTime = 0;
+                        for (let i = 0; i < timeInputs.length; i++) {
+                            const t = parseInt(timeInputs[i].value) || 0;
+                            if (t > maxCustomTime) maxCustomTime = t;
+                        }
+                        // 2. 遍历preset1-5，设置为Custom模式的hold time
+                        // for (let i = 1; i <= 5; i++) {
+                        //     const modeSelect = document.getElementById(`presetMode${i}`);
+                        //     if (modeSelect && modeSelect.value === '0xF1') {
+                        //         // 修改滑块UI
+                        //         const holdTimeSlider = document.getElementById(`presetHoldTime${i}`);
+                        //         if (holdTimeSlider) {
+                        //             holdTimeSlider.value = maxCustomTime;
+                        //             // 可选：同步显示
+                        //             if (typeof updatePresetHoldTimeDisplay === 'function') {
+                        //                 updatePresetHoldTimeDisplay(i, maxCustomTime);
+                        //             }
+                        //         }
+                        //         // 发送蓝牙命令
+                        //         if (typeof setPresetHoldTime === 'function') {
+                        //             setPresetHoldTime(i, maxCustomTime);
+                        //         }
+                        //     }
+                        // }      
+                        // showNotification(`已同步Custom模式的Hold Time为${maxCustomTime}秒`, 'info', 2000);           
+                    } catch (e) {
+                     log(`✗ Custom参数包${index+1}发送失败: ${e.message}`);
+                     showNotification(`自定义参数包${index+1}发送失败`, 'error');
+                     return;
+                 }
+
+
+             }
+             showNotification(`Custom Preset ${currentPreset} 参数全部发送成功`, 'success');
+          }
+      
+
+document.getElementById('sendCustomProfileBtn').onclick = sendCustomProfile;
+
+
+
+function handleCustomProfileData(data) {
+    let group;    
+    if (data[0] === 0xaa) {
+        group = 0;
+    } else if (data[0] === 0xab) {
+        group = 1;
+    } else if (data[0] === 0xac) {
+        group = 2;
+    } else {
+        log(`Unknown custom profile group: 0x${data[0].toString(16).toUpperCase()}`);
+        return;
+    }
+
+        let preset = data[2]; // 新增：读取preset信息
+        let temps = [];
+        let times = [];
+        if (group === 2) {
+            // 第三包只有2个点的数据
+            for(let i=0; i<2; i++) {
+                let temp = (data[3+i*3] << 8) | data[4+i*3];
+                let time = data[5+i*3];
+                temps.push(temp);
+                times.push(time);
+            }
+        } else {
+            // 其他包有4个点的数据
+            for(let i=0; i<4; i++) {
+                let temp = (data[3+i*3] << 8) | data[4+i*3];
+                let time = data[5+i*3];
+                temps.push(temp);
+                times.push(time);
+            }
+        }
+
+        // 验证preset范围
+        if (preset >= 1 && preset <= 5) {
+            if (!customSettings[preset]) {
+                customSettings[preset] = { temps: [], times: [] };
+            }            
+            // 更新存储的数据
+            const pointCount = group === 2 ? 2 : 4;
+            for(let i=0; i<pointCount; i++) {
+                let idx = group*4 + i;
+                if (idx < 10) { // 扩展到10个点
+                    customSettings[preset].temps[idx] = temps[i];
+                    customSettings[preset].times[idx] = times[i];
+                }
+            }
+            if (currentPreset === preset) {
+                updateCustomUI();
+            }
+            log(`收到自定义参数包${group+1} (Preset ${preset})：温度=[${temps.join(', ')}]，时间=[${temps.join(', ')}]`);
+        } else {
+            log(`收到无效的preset值: ${preset}`);
+        }
+
+
+
 }
 
 // 设备信息存储对象
@@ -1257,7 +1583,7 @@ function updateDeviceStatus(status) {
     document.getElementById('tempSetting').textContent = status.tempSetting + '°F';
     document.getElementById('realTemp').textContent = status.realTemp + '°F';
    //  document.getElementById('tempUnit').textContent = status.tempUnit;
-    
+    updatePresetCardSelection(currentPreset);
     // 更新LED预设显示和选择框
     const ledColorName = LED_COLORS[status.ledPreset] || `Unknown (0x${status.ledPreset.toString(16).padStart(2, '0')})`;
     document.getElementById('ledPreset').textContent = ledColorName;
@@ -2167,10 +2493,11 @@ async function syncTime() {
       
       // 更新按钮显示
       document.getElementById('presetBtn').textContent = currentPreset;
-      
       // 更新Hold Time显示
       updateHoldTimeDisplay();
-      
+      updatePresetCardSelection(currentPreset);
+
+
       // 发送预设切换命令 - 使用B9命令格式，第3字节为预设值
       await sendB9Command(
           { byte3: currentPreset },
@@ -2311,6 +2638,7 @@ async function syncTime() {
           case 0xc1: return 'Descent';
           case 0xd1: return 'Valley';
           case 0xe1: return 'Hill';
+          case 0xf1: return 'Custom';
           default: return 'Unknown';
       }
   }
