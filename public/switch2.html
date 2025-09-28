@@ -1410,7 +1410,7 @@
                     </div>
                     
                     <!-- Mode Control -->
-                    <div class="status-group" style="margin-bottom: 20px;">
+                    <div class="status-group" style="margin-bottom: 20px; display: none;">
                         <h4><i class="fas fa-arrows-alt-v"></i> Mode Control</h4>
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
                             <div>
@@ -1849,7 +1849,7 @@
         let presetModes = [0, 0xA1, 0xA1, 0xA1, 0xA1, 0xA1]; // index 0 未使用，1-5对应preset 1-5，默认Steady模式
         
         // 固件版本配置
-        const TARGET_FIRMWARE_DATE = '250728'; // 目标固件版本日期 (YYMMDD格式)
+        const TARGET_FIRMWARE_DATE = '250928'; // 目标固件版本日期 (YYMMDD格式)
         
         // 当前设备状态跟踪 - B9命令的所有字节状态
         let currentB9State = {
