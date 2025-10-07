@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JW203 蓝牙设备管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .scan-section {
+            text-align: center;
+        }
+
+        .scan-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .scan-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .scan-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.scanning {
+            background: #e6f3ff;
+            color: #0066cc;
+            border: 1px solid #b3d9ff;
+        }
+
+        .status.connected {
+            background: #e6ffe6;
+            color: #006600;
+            border: 1px solid #b3ffb3;
+        }
+
+        .status.error {
+            background: #ffe6e6;
+            color: #cc0000;
+            border: 1px solid #ffb3b3;
+        }
+
+        .status.info {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .device-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .device-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .device-item:hover {
+            background: #e3f2fd;
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .device-item.connected {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+
+        .device-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .device-id {
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-family: 'Courier New', monospace;
+        }
+
+        .characteristics-section {
+            grid-column: 1 / -1;
+        }
+
+        .characteristics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .characteristic-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .characteristic-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .characteristic-uuid {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .characteristic-properties {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .property-tag {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .characteristic-value {
+            background: #ffffff;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* 操作日志样式 */
+        .log-section {
+            margin-top: 12px;
+            text-align: left;
+        }
+        .log-label {
+            display: inline-block;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 6px;
+        }
+        .log-output {
+            background: #0b1e3b;
+            color: #a7ff83;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 90px;
+            max-height: 220px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .characteristics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔵 JW203 蓝牙设备管理</h1>
+            <p>扫描并连接BLE蓝牙设备，查看设备特征信息</p>
+        </div>
+
+        <div class="main-content">
+            <div class="card scan-section">
+                <h2>🔍 设备扫描</h2>
+                <button id="scanBtn" class="scan-btn">开始扫描设备</button>
+                <div style="margin-top: 12px">
+                    <label for="extraServicesInput" class="log-label" style="margin-bottom: 6px; display:block;">附加服务UUID（用于订阅通知，逗号分隔）</label>
+                    <input id="extraServicesInput" type="text" placeholder="例如：ffe0, fff0 或 0000ffe0-0000-1000-8000-00805f9b34fb" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
+                    <div style="color:#6c757d; font-size: 0.9rem; margin-top: 6px;">提示：如设备使用自定义服务，请在扫描前填入对应服务UUID；短UUID会自动转换为128位。</div>
+                </div>
+                <div id="scanStatus" class="status" style="display: none;"></div>
+                <div class="log-section">
+                    <label class="log-label">操作日志</label>
+                    <pre id="opLog" class="log-output"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="card characteristics-section">
+            <h2>🔧 设备特征信息 (0x2A24-0x2A29)</h2>
+            <div id="characteristicsContainer">
+                <p style="text-align: center; color: #6c757d; padding: 20px;">请先连接设备以查看特征信息</p>
+            </div>
+        </div>
+
+        <div class="card notify-section">
+            <h2>🔔 通知消息</h2>
+            <div id="notifyStatus" class="status info" style="display: none;"></div>
+            <div id="notifyList" class="characteristics-grid"></div>
+            <pre id="notifyLog" class="log-output" style="min-height: 120px"></pre>
+        </div>
+    </div>
+
+    <script>
+        class BluetoothDeviceManager {
+            constructor() {
+                this.connectedDevice = null;
+                this.connectedServer = null;
+                this.scanBtn = document.getElementById('scanBtn');
+                this.scanStatus = document.getElementById('scanStatus');
+                this.characteristicsContainer = document.getElementById('characteristicsContainer');
+                this.logOutput = document.getElementById('opLog');
+                this.notifyLog = document.getElementById('notifyLog');
+                this.notifyList = document.getElementById('notifyList');
+                this.notifyStatus = document.getElementById('notifyStatus');
+                this.subscribedNotifyUUIDs = new Set();
+                this.extraServicesInput = document.getElementById('extraServicesInput');
+                
+                this.init();
+            }
+
+            init() {
+                this.scanBtn.addEventListener('click', () => this.scanForDevices());
+                
+                // 检查浏览器是否支持Web Bluetooth
+                if (!navigator.bluetooth) {
+                    this.showStatus('error', '此浏览器不支持Web Bluetooth API');
+                    this.scanBtn.disabled = true;
+                }
+                this.log('页面初始化完成');
+            }
+
+            // 统一日志输出
+            log(message) {
+                const ts = new Date().toLocaleTimeString();
+                const text = `[${ts}] ${message}`;
+                if (this.logOutput) {
+                    const line = document.createElement('div');
+                    line.textContent = text;
+                    this.logOutput.appendChild(line);
+                    this.logOutput.scrollTop = this.logOutput.scrollHeight;
+                }
+                console.log(text);
+            }
+
+            // 通知日志输出
+            notify(message) {
+                const ts = new Date().toLocaleTimeString();
+                const text = `[${ts}] ${message}`;
+                if (this.notifyLog) {
+                    const line = document.createElement('div');
+                    line.textContent = text;
+                    this.notifyLog.appendChild(line);
+                    this.notifyLog.scrollTop = this.notifyLog.scrollHeight;
+                }
+                console.log('[NOTIFY]', text);
+            }
+
+            // 字节数组转 HEX 文本
+            formatHex(bytes) {
+                return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+            }
+
+            // 特征属性转字符串
+            formatProperties(props) {
+                return Object.keys(props).filter(k => props[k]).join(',');
+            }
+
+            // 规范化UUID到128位或保留已识别别名
+            normalizeUuid(u) {
+                const v = (u || '').trim().toLowerCase();
+                if (!v) return '';
+                if (/^[0-9a-f]{4}$/.test(v)) {
+                    return `0000${v}-0000-1000-8000-00805f9b34fb`;
+                }
+                if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v)) {
+                    return v;
+                }
+                // 允许已知别名（如 device_information）直接返回
+                return v;
+            }
+
+            // 解析用户输入的附加服务UUID列表
+            parseExtraServices() {
+                const raw = this.extraServicesInput ? this.extraServicesInput.value : '';
+                const parts = raw.split(/[\s,;，；]+/).filter(Boolean).map(p => this.normalizeUuid(p));
+                return parts.filter(Boolean);
+            }
+
+            async scanForDevices() {
+                try {
+                    this.showStatus('scanning', '正在扫描设备...');
+                    this.log('开始扫描设备');
+                    this.scanBtn.disabled = true;
+                    this.scanBtn.innerHTML = '<span class="loading"></span> 扫描中...';
+
+                    const defaultServices = ['generic_access', 'generic_attribute', 'device_information', '0000180a-0000-1000-8000-00805f9b34fb'];
+                    const commonNotifyServices = [
+                        '0000ffe0-0000-1000-8000-00805f9b34fb',
+                        '0000fff0-0000-1000-8000-00805f9b34fb'
+                    ];
+                    const extra = this.parseExtraServices();
+                    const optionalServices = Array.from(new Set([...defaultServices, ...commonNotifyServices, ...extra]));
+
+                    this.log(`附加服务输入: ${this.extraServicesInput && this.extraServicesInput.value ? this.extraServicesInput.value : '(空)'}`);
+                    this.log(`请求的可选服务: ${optionalServices.join(', ')}`);
+
+                    const device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices
+                    });
+
+                    this.showStatus('scanning', `正在连接: ${device.name || '未知设备'}`);
+                    this.log(`发现设备：${device.name || '未知设备'} (ID: ${device.id})`);
+                    await this.connectToDevice(device);
+                    
+                } catch (error) {
+                    console.error('扫描设备失败:', error);
+                    
+                    // 区分不同类型的错误
+                    let errorMessage = '';
+                    
+                    if (error.name === 'NotFoundError') {
+                        // 用户取消选择设备
+                        errorMessage = '用户取消了设备选择';
+                        this.showStatus('info', errorMessage);
+                        this.log(errorMessage);
+                    } else if (error.name === 'SecurityError') {
+                        // 权限问题
+                        errorMessage = '蓝牙权限被拒绝，请检查浏览器设置';
+                        this.showStatus('error', errorMessage);
+                        this.log(errorMessage);
+                    } else if (error.name === 'NotSupportedError') {
+                        // 设备不支持
+                        errorMessage = '当前设备不支持蓝牙功能';
+                        this.showStatus('error', errorMessage);
+                        this.log(errorMessage);
+                    } else if (error.name === 'InvalidStateError') {
+                        // 蓝牙状态异常
+                        errorMessage = '蓝牙状态异常，请检查蓝牙是否已开启';
+                        this.showStatus('error', errorMessage);
+                        this.log(errorMessage);
+                    } else {
+                        // 其他未知错误
+                        errorMessage = `扫描失败: ${error.message || '未知错误'}`;
+                        this.showStatus('error', errorMessage);
+                        this.log(errorMessage);
+                    }
+                } finally {
+                    this.scanBtn.disabled = false;
+                    this.scanBtn.innerHTML = '开始扫描设备';
+                    this.log('扫描结束');
+                }
+            }
+
+            async connectToDevice(device) {
+                try {
+                    this.showStatus('scanning', '正在连接设备...');
+                    this.log(`尝试连接设备：${device.name || '未知设备'} (ID: ${device.id})`);
+                    
+                    // 断开之前的连接
+                    if (this.connectedServer) {
+                        this.connectedServer.disconnect();
+                    }
+
+                    // 连接到设备
+                    const server = await device.gatt.connect();
+                    this.connectedDevice = device;
+                    this.connectedServer = server;
+
+                    // 清空通知区并重置已订阅列表
+                    this.subscribedNotifyUUIDs.clear();
+                    if (this.notifyLog) this.notifyLog.textContent = '';
+                    if (this.notifyList) this.notifyList.innerHTML = '';
+
+                    this.showStatus('connected', `已连接到: ${device.name || '未知设备'}`);
+                    this.log('设备连接成功');
+                    
+                    // 读取设备特征
+                    await this.readDeviceCharacteristics(server);
+                    this.log('读取设备特征完成');
+
+                    if (this.subscribedNotifyUUIDs.size === 0 && this.notifyStatus) {
+                        this.notifyStatus.style.display = 'block';
+                        this.notifyStatus.className = 'status info';
+                        this.notifyStatus.textContent = '未订阅到通知特征。若设备使用自定义服务，请在扫描前添加对应服务UUID（如 ffe0/fff0 或 128-bit）。';
+                    }
+                    
+                } catch (error) {
+                    console.error('连接设备失败:', error);
+                    
+                    // 区分不同类型的连接错误
+                    let errorMessage = '';
+                    
+                    if (error.name === 'NetworkError') {
+                        // 网络连接问题
+                        errorMessage = '设备连接超时，请确保设备在范围内且可连接';
+                    } else if (error.name === 'NotSupportedError') {
+                        // 设备不支持GATT
+                        errorMessage = '设备不支持GATT连接';
+                    } else if (error.name === 'SecurityError') {
+                        // 安全权限问题
+                        errorMessage = '连接被拒绝，请检查设备权限设置';
+                    } else if (error.name === 'InvalidStateError') {
+                        // 设备状态异常
+                        errorMessage = '设备状态异常，请重新扫描设备';
+                    } else if (error.message && error.message.includes('GATT Server is disconnected')) {
+                        // GATT服务器断开
+                        errorMessage = '设备连接已断开，请重新连接';
+                    } else {
+                        // 其他未知错误
+                        errorMessage = `连接失败: ${error.message || '未知错误，请重试'}`;
+                    }
+                    
+                    this.showStatus('error', errorMessage);
+                    this.log(errorMessage);
+                    
+                    // 清理连接状态
+                    this.connectedDevice = null;
+                    this.connectedServer = null;
+                }
+            }
+
+            async readDeviceCharacteristics(server) {
+                try {
+                    this.characteristicsContainer.innerHTML = '<p style="text-align: center; color: #6c757d; padding: 20px;">正在读取设备特征...</p>';
+                    this.log('开始读取设备特征');
+                    
+                    const services = await server.getPrimaryServices();
+                    this.log(`读取到服务数量：${services.length}`);
+                    const targetCharacteristics = [];
+                    
+                    // 目标UUID范围 (0x2A24-0x2A29)
+                    const targetUUIDs = [
+                        '00002a24-0000-1000-8000-00805f9b34fb', // Model Number String
+                        '00002a25-0000-1000-8000-00805f9b34fb', // Serial Number String
+                        '00002a26-0000-1000-8000-00805f9b34fb', // Firmware Revision String
+                        '00002a27-0000-1000-8000-00805f9b34fb', // Hardware Revision String
+                        '00002a28-0000-1000-8000-00805f9b34fb', // Software Revision String
+                        '00002a29-0000-1000-8000-00805f9b34fb'  // Manufacturer Name String
+                    ];
+
+                    for (const service of services) {
+                        try {
+                            this.log(`服务: ${service.uuid}`);
+                            const characteristics = await service.getCharacteristics();
+                            // 记录服务的特征数量
+                            this.log(`服务特征数量：${characteristics.length}`);
+                            for (const characteristic of characteristics) {
+                                const uuid = characteristic.uuid.toLowerCase();
+                                const propsStr = this.formatProperties(characteristic.properties);
+                                this.log(`  特征: ${uuid} [${propsStr}]`);
+
+                                // 订阅通知型特征
+                                if ((characteristic.properties.notify || characteristic.properties.indicate) && !this.subscribedNotifyUUIDs.has(uuid)) {
+                                    try {
+                                        await characteristic.startNotifications();
+                                        characteristic.addEventListener('characteristicvaluechanged', (event) => {
+                                            const dv = event.target.value;
+                                            const bytes = new Uint8Array(dv.buffer);
+                                            const ascii = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
+                                            const hex = this.formatHex(bytes);
+                                            this.notify(`${uuid} -> ASCII: ${ascii}`);
+                                            this.notify(`${uuid} -> HEX: ${hex}`);
+                                        });
+                                        this.subscribedNotifyUUIDs.add(uuid);
+                                        this.updateNotifyList(uuid, propsStr);
+                                        if (this.notifyStatus) {
+                                            this.notifyStatus.style.display = 'block';
+                                            this.notifyStatus.className = 'status connected';
+                                            this.notifyStatus.textContent = '已订阅通知特征，等待消息...';
+                                        }
+                                        this.log(`已订阅通知特征: ${uuid}`);
+                                    } catch (e) {
+                                        this.log(`订阅通知失败: ${uuid} (${e.name || 'Error'}: ${e.message || ''})`);
+                                    }
+                                }
+                                
+                                // 检查是否在目标范围内
+                                if (targetUUIDs.includes(uuid)) {
+                                    let value = 'N/A';
+                                    
+                                    try {
+                                        if (characteristic.properties.read) {
+                                            const dataView = await characteristic.readValue();
+                                            const bytes = new Uint8Array(dataView.buffer);
+                                            value = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
+                                            // 打印目标特征的值
+                                            this.log(`    值(ASCII): ${value}`);
+                                            this.log(`    值(HEX): ${this.formatHex(bytes)}`);
+                                            this.log(`读取特征成功：${this.getCharacteristicName(uuid)}`);
+                                        }
+                                    } catch (readError) {
+                                        console.warn(`无法读取特征 ${uuid}:`, readError);
+                                        this.log(`读取特征失败：${uuid} (${readError.name || 'Error'}: ${readError.message || ''})`);
+                                        value = '读取失败';
+                                    }
+                                    
+                                    targetCharacteristics.push({
+                                        uuid: uuid,
+                                        properties: characteristic.properties,
+                                        value: value,
+                                        name: this.getCharacteristicName(uuid)
+                                    });
+                                    this.log(`发现目标特征：${this.getCharacteristicName(uuid)}`);
+                                } else {
+                                    // 非目标特征也尝试打印其值（若可读）
+                                    try {
+                                        if (characteristic.properties.read) {
+                                            const dv = await characteristic.readValue();
+                                            const bytes = new Uint8Array(dv.buffer);
+                                            const ascii = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
+                                            this.log(`    值(ASCII): ${ascii}`);
+                                            this.log(`    值(HEX): ${this.formatHex(bytes)}`);
+                                        }
+                                    } catch (e) {
+                                        this.log(`    读取值失败 (${e.name || 'Error'}: ${e.message || ''})`);
+                                    }
+                                }
+                            }
+
+                        } catch (serviceError) {
+                            console.warn('读取服务特征失败:', serviceError);
+                            this.log('读取服务特征失败');
+                        }
+                    }
+                    
+                    this.displayCharacteristics(targetCharacteristics);
+                    
+                } catch (error) {
+                    console.error('读取设备特征失败:', error);
+                    this.log(`读取设备特征失败：${error.message}`);
+                    this.characteristicsContainer.innerHTML = `<p style="text-align: center; color: #cc0000; padding: 20px;">读取特征失败: ${error.message}</p>`;
+                }
+            }
+
+            // 在通知卡片中记录已订阅特征
+            updateNotifyList(uuid, propsStr) {
+                if (!this.notifyList) return;
+                const item = document.createElement('div');
+                item.className = 'characteristic-item';
+                const properties = propsStr
+                    .split(',')
+                    .filter(Boolean)
+                    .map(p => `<span class="property-tag">${p}</span>`) 
+                    .join('');
+                item.innerHTML = `
+                    <div class="characteristic-uuid">${uuid}</div>
+                    <div class="characteristic-properties">${properties}</div>
+                    <div class="characteristic-value" style="font-size:0.9rem;color:#6c757d">已开始接收通知...</div>
+                `;
+                this.notifyList.appendChild(item);
+            }
+
+            getCharacteristicName(uuid) {
+                const names = {
+                    '00002a24-0000-1000-8000-00805f9b34fb': 'Model Number String',
+                    '00002a25-0000-1000-8000-00805f9b34fb': 'Serial Number String',
+                    '00002a26-0000-1000-8000-00805f9b34fb': 'Firmware Revision String',
+                    '00002a27-0000-1000-8000-00805f9b34fb': 'Hardware Revision String',
+                    '00002a28-0000-1000-8000-00805f9b34fb': 'Software Revision String',
+                    '00002a29-0000-1000-8000-00805f9b34fb': 'Manufacturer Name String'
+                };
+                return names[uuid] || 'Unknown Characteristic';
+            }
+
+            displayCharacteristics(characteristics) {
+                if (characteristics.length === 0) {
+                    this.characteristicsContainer.innerHTML = '<p style="text-align: center; color: #6c757d; padding: 20px;">未发现0x2A24-0x2A29范围内的特征</p>';
+                    return;
+                }
+
+                const grid = document.createElement('div');
+                grid.className = 'characteristics-grid';
+
+                characteristics.forEach(char => {
+                    const charElement = document.createElement('div');
+                    charElement.className = 'characteristic-item';
+                    
+                    const properties = Object.keys(char.properties)
+                        .filter(prop => char.properties[prop])
+                        .map(prop => `<span class="property-tag">${prop}</span>`)
+                        .join('');
+
+                    charElement.innerHTML = `
+                        <div class="characteristic-uuid">${char.name}</div>
+                        <div class="characteristic-uuid" style="font-size: 0.8rem; color: #6c757d;">${char.uuid}</div>
+                        <div class="characteristic-properties">${properties}</div>
+                        <div class="characteristic-value">${char.value}</div>
+                    `;
+
+                    grid.appendChild(charElement);
+                });
+
+                this.characteristicsContainer.innerHTML = '';
+                this.characteristicsContainer.appendChild(grid);
+            }
+
+            showStatus(type, message) {
+                this.scanStatus.style.display = 'block';
+                this.scanStatus.className = `status ${type}`;
+                this.scanStatus.textContent = message;
+                
+                if (type !== 'scanning') {
+                    setTimeout(() => {
+                        this.scanStatus.style.display = 'none';
+                    }, 5000);
+                }
+            }
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new BluetoothDeviceManager();
+        });
+    </script>
+</body>
+</html>
