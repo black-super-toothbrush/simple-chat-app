@@ -849,22 +849,32 @@
             // 解析状态通知帧并更新设备状态
             handleStatusFrame(bytes) {
                 try {
-                    if (!bytes || bytes.length < 9) return false;
                     const START = 0xB9, END = 0xB9;
-                    if (bytes[0] !== START || bytes[bytes.length - 1] !== END) return false;
-                    const len = bytes[1];
-                    const payloadLen = bytes.length;
-                    if (len !== payloadLen) {
-                        this.notify(`状态帧长度不一致: len=${len}, 实际=${payloadLen}`);
+                    if (bytes[0] == START || bytes[bytes.length - 1] == END) {
+                        const len = bytes[1];
+                        const payloadLen = bytes.length;
+                        if (len !== payloadLen) {
+                            this.notify(`状态帧长度不一致: len=${len}, 实际=${payloadLen}`);
+                        }
+                        const battery = bytes[2];
+                        const realTemp = (bytes[3] << 8) | bytes[4];
+                        const setTemp = (bytes[5] << 8) | bytes[6];
+                        const lightMode = bytes[7];
+                        const setTime = bytes[8];
+                        const remainTime = (bytes[9] << 8) | bytes[10]; 
+                        this.updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime });
+                        return true;                        
                     }
-                    const battery = bytes[2];
-                    const realTemp = (bytes[3] << 8) | bytes[4];
-                    const setTemp = (bytes[5] << 8) | bytes[6];
-                    const lightMode = bytes[7];
-                    const setTime = bytes[8];
-                    const remainTime = (bytes[9] << 8) | bytes[10]; 
-                    this.updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime });
-                    return true;
+                    else if (bytes[0] == 0xb1 && bytes[bytes.length - 1] == 0xb1) {
+                        this.notify(`状态帧: ${bytes}`);
+                        return true;                        
+                    }
+                    else {
+                        const hexString = bytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
+                        this.notify(`失败帧: ${hexString}`);
+                        return false;
+                    }
+
                 } catch (e) {
                     this.notify(`解析状态帧失败: ${e.message || e}`);
                     return false;
