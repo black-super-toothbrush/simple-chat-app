@@ -86,6 +86,12 @@
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
+        .scan-btn.active {
+            outline: 2px solid #ffd166;
+            box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.3);
+            filter: brightness(1.05);
+        }
+
         .scan-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -417,10 +423,13 @@
                 
                 // 设备控制卡片事件绑定
                 if (this.lightModeControls) {
-                    this.lightModeControls.querySelectorAll('button[data-mode]').forEach(btn => {
+                    const modeButtons = Array.from(this.lightModeControls.querySelectorAll('button[data-mode]'));
+                    modeButtons.forEach(btn => {
                         btn.addEventListener('click', () => {
                             const mode = parseInt(btn.getAttribute('data-mode')) || 0;
                             this.currentLightMode = mode;
+                            // 更新选中态
+                            modeButtons.forEach(b => b.classList.toggle('active', b === btn));
                             // 乐观更新状态卡片的灯光模式显示
                             if (this.lightModeValue) {
                                 this.lightModeValue.textContent = this.mapLightMode(mode);
@@ -844,7 +853,7 @@
                     const START = 0xB9, END = 0xB9;
                     if (bytes[0] !== START || bytes[bytes.length - 1] !== END) return false;
                     const len = bytes[1];
-                    const payloadLen = bytes.length - 3;
+                    const payloadLen = bytes.length;
                     if (len !== payloadLen) {
                         this.notify(`状态帧长度不一致: len=${len}, 实际=${payloadLen}`);
                     }
@@ -864,14 +873,25 @@
 
             updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime }) {
                 if (this.batteryValue) this.batteryValue.textContent = `${battery}%`;
-                if (this.realTempValue) this.realTempValue.textContent = `${realTemp / 10}°C`;
-                if (this.setTempValue) this.setTempValue.textContent = `${setTemp / 10}°C`;
+                if (this.realTempValue) this.realTempValue.textContent = `${realTemp}°C`;
+                if (this.setTempValue) this.setTempValue.textContent = `${setTemp}°C`;
                 if (this.setTimeValue) this.setTimeValue.textContent = `${setTime}Min`;
                 // 同步设备控制卡片：更新滑动条的位置与数值显示
-                if (this.setTempInput) this.setTempInput.value = String(Math.round(setTemp));
-                if (this.setTempDisplay) this.setTempDisplay.textContent = `${Math.round(setTemp)}℃`;
+                const tempC = Math.round(setTemp);
+                if (this.setTempInput) this.setTempInput.value = String(tempC);
+                if (this.setTempDisplay) this.setTempDisplay.textContent = `${tempC}℃`;
                 if (this.setTimeInput) this.setTimeInput.value = String(setTime);
                 if (this.setTimeDisplay) this.setTimeDisplay.textContent = `${setTime}min`;
+                // 同步灯光模式按钮选中态
+                if (this.lightModeControls) {
+                    const modeButtons = Array.from(this.lightModeControls.querySelectorAll('button[data-mode]'));
+                    modeButtons.forEach(b => {
+                        const m = parseInt(b.getAttribute('data-mode')) || 0;
+                        b.classList.toggle('active', m === lightMode);
+                    });
+                }
+                // 缓存当前灯光模式
+                this.currentLightMode = lightMode;
                 if (this.remainTimeValue) {
                 const minutes = Math.floor(remainTime / 60);
                 const seconds = remainTime % 60;
