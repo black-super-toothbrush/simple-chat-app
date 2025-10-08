@@ -279,23 +279,77 @@
             <p>扫描并连接BLE蓝牙设备，查看设备特征信息</p>
         </div>
 
-        <div class="main-content">
-            <div class="card scan-section">
-                <h2>🔍 设备扫描</h2>
-                <button id="scanBtn" class="scan-btn">开始扫描设备</button>
-                <div style="margin-top: 12px">
-                    <label for="extraServicesInput" class="log-label" style="margin-bottom: 6px; display:block;">附加服务UUID（用于订阅通知，逗号分隔）</label>
-                    <input id="extraServicesInput" type="text" placeholder="例如：ffe0, fff0 或 0000ffe0-0000-1000-8000-00805f9b34fb" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
-                    <div style="color:#6c757d; font-size: 0.9rem; margin-top: 6px;">提示：如设备使用自定义服务，请在扫描前填入对应服务UUID；短UUID会自动转换为128位。</div>
-                </div>
-                <div id="scanStatus" class="status" style="display: none;"></div>
-                <div class="log-section">
-                    <label class="log-label">操作日志</label>
-                    <pre id="opLog" class="log-output"></pre>
-                </div>
+
+        <div class="card scan-section">
+            <h2>🔍 设备扫描</h2>
+            <button id="scanBtn" class="scan-btn">开始扫描设备</button>
+            <div style="margin-top: 12px">
+                <label for="extraServicesInput" class="log-label" style="margin-bottom: 6px; display:block;">附加服务UUID（用于订阅通知，逗号分隔）</label>
+                <input id="extraServicesInput" type="text" placeholder="例如：ffe0, fff0 或 0000ffe0-0000-1000-8000-00805f9b34fb" value="59462f12-9543-9999-12c8-58b459a2712d" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
+                <div style="color:#6c757d; font-size: 0.9rem; margin-top: 6px;">提示：如设备使用自定义服务，请在扫描前填入对应服务UUID；短UUID会自动转换为128位。</div>
+            </div>
+            <div id="scanStatus" class="status" style="display: none;"></div>
+            <div class="log-section">
+                <label class="log-label">操作日志</label>
+                <pre id="opLog" class="log-output"></pre>
             </div>
         </div>
 
+
+        <div class="card device-status">
+            <h2>📟 设备状态</h2>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                    <div style="color:#6c757d;">电量</div>
+                    <div id="batteryValue" class="characteristic-value">-</div>
+                </div>
+                <div>
+                    <div style="color:#6c757d;">实测温度</div>
+                    <div id="realTempValue" class="characteristic-value">-</div>
+                </div>
+                <div>
+                    <div style="color:#6c757d;">剩余时间</div>
+                    <div id="remainTimeValue" class="characteristic-value">-</div>
+                </div>
+            </div>
+            <div class="status info" id="deviceStatusTips" style="margin-top:12px; display:none;"></div>
+        </div>
+
+        <div class="card control-section">
+            <h2>🎛️ 设备控制</h2>
+            <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+                <div>
+                    <div style="color:#6c757d; margin-bottom:6px;">灯光模式</div>
+                    <div id="lightModeControls" style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="scan-btn" data-mode="0">0</button>
+                        <button class="scan-btn" data-mode="1">1</button>
+                        <button class="scan-btn" data-mode="2">2</button>
+                        <button class="scan-btn" data-mode="3">3</button>
+                        <button class="scan-btn" data-mode="4">4</button>
+                        <button class="scan-btn" data-mode="5">5</button>
+                    </div>
+                </div>
+                <div>
+                    <div style="color:#6c757d; margin:10px 0 6px;">设置温度 (150-300℃)</div>
+                    <input id="setTempInput" type="range" min="150" max="300" step="5" value="200" style="width:100%" />
+                    <div style="display:flex;justify-content:space-between;color:#6c757d;font-size:0.9rem;">
+                        <span>150℃</span><span id="setTempDisplay">200℃</span><span>300℃</span>
+                    </div>
+                </div>
+                <div>
+                    <div style="color:#6c757d; margin:10px 0 6px;">设置时间 (30-120min)</div>
+                    <input id="setTimeInput" type="range" min="30" max="120" step="5" value="60" style="width:100%" />
+                    <div style="display:flex;justify-content:space-between;color:#6c757d;font-size:0.9rem;">
+                        <span>30min</span><span id="setTimeDisplay">60min</span><span>120min</span>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button id="sendControlBtn" class="scan-btn">发送控制指令</button>
+                <div id="controlStatus" class="status info" style="display:none;"></div>
+            </div>
+        </div>
+        
         <div class="card characteristics-section">
             <h2>🔧 设备特征信息 (0x2A24-0x2A29)</h2>
             <div id="characteristicsContainer">
@@ -309,8 +363,13 @@
             <div id="notifyList" class="characteristics-grid"></div>
             <pre id="notifyLog" class="log-output" style="min-height: 120px"></pre>
         </div>
+
+
     </div>
 
+
+
+    
     <script>
         class BluetoothDeviceManager {
             constructor() {
@@ -325,6 +384,23 @@
                 this.notifyStatus = document.getElementById('notifyStatus');
                 this.subscribedNotifyUUIDs = new Set();
                 this.extraServicesInput = document.getElementById('extraServicesInput');
+                this.lightModeControls = document.getElementById('lightModeControls');
+                this.setTempInput = document.getElementById('setTempInput');
+                this.setTimeInput = document.getElementById('setTimeInput');
+                this.setTempDisplay = document.getElementById('setTempDisplay');
+                this.setTimeDisplay = document.getElementById('setTimeDisplay');
+                this.sendControlBtn = document.getElementById('sendControlBtn');
+                this.controlStatus = document.getElementById('controlStatus');
+                this.batteryValue = document.getElementById('batteryValue');
+                this.realTempValue = document.getElementById('realTempValue');
+                this.setTempValue = document.getElementById('setTempValue');
+                this.setTimeValue = document.getElementById('setTimeValue');
+                this.remainTimeValue = document.getElementById('remainTimeValue');
+                this.lightModeValue = document.getElementById('lightModeValue');
+                this.deviceStatusTips = document.getElementById('deviceStatusTips');
+                this.txCharacteristic = null;
+                this.currentLightMode = 0;
+                this.debounceTimer = null;
                 
                 this.init();
             }
@@ -338,6 +414,51 @@
                     this.scanBtn.disabled = true;
                 }
                 this.log('页面初始化完成');
+                
+                // 设备控制卡片事件绑定
+                if (this.lightModeControls) {
+                    this.lightModeControls.querySelectorAll('button[data-mode]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const mode = parseInt(btn.getAttribute('data-mode')) || 0;
+                            this.currentLightMode = mode;
+                            // 乐观更新状态卡片的灯光模式显示
+                            if (this.lightModeValue) {
+                                this.lightModeValue.textContent = this.mapLightMode(mode);
+                            }
+                            const temp = parseInt(this.setTempInput?.value || '200', 10);
+                            const time = parseInt(this.setTimeInput?.value || '60', 10);
+                            this.sendControlCommand(mode, temp, time);
+                        });
+                    });
+                }
+                if (this.setTempInput && this.setTempDisplay) {
+                    this.setTempInput.addEventListener('input', () => {
+                        const tempVal = parseInt(this.setTempInput.value || '200', 10);
+                        this.setTempDisplay.textContent = `${tempVal}℃`;
+                        // 乐观更新状态卡片的设置温度
+                        if (this.setTempValue) this.setTempValue.textContent = `${tempVal}°C`;
+                        // 变更即发送（防抖）
+                        this.scheduleDebouncedSend();
+                    });
+                }
+                if (this.setTimeInput && this.setTimeDisplay) {
+                    this.setTimeInput.addEventListener('input', () => {
+                        const timeVal = parseInt(this.setTimeInput.value || '60', 10);
+                        this.setTimeDisplay.textContent = `${timeVal}min`;
+                        // 乐观更新状态卡片的设置时间
+                        if (this.setTimeValue) this.setTimeValue.textContent = `${timeVal}Min`;
+                        // 变更即发送（防抖）
+                        this.scheduleDebouncedSend();
+                    });
+                }
+                if (this.sendControlBtn) {
+                    this.sendControlBtn.addEventListener('click', () => {
+                        const mode = this.currentLightMode || 0;
+                        const temp = parseInt(this.setTempInput?.value || '200', 10);
+                        const time = parseInt(this.setTimeInput?.value || '60', 10);
+                        this.sendControlCommand(mode, temp, time);
+                    });
+                }
             }
 
             // 统一日志输出
@@ -482,14 +603,17 @@
                     this.subscribedNotifyUUIDs.clear();
                     if (this.notifyLog) this.notifyLog.textContent = '';
                     if (this.notifyList) this.notifyList.innerHTML = '';
-
+                    // 新增：重置状态卡片
+                    this.resetDeviceStatus();
+                    // 新增：重置控制状态
+                    if (this.controlStatus) {
+                        this.controlStatus.style.display = 'none';
+                        this.controlStatus.textContent = '';
+                    }
                     this.showStatus('connected', `已连接到: ${device.name || '未知设备'}`);
                     this.log('设备连接成功');
-                    
-                    // 读取设备特征
                     await this.readDeviceCharacteristics(server);
                     this.log('读取设备特征完成');
-
                     if (this.subscribedNotifyUUIDs.size === 0 && this.notifyStatus) {
                         this.notifyStatus.style.display = 'block';
                         this.notifyStatus.className = 'status info';
@@ -560,6 +684,11 @@
                                 const uuid = characteristic.uuid.toLowerCase();
                                 const propsStr = this.formatProperties(characteristic.properties);
                                 this.log(`  特征: ${uuid} [${propsStr}]`);
+                                // 选择一个可写特征用于发送控制指令（优先 writeWithoutResponse）
+                                if (!this.txCharacteristic && (characteristic.properties.writeWithoutResponse || characteristic.properties.write)) {
+                                    this.txCharacteristic = characteristic;
+                                    this.log(`选择可写特征用于发送指令: ${uuid}`);
+                                }
 
                                 // 订阅通知型特征
                                 if ((characteristic.properties.notify || characteristic.properties.indicate) && !this.subscribedNotifyUUIDs.has(uuid)) {
@@ -567,11 +696,13 @@
                                         await characteristic.startNotifications();
                                         characteristic.addEventListener('characteristicvaluechanged', (event) => {
                                             const dv = event.target.value;
-                                            const bytes = new Uint8Array(dv.buffer);
+                                            const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
                                             const ascii = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
                                             const hex = this.formatHex(bytes);
                                             this.notify(`${uuid} -> ASCII: ${ascii}`);
                                             this.notify(`${uuid} -> HEX: ${hex}`);
+                                            // 解析并更新设备状态卡片（B9 帧）
+                                            this.handleStatusFrame(bytes);
                                         });
                                         this.subscribedNotifyUUIDs.add(uuid);
                                         this.updateNotifyList(uuid, propsStr);
@@ -704,6 +835,140 @@
 
                 this.characteristicsContainer.innerHTML = '';
                 this.characteristicsContainer.appendChild(grid);
+            }
+
+            // 解析状态通知帧并更新设备状态
+            handleStatusFrame(bytes) {
+                try {
+                    if (!bytes || bytes.length < 9) return false;
+                    const START = 0xB9, END = 0xB9;
+                    if (bytes[0] !== START || bytes[bytes.length - 1] !== END) return false;
+                    const len = bytes[1];
+                    const payloadLen = bytes.length - 3;
+                    if (len !== payloadLen) {
+                        this.notify(`状态帧长度不一致: len=${len}, 实际=${payloadLen}`);
+                    }
+                    const battery = bytes[2];
+                    const realTemp = (bytes[3] << 8) | bytes[4];
+                    const setTemp = (bytes[5] << 8) | bytes[6];
+                    const lightMode = bytes[7];
+                    const setTime = bytes[8];
+                    const remainTime = (bytes[9] << 8) | bytes[10]; 
+                    this.updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime });
+                    return true;
+                } catch (e) {
+                    this.notify(`解析状态帧失败: ${e.message || e}`);
+                    return false;
+                }
+            }
+
+            updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime }) {
+                if (this.batteryValue) this.batteryValue.textContent = `${battery}%`;
+                if (this.realTempValue) this.realTempValue.textContent = `${realTemp / 10}°C`;
+                if (this.setTempValue) this.setTempValue.textContent = `${setTemp / 10}°C`;
+                if (this.setTimeValue) this.setTimeValue.textContent = `${setTime}Min`;
+                // 同步设备控制卡片：更新滑动条的位置与数值显示
+                if (this.setTempInput) this.setTempInput.value = String(Math.round(setTemp));
+                if (this.setTempDisplay) this.setTempDisplay.textContent = `${Math.round(setTemp)}℃`;
+                if (this.setTimeInput) this.setTimeInput.value = String(setTime);
+                if (this.setTimeDisplay) this.setTimeDisplay.textContent = `${setTime}min`;
+                if (this.remainTimeValue) {
+                const minutes = Math.floor(remainTime / 60);
+                const seconds = remainTime % 60;
+                this.remainTimeValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+                if (this.lightModeValue) this.lightModeValue.textContent = this.mapLightMode(lightMode);
+                if (this.deviceStatusTips) {
+                    this.deviceStatusTips.style.display = 'block';
+                    this.deviceStatusTips.className = 'status connected';
+                    this.deviceStatusTips.textContent = '已接收设备状态并更新显示';
+                }
+            }
+
+            resetDeviceStatus() {
+                if (this.batteryValue) this.batteryValue.textContent = '-';
+                if (this.realTempValue) this.realTempValue.textContent = '-';
+                if (this.setTempValue) this.setTempValue.textContent = '-';
+                if (this.setTimeValue) this.setTimeValue.textContent = '-';
+                if (this.remainTimeValue) this.remainTimeValue.textContent = '-';
+                if (this.lightModeValue) this.lightModeValue.textContent = '-';
+                if (this.deviceStatusTips) {
+                    this.deviceStatusTips.style.display = 'none';
+                    this.deviceStatusTips.textContent = '';
+                }
+            }
+
+            mapLightMode(value) {
+                const map = { 0: '关闭', 1: '常亮', 2: '呼吸', 3: '闪烁' };
+                return Object.prototype.hasOwnProperty.call(map, value) ? map[value] : `模式(${value})`;
+            }
+
+            // 控制状态显示
+            showControlStatus(type, message) {
+                if (!this.controlStatus) return;
+                this.controlStatus.style.display = 'block';
+                this.controlStatus.className = `status ${type}`;
+                this.controlStatus.textContent = message;
+            }
+
+            // 构建 A9 控制帧: A9 07 lightMode set_temp(high) set_temp(low) set_time A9
+            buildA9Frame(lightMode, setTempCelsius, setTimeMinutes) {
+                const START = 0xA9, END = 0xA9;
+                const buf = new Uint8Array(7);
+                buf[0] = START;
+                buf[1] = 0x07;
+                const lm = Math.max(0, Math.min(5, (lightMode || 0) | 0));
+                const tempRaw = Math.max(150, Math.min(300, Math.round((setTempCelsius || 150))));
+                const timeMin = Math.max(30, Math.min(120, (setTimeMinutes || 30) | 0));
+                buf[2] = lm;
+                buf[3] = (tempRaw >> 8) & 0xFF;
+                buf[4] = tempRaw & 0xFF;
+                buf[5] = timeMin & 0xFF;
+                buf[6] = END;
+                return buf;
+            }
+
+            // 发送控制指令
+            async sendControlCommand(lightMode, tempC, timeMin) {
+                try {
+                    if (!this.connectedServer) {
+                        this.showControlStatus('error', '设备未连接');
+                        return;
+                    }
+                    if (!this.txCharacteristic) {
+                        this.showControlStatus('error', '未找到可写特征，请确保设备存在支持写入的特征');
+                        return;
+                    }
+                    const frame = this.buildA9Frame(lightMode, tempC, timeMin);
+                    const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                    if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
+                        await this.txCharacteristic.writeValueWithoutResponse(frame);
+                    } else if (this.txCharacteristic.writeValue) {
+                        await this.txCharacteristic.writeValue(frame);
+                    } else {
+                        this.showControlStatus('error', '该特征不支持写入');
+                        return;
+                    }
+                    this.showControlStatus('connected', `已发送控制指令: 模式=${lightMode}, 温度=${tempC}℃, 时间=${timeMin}min`);
+                    this.log(`发送 A9 帧: ${this.formatHex(frame)}`);
+                } catch (e) {
+                    this.showControlStatus('error', `发送失败: ${e.message || e}`);
+                    this.log(`发送控制指令失败: ${e.message || e}`);
+                }
+            }
+
+            // 发送防抖：在滚轮变化时延迟发送，避免高频写入
+            scheduleDebouncedSend() {
+                if (this.debounceTimer) {
+                    clearTimeout(this.debounceTimer);
+                }
+                this.debounceTimer = setTimeout(() => {
+                    const mode = this.currentLightMode || 0;
+                    const temp = parseInt(this.setTempInput?.value || '200', 10);
+                    const time = parseInt(this.setTimeInput?.value || '60', 10);
+                    this.sendControlCommand(mode, temp, time);
+                    this.debounceTimer = null;
+                }, 400);
             }
 
             showStatus(type, message) {
