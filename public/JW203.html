@@ -402,7 +402,53 @@
             <div id="b1Status" class="status info" style="display:none;margin-top:8px;"></div>
         </div>
         
+        <div class="card b2-section">
+            <h2>🧪 Herbal温度/时间 (B2/A2)</h2>
+            <div style="overflow-x:auto;">
+                <table id="b2Table" style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;color:#6c757d;">阶段</th>
+                            <th style="text-align:left;color:#6c757d;">温度(℃)</th>
+                            <th style="text-align:left;color:#6c757d;">时间(min)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>预热</td>
+                            <td><input id="b2PreHeatTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
+                            <td><input id="b2PreHeatTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
+                        </tr>
+                        <tr>
+                            <td>升温</td>
+                            <td><input id="b2RampUpTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
+                            <td><input id="b2RampUpTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
+                        </tr>
+                        <tr>
+                            <td>恒温</td>
+                            <td><input id="b2SteadyTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
+                            <td><input id="b2SteadyTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
+                        </tr>
+                        <tr>
+                            <td>增强</td>
+                            <td><input id="b2BoostTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
+                            <td><input id="b2BoostTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
+                        </tr>
+                        <tr>
+                            <td>降温</td>
+                            <td><input id="b2CooldownTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
+                            <td><input id="b2CooldownTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
+            <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button id="sendA2Btn" class="scan-btn">发送阶段参数(A2)</button>
+            </div>
+
+            <div id="b2Status" class="status info" style="display:none;margin-top:8px;"></div>
+        </div>
 
 
 
@@ -470,6 +516,20 @@
                 this.b1CooldownTime = document.getElementById('b1CooldownTime');
                 this.b1Status = document.getElementById('b1Status');
                 
+
+                // 阶段参数A2
+                this.b2PreHeatTemp = document.getElementById('b2PreHeatTemp');
+                this.b2PreHeatTime = document.getElementById('b2PreHeatTime');
+                this.b2RampUpTemp = document.getElementById('b2RampUpTemp');
+                this.b2RampUpTime = document.getElementById('b2RampUpTime');
+                this.b2SteadyTemp = document.getElementById('b2SteadyTemp');
+                this.b2SteadyTime = document.getElementById('b2SteadyTime');
+                this.b2BoostTemp = document.getElementById('b2BoostTemp');
+                this.b2BoostTime = document.getElementById('b2BoostTime');
+                this.b2CooldownTemp = document.getElementById('b2CooldownTemp');
+                this.b2CooldownTime = document.getElementById('b2CooldownTime');
+                this.b2Status = document.getElementById('b2Status');
+
                 this.init();
             }
 
@@ -535,6 +595,13 @@
                 if (sendA1Btn) {
                     sendA1Btn.addEventListener('click', () => {
                         this.sendA1FrameFromUI();
+                    });
+                }
+                // 绑定 A2 发送按钮：用户修改完所有阶段参数后，统一点击发送
+                const sendA2Btn = document.getElementById('sendA2Btn');
+                if (sendA2Btn) {
+                    sendA2Btn.addEventListener('click', () => {
+                        this.sendA2FrameFromUI();
                     });
                 }
             }
@@ -954,6 +1021,30 @@
                         this.notify(`B1帧: ${this.formatHex(bytes)}`);
                         return true;
                     }
+                    else if (bytes[0] == 0xb2 && bytes[bytes.length - 1] == 0xb2) {
+                        const len = bytes[1];
+                        const payloadLen = bytes.length;
+                        if (len !== payloadLen) {
+                            this.notify(`B2帧长度不一致: len=${len}, 实际=${payloadLen}`);
+                        }
+
+
+                        const preHeatTemp = (bytes[2] << 8) | bytes[3];
+                        const rampUpTemp = (bytes[4] << 8) | bytes[5];
+                        const steadyTemp = (bytes[6] << 8) | bytes[7];
+                        const boostTemp = (bytes[8] << 8) | bytes[9];
+                        const cooldownTemp = (bytes[10] << 8) | bytes[11];
+                        const preHeatTime = bytes[12];
+                        const rampUpTime = bytes[13];
+                        const steadyTime = bytes[14];
+                        const boostTime = bytes[15];
+                        const cooldownTime = bytes[16];
+                        this.updateB2UI({ preHeatTemp, rampUpTemp, steadyTemp, boostTemp, cooldownTemp, preHeatTime, rampUpTime, steadyTime, boostTime, cooldownTime });
+                        this.notify(`B2帧: ${this.formatHex(bytes)}`);
+
+
+                        return true;
+                    }
                     else {
                         const hexString = bytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
                         this.notify(`失败帧: ${hexString}`);
@@ -1117,9 +1208,43 @@
                 }
             }
 
+            // B2 UI 更新
+            updateB2UI({ preHeatTemp, rampUpTemp, steadyTemp, boostTemp, cooldownTemp, preHeatTime, rampUpTime, steadyTime, boostTime, cooldownTime }) {
+                if (this.b2PreHeatTemp) this.b2PreHeatTemp.value = String(preHeatTemp);
+                if (this.b2RampUpTemp) this.b2RampUpTemp.value = String(rampUpTemp);
+                if (this.b2SteadyTemp) this.b2SteadyTemp.value = String(steadyTemp);
+                if (this.b2BoostTemp) this.b2BoostTemp.value = String(boostTemp);
+                if (this.b2CooldownTemp) this.b2CooldownTemp.value = String(cooldownTemp);
+                if (this.b2PreHeatTime) this.b2PreHeatTime.value = String(preHeatTime);
+                if (this.b2RampUpTime) this.b2RampUpTime.value = String(rampUpTime);
+                if (this.b2SteadyTime) this.b2SteadyTime.value = String(steadyTime);
+                if (this.b2BoostTime) this.b2BoostTime.value = String(boostTime);
+                if (this.b2CooldownTime) this.b2CooldownTime.value = String(cooldownTime);
+                if (this.b2Status) {
+                    this.b2Status.style.display = 'block';
+                    this.b2Status.className = 'status connected';
+                    this.b2Status.textContent = '已接收并更新 B2 阶段参数';
+                }
+            }
             // 构建 A1 帧: A1 12 10字节温度(五段高低位) + 5字节时间 + A1
             buildA1Frame(params) {
                 const START = 0xA1, END = 0xA1;
+                const buf = new Uint8Array(19);
+                buf[0] = START;
+                buf[1] = 0x12;
+                const clampTemp = (v) => Math.max(70, Math.min(300, Math.round(v || 70)));
+                const clampTime = (v) => Math.max(0, Math.min(120, (v || 0) | 0));
+                const temps = [params.preHeatTemp, params.rampUpTemp, params.steadyTemp, params.boostTemp, params.cooldownTemp].map(clampTemp);
+                const times = [params.preHeatTime, params.rampUpTime, params.steadyTime, params.boostTime, params.cooldownTime].map(clampTime);
+                let i = 2;
+                for (const t of temps) { buf[i++] = (t >> 8) & 0xFF; buf[i++] = t & 0xFF; }
+                for (const tm of times) { buf[i++] = tm & 0xFF; }
+                buf[i++] = END;
+                return buf;
+            }
+            // 构建 A2 帧: A2 12 10字节温度(五段高低位) + 5字节时间 + A2
+            buildA2Frame(params) {
+                const START = 0xA2, END = 0xA2;
                 const buf = new Uint8Array(19);
                 buf[0] = START;
                 buf[1] = 0x12;
@@ -1163,14 +1288,48 @@
                 this.showControlStatus('connected', '已发送 A1 阶段控制');
                 this.log(`发送 A1 帧: ${this.formatHex(frame)}`);
             }
-
-            // A1 防抖发送
             scheduleDebouncedSendA1() {
                 if (this.debounceTimerA1) clearTimeout(this.debounceTimerA1);
                 this.debounceTimerA1 = setTimeout(() => {
                     this.sendA1FrameFromUI();
                 }, 400);
             }
+
+            async sendA2FrameFromUI() {
+                if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
+                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                const params = {
+                    preHeatTemp: parseInt(this.b2PreHeatTemp?.value || '200', 10),
+                    rampUpTemp: parseInt(this.b2RampUpTemp?.value || '200', 10),
+                    steadyTemp: parseInt(this.b2SteadyTemp?.value || '200', 10),
+                    boostTemp: parseInt(this.b2BoostTemp?.value || '200', 10),
+                    cooldownTemp: parseInt(this.b2CooldownTemp?.value || '200', 10),
+                    preHeatTime: parseInt(this.b2PreHeatTime?.value || '0', 10),
+                    rampUpTime: parseInt(this.b2RampUpTime?.value || '0', 10),
+                    steadyTime: parseInt(this.b2SteadyTime?.value || '0', 10),
+                    boostTime: parseInt(this.b2BoostTime?.value || '0', 10),
+                    cooldownTime: parseInt(this.b2CooldownTime?.value || '0', 10),
+                };
+                const frame = this.buildA2Frame(params);
+                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
+                    await this.txCharacteristic.writeValueWithoutResponse(frame);
+                } else if (this.txCharacteristic.writeValue) {
+                    await this.txCharacteristic.writeValue(frame);
+                } else {
+                    this.showControlStatus('error', '该特征不支持写入');
+                    return;
+                }
+                this.showControlStatus('connected', '已发送 A2 阶段控制');
+                this.log(`发送 A2 帧: ${this.formatHex(frame)}`);
+            }
+            scheduleDebouncedSendA2() {
+                if (this.debounceTimerA2) clearTimeout(this.debounceTimerA2);
+                this.debounceTimerA2 = setTimeout(() => {
+                    this.sendA2FrameFromUI();
+                }, 400);
+            }
+
         }
 
         // 初始化应用
