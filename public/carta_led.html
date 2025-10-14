@@ -20,6 +20,7 @@
   <h1>Bluetooth Scan & Connect</h1>
   <div class="toolbar">
     <button id="scanBtn">Scan</button>
+    <button id="ledPresetBtn" title="Cycle LED preset">LED Preset: 0</button>
   </div>
   <div id="status">Ready</div>
   <div id="secureWarn" class="warn">This page is not served in a secure context. Web Bluetooth requires HTTPS or localhost.</div>
@@ -42,6 +43,7 @@
 
   <script>
     const scanBtn = document.getElementById('scanBtn');
+    const ledPresetBtn = document.getElementById('ledPresetBtn');
     const statusEl = document.getElementById('status');
     const secureWarnEl = document.getElementById('secureWarn');
 
@@ -49,6 +51,7 @@
     let gattServer = null;
     let ledCharacteristic = null;
     let ledNotifyCharacteristic = null;
+    let ledPreset = 0; // 0-5
     const LED_SERVICE_UUID = '1011123e-8535-b5a0-7140-a304d2495cb7';
     const LED_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb9';
     const LED_NOTIFY_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb8';
@@ -100,26 +103,42 @@
         // Debug: print all received bytes in HEX
         console.debug('[Notify HEX]', hexDumpFromDataView(dv));
         const len = dv.byteLength;
-        if (len < 7) return;
-        const start = dv.getUint8(0);
-        const cmd = dv.getUint8(1);
-        const idx = dv.getUint8(2);
-        const r = dv.getUint8(3);
-        const g = dv.getUint8(4);
-        const b = dv.getUint8(5);
-        const end = dv.getUint8(6);
-        if (start !== 0xEA || cmd !== 0x07 || end !== 0xEA) return;
-        if (idx < 0 || idx > 7) return;
-        const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2, '0')).join('');
-        const inputEl = document.querySelector(`#paletteGrid input#color${idx+1}`);
-        if (inputEl) {
-          inputEl.value = hex;
+        // Preset update: EB 04 led_preset EB
+        if (len >= 4) {
+          const s2 = dv.getUint8(0);
+          const c2 = dv.getUint8(1);
+          const p2 = dv.getUint8(2);
+          const e2 = dv.getUint8(3);
+          if (s2 === 0xEB && c2 === 0x04 && e2 === 0xEB && p2 >= 0 && p2 <= 5) {
+            ledPreset = p2;
+            if (ledPresetBtn) ledPresetBtn.textContent = `LED Preset: ${ledPreset}`;
+            setStatus(`LED preset updated: ${ledPreset}`);
+            return;
+          }
         }
-        const rgbLabelEl = document.getElementById('rgbLabel');
-        if (rgbLabelEl) {
-          rgbLabelEl.textContent = `RGB: ${r}, ${g}, ${b}`;
+        // LED color frame: EA 07 idx R G B EA
+        if (len >= 7) {
+          const start = dv.getUint8(0);
+          const cmd = dv.getUint8(1);
+          const idx = dv.getUint8(2);
+          const r = dv.getUint8(3);
+          const g = dv.getUint8(4);
+          const b = dv.getUint8(5);
+          const end = dv.getUint8(6);
+          if (start !== 0xEA || cmd !== 0x07 || end !== 0xEA) return;
+          if (idx < 0 || idx > 7) return;
+          const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2, '0')).join('');
+          const inputEl = document.querySelector(`#paletteGrid input#color${idx+1}`);
+          if (inputEl) {
+            inputEl.value = hex;
+          }
+          const rgbLabelEl = document.getElementById('rgbLabel');
+          if (rgbLabelEl) {
+            rgbLabelEl.textContent = `RGB: ${r}, ${g}, ${b}`;
+          }
+          setStatus(`LED ${idx} color updated from device`);
+          return;
         }
-        setStatus(`LED ${idx} color updated from device`);
       } catch (e) {
         console.error('Notify parse error', e);
       }
@@ -229,6 +248,32 @@
     window.addEventListener('load', () => {
       if (!isSecureContext) {
         secureWarnEl.style.display = 'block';
+      }
+      // LED preset button init and click handler
+      if (ledPresetBtn) {
+        ledPresetBtn.textContent = `LED Preset: ${ledPreset}`;
+        ledPresetBtn.addEventListener('click', async () => {
+          ledPreset = (ledPreset + 1) % 6; // 0-5
+          ledPresetBtn.textContent = `LED Preset: ${ledPreset}`;
+          if (!ledCharacteristic) {
+            setStatus('Connect a BLE device first');
+            return;
+          }
+          const payload = new Uint8Array([0xE6, 0x04, ledPreset, 0xE6]);
+          try {
+            if (typeof ledCharacteristic.writeValue === 'function') {
+              await ledCharacteristic.writeValue(payload);
+            } else if (typeof ledCharacteristic.writeValueWithoutResponse === 'function') {
+              await ledCharacteristic.writeValueWithoutResponse(payload);
+            } else {
+              throw new Error('Characteristic does not support write');
+            }
+            setStatus(`LED preset set to ${ledPreset}`);
+          } catch (err) {
+            console.error('Write preset failed', err);
+            setStatus(`Write preset failed: ${err.message || err}`);
+          }
+        });
       }
       // bind color inputs
       const labels = Array.from(document.querySelectorAll('#paletteGrid input[type="color"]'));
