@@ -21,6 +21,7 @@
   <div class="toolbar">
     <button id="scanBtn">Scan</button>
     <button id="ledPresetBtn" title="Cycle LED preset">LED Preset: 0</button>
+    <button id="otaFlashBtn" title="Start OTA flashing">OTA Flash</button>
   </div>
   <div id="status">Ready</div>
   <div id="secureWarn" class="warn">This page is not served in a secure context. Web Bluetooth requires HTTPS or localhost.</div>
@@ -41,9 +42,17 @@
     <div id="rgbLabel" class="hint" style="margin-top:10px;">RGB: 255, 0, 0</div>
   </div>
 
+  <!-- OTA Flash (Telink) -->
+  <div class="card" style="margin-top:16px; padding:12px; background:#fff; border:1px solid #ddd; border-radius:12px;">
+    <div style="font-weight:600; margin-bottom:8px;">OTA Flash</div>
+    <div id="otaPercent" class="hint">Status: waiting for you to connect a device</div>
+    <div id="otaLog" style="font-size:12px; color:#555; margin-top:8px; max-height:160px; overflow:auto; border-top:1px dashed #ddd; padding-top:8px;"></div>
+  </div>
+
   <script>
     const scanBtn = document.getElementById('scanBtn');
     const ledPresetBtn = document.getElementById('ledPresetBtn');
+    const otaFlashBtn = document.getElementById('otaFlashBtn');
     const statusEl = document.getElementById('status');
     const secureWarnEl = document.getElementById('secureWarn');
 
@@ -55,6 +64,13 @@
     const LED_SERVICE_UUID = '1011123e-8535-b5a0-7140-a304d2495cb7';
     const LED_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb9';
     const LED_NOTIFY_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb8';
+    // Telink OTA UUIDs (same as TelinkOTA.html)
+    const OTA_SERVICE_UUID = '00010203-0405-0607-0809-0a0b0c0d1912';
+    const OTA_CHAR_UUID = '00010203-0405-0607-0809-0a0b0c0d2b12';
+    let otaWriteCharacteristic = null;
+    let otaFirmwareHex = '';
+    let otaStartTime = 0;
+    let otaBlockCount = 0;
 
     function setStatus(msg) {
       statusEl.textContent = msg;
@@ -63,6 +79,127 @@
     function hexDumpFromDataView(dv) {
       const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
       return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    }
+    // ----- Telink OTA helpers -----
+    function otaAddLog(txt) {
+      const el = document.getElementById('otaLog');
+      const time = new Date().toLocaleTimeString();
+      el.innerHTML += `${time}: ${txt}<br>`;
+      el.scrollTop = el.scrollHeight;
+    }
+    function otaSetStatus(s) {
+      const el = document.getElementById('otaPercent');
+      el.textContent = `Status: ${s}`;
+    }
+    function decimalToHex(d) {
+      let hex = Number(d).toString(16);
+      while (hex.length < 4) hex = '0' + hex;
+      return hex;
+    }
+    function hexToBytes(hex) {
+      const bytes = [];
+      for (let c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.substr(c, 2), 16));
+      return new Uint8Array(bytes);
+    }
+    function bytesToHex(data) {
+      return new Uint8Array(data).reduce((memo, i) => memo + ('0' + i.toString(16)).slice(-2), '');
+    }
+    function crc16_modbus(buffer) {
+      let crc = 0xFFFF; let odd;
+      for (let i = 0; i < buffer.length; i++) {
+        crc = crc ^ buffer[i];
+        for (let j = 0; j < 8; j++) {
+          odd = crc & 0x0001; crc = crc >> 1; if (odd) crc = crc ^ 0xA001;
+        }
+      }
+      return crc;
+    }
+    function otaGetHexCRC(hexStr) {
+      const tempCRC = decimalToHex(crc16_modbus(hexToBytes(hexStr)));
+      return tempCRC.substring(2, 4) + tempCRC.substring(0, 2);
+    }
+    function otaGetHexBlockCount(count) {
+      const tempHEX = decimalToHex(count);
+      return tempHEX.substring(2, 4) + tempHEX.substring(0, 2);
+    }
+    async function otaFetchFirmwareAndPrepare() {
+      otaAddLog('Loading firmware: carta_led.bin');
+      const resp = await fetch('carta_led.bin');
+      if (!resp.ok) throw new Error('Firmware not found: carta_led.bin');
+      const buf = await resp.arrayBuffer();
+      otaFirmwareHex = bytesToHex(buf);
+      otaAddLog(`File size: ${otaFirmwareHex.length / 2} bytes`);
+      // pad last block to 16 bytes (32 hex chars) if needed
+      if (otaFirmwareHex.length % 32 !== 0) {
+        const padHex = 'ffffffffffffffffffffffffffffffff';
+        otaFirmwareHex += padHex.substr(0, 32 - (otaFirmwareHex.length % 32));
+      }
+      otaBlockCount = otaFirmwareHex.length / 32;
+      otaAddLog(`Count: ${otaBlockCount}`);
+    }
+    function otaCharSend(hexStr) {
+      return new Promise((resolve, reject) => {
+        otaWriteCharacteristic.writeValueWithoutResponse(hexToBytes(hexStr))
+          .then(() => resolve('ok'))
+          .catch(() => reject('some error while sending char data'));
+      });
+    }
+    async function otaUpdateBegin() {
+      if (otaBlockCount <= 0) { otaAddLog('No file selected aborting'); return; }
+      otaSetStatus('Preparing...');
+      await new Promise(r => setTimeout(r, 500));
+      try {
+        await otaCharSend('00ff');
+        await otaCharSend('01ff');
+        otaStartTime = Date.now();
+        await new Promise(r => setTimeout(r, 300));
+        otaSendBlock(0);
+      } catch (err) {
+        otaUpdateFail(err);
+      }
+    }
+    function otaUpdateFail(err) {
+      const s = `Update error: ${err}`;
+      otaAddLog(s); otaSetStatus(s);
+    }
+    function otaSendBlock(blockNr) {
+      if (blockNr >= otaBlockCount) { otaSendLast(); return; }
+      otaSetStatus(`Sending block nr: ${blockNr} from ${otaBlockCount}, ${Math.floor(blockNr / (otaBlockCount * 1.0) * 100)}% done, time since start ${( (Date.now() - otaStartTime) / 1000.0).toFixed(2)}s`);
+      const blockNrString = otaGetHexBlockCount(blockNr);
+      const blockString = blockNrString + otaFirmwareHex.substring(blockNr * 32, blockNr * 32 + 32);
+      const blockCRC = otaGetHexCRC(blockString);
+      otaCharSend(blockString + blockCRC).then(() => {
+        setTimeout(() => {
+          if ((blockNr + 1) % 8 === 0) {
+            otaWriteCharacteristic.readValue().then(() => {
+              otaSendBlock(blockNr + 1);
+            }).catch(err => otaUpdateFail(err));
+          } else {
+            otaSendBlock(blockNr + 1);
+          }
+        }, 0);
+      }).catch(err => otaUpdateFail(err));
+    }
+    function otaSendLast() {
+      const data = '02ff' + otaGetHexBlockCount(otaBlockCount - 1) + otaGetHexBlockCount(~(otaBlockCount - 1) & 0xffff);
+      otaCharSend(data).then(() => {
+        const s = `Update done after ${(Date.now() - otaStartTime) / 1000} seconds`;
+        otaAddLog(s); otaSetStatus(s);
+      }).catch(err => otaUpdateFail(err));
+    }
+    async function startOtaFlash() {
+      try {
+        if (!gattServer) { setStatus('Connect a BLE device first'); return; }
+        const service = await gattServer.getPrimaryService(OTA_SERVICE_UUID);
+        otaWriteCharacteristic = await service.getCharacteristic(OTA_CHAR_UUID);
+        otaAddLog('Found write characteristic');
+        otaSetStatus('Connected.');
+        await otaFetchFirmwareAndPrepare();
+        otaAddLog('Start DFU');
+        await otaUpdateBegin();
+      } catch (err) {
+        otaUpdateFail(err);
+      }
     }
     // Send a clock calibration frame (0xDD) after connection
     async function sendClockCalibrationDD(char) {
@@ -153,7 +290,7 @@
         setStatus('Opening device chooser...');
         const device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
-          optionalServices: ['1011123e-8535-b5a0-7140-a304d2495cb7']
+          optionalServices: ['1011123e-8535-b5a0-7140-a304d2495cb7', OTA_SERVICE_UUID]
         });
         setStatus(`Connecting to ${device.name || device.id} ...`);
         const server = await device.gatt.connect();
@@ -274,6 +411,10 @@
             setStatus(`Write preset failed: ${err.message || err}`);
           }
         });
+      }
+      // OTA Flash button
+      if (otaFlashBtn) {
+        otaFlashBtn.addEventListener('click', startOtaFlash);
       }
       // bind color inputs
       const labels = Array.from(document.querySelectorAll('#paletteGrid input[type="color"]'));
