@@ -20,7 +20,6 @@
   <h1>Bluetooth Scan & Connect</h1>
   <div class="toolbar">
     <button id="scanBtn">Scan</button>
-    <span class="hint">Tip: Use Chrome over HTTPS or localhost.</span>
   </div>
   <div id="status">Ready</div>
   <div id="secureWarn" class="warn">This page is not served in a secure context. Web Bluetooth requires HTTPS or localhost.</div>
@@ -49,12 +48,81 @@
     let connectedDevice = null;
     let gattServer = null;
     let ledCharacteristic = null;
+    let ledNotifyCharacteristic = null;
     const LED_SERVICE_UUID = '1011123e-8535-b5a0-7140-a304d2495cb7';
     const LED_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb9';
+    const LED_NOTIFY_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb8';
 
     function setStatus(msg) {
       statusEl.textContent = msg;
       console.log('[Status]', msg);
+    }
+    function hexDumpFromDataView(dv) {
+      const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    }
+    // Send a clock calibration frame (0xDD) after connection
+    async function sendClockCalibrationDD(char) {
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const yh = (year >> 8) & 0xFF; // high byte
+        const yl = year & 0xFF;        // low byte
+        let month = now.getMonth() + 1; // 1-12
+        let day = now.getDate();        // 1-31 (doc shows 1-30)
+        let hour = now.getHours();      // 0-23
+        let minute = now.getMinutes();  // 0-59
+        // clamp per spec from provided table
+        month = Math.min(12, Math.max(1, month));
+        day = Math.min(30, Math.max(1, day));
+        hour = Math.min(24, Math.max(1, hour)); // table shows 0x01-0x18
+        minute = Math.min(59, Math.max(0, minute));
+        const payload = new Uint8Array([
+          0xDD, 0x0C, yh, yl, month, day, hour, minute, 0x00, 0x00, 0x00, 0xDD
+        ]);
+        if (typeof char.writeValue === 'function') {
+          await char.writeValue(payload);
+        } else if (typeof char.writeValueWithoutResponse === 'function') {
+          await char.writeValueWithoutResponse(payload);
+        } else {
+          throw new Error('Characteristic does not support write');
+        }
+        console.log('已发送 0xDD 时钟校准帧:', payload);
+        setStatus('Sent 0xDD clock calibration');
+      } catch (err) {
+        console.error('0xDD write failed', err);
+        setStatus(`0xDD write failed: ${err.message || err}`);
+      }
+    }
+    function handleLedNotify(event) {
+      try {
+        const dv = event.target.value;
+        // Debug: print all received bytes in HEX
+        console.debug('[Notify HEX]', hexDumpFromDataView(dv));
+        const len = dv.byteLength;
+        if (len < 7) return;
+        const start = dv.getUint8(0);
+        const cmd = dv.getUint8(1);
+        const idx = dv.getUint8(2);
+        const r = dv.getUint8(3);
+        const g = dv.getUint8(4);
+        const b = dv.getUint8(5);
+        const end = dv.getUint8(6);
+        if (start !== 0xEA || cmd !== 0x07 || end !== 0xEA) return;
+        if (idx < 0 || idx > 7) return;
+        const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2, '0')).join('');
+        const inputEl = document.querySelector(`#paletteGrid input#color${idx+1}`);
+        if (inputEl) {
+          inputEl.value = hex;
+        }
+        const rgbLabelEl = document.getElementById('rgbLabel');
+        if (rgbLabelEl) {
+          rgbLabelEl.textContent = `RGB: ${r}, ${g}, ${b}`;
+        }
+        setStatus(`LED ${idx} color updated from device`);
+      } catch (e) {
+        console.error('Notify parse error', e);
+      }
     }
 
     async function onScanClick() {
@@ -79,7 +147,56 @@
         try {
           const service = await server.getPrimaryService(LED_SERVICE_UUID);
           ledCharacteristic = await service.getCharacteristic(LED_CHAR_UUID);
+          // Show connected & LED ready before subscribing notifications
           setStatus(`Connected: ${device.name || device.id} (LED ready)`);
+          // 连接成功后立即发送一帧 0xDD（时钟校准）
+          try {
+            await sendClockCalibrationDD(ledCharacteristic);
+          } catch (e) {
+            console.warn('发送 0xDD 帧失败', e);
+          }
+          // 参考 carta2 的方式：遍历服务的特征并订阅所有支持 notify 的特征
+          try {
+            const characteristics = await service.getCharacteristics();
+            let notifyCount = 0;
+          for (const char of characteristics) {
+            console.log('特征值 UUID:', char.uuid, 'Properties:', char.properties);
+            if (char.properties && char.properties.notify) {
+              // 先绑定监听再开启通知，尽量避免丢失首帧
+              char.addEventListener('characteristicvaluechanged', event => {
+                const dv = event.target.value;
+                const d = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+                console.log('收到 Notify 数据:', d);
+                console.debug('[Notify HEX]', hexDumpFromDataView(dv));
+                try { handleLedNotify(event); } catch (e) { console.error('handleLedNotify error', e); }
+              });
+              try {
+                await char.startNotifications();
+              } catch (e) {
+                console.warn('startNotifications 失败', e);
+              }
+              // 如果支持 read，订阅后尝试读取一次当前值
+              try {
+                const v = await char.readValue();
+                console.debug('[Initial READ HEX]', hexDumpFromDataView(v));
+              } catch (readErr) {
+                console.debug('Read 不支持或失败（notify-only characteristic）', readErr);
+              }
+              // 记录目标通知特征，便于后续使用
+              if (char.uuid === LED_NOTIFY_CHAR_UUID) {
+                ledNotifyCharacteristic = char;
+              }
+              notifyCount++;
+            }
+            }
+            if (notifyCount > 0) {
+              setStatus('LED notifications enabled; waiting for data...');
+            } else {
+              console.warn('该服务下没有支持 notify 的特征');
+            }
+          } catch (notifErr) {
+            console.warn('遍历并开启 notify 失败', notifErr);
+          }
         } catch (e) {
           console.error('Failed to get LED characteristic', e);
           setStatus(`Connected: ${device.name || device.id}, but LED characteristic not found`);
@@ -99,6 +216,14 @@
     }
 
     scanBtn.addEventListener('click', onScanClick);
+
+    // Disconnection handler
+    navigator.bluetooth.addEventListener?.('gattserverdisconnected', (ev) => {
+      const dev = ev.target;
+      setStatus(`Disconnected: ${dev?.name || dev?.id || 'device'}`);
+      ledCharacteristic = null;
+      ledNotifyCharacteristic = null;
+    });
 
     // Environment hint
     window.addEventListener('load', () => {
@@ -134,7 +259,7 @@
             setStatus('Connect a BLE device first');
             return;
           }
-          const hex = colorHexes[idx] || labels[idx]?.value;
+          const hex = labels[idx]?.value;
           const { r, g, b } = hexToRgb(hex);
           const payload = new Uint8Array([0xE5, 0x07, idx, r, g, b, 0xE5]);
           try {
