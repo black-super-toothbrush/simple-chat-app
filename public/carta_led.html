@@ -25,12 +25,32 @@
   <div id="status">Ready</div>
   <div id="secureWarn" class="warn">This page is not served in a secure context. Web Bluetooth requires HTTPS or localhost.</div>
 
+  <!-- LED Color Palettes -->
+  <div class="card" style="margin-top:16px; padding:12px; background:#fff; border:1px solid #ddd; border-radius:12px;">
+    <div style="font-weight:600; margin-bottom:8px;">LED Color Palettes</div>
+    <div id="paletteGrid" style="display:grid; grid-template-columns:repeat(4, minmax(160px, 1fr)); gap:12px;">
+      <label style="display:flex; align-items:center; gap:8px;">Color 1 <input id="color1" type="color" value="#ff0000" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="0" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 2 <input id="color2" type="color" value="#00ff00" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="1" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 3 <input id="color3" type="color" value="#0000ff" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="2" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 4 <input id="color4" type="color" value="#ffff00" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="3" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 5 <input id="color5" type="color" value="#ff00ff" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="4" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 6 <input id="color6" type="color" value="#00ffff" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="5" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 7 <input id="color7" type="color" value="#ffffff" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="6" style="padding:6px 10px;">Apply</button></label>
+      <label style="display:flex; align-items:center; gap:8px;">Color 8 <input id="color8" type="color" value="#000000" style="width:44px; height:28px; padding:0; border:none; background:none;" /> <button class="apply-btn" data-idx="7" style="padding:6px 10px;">Apply</button></label>
+    </div>
+    <div id="rgbLabel" class="hint" style="margin-top:10px;">RGB: 255, 0, 0</div>
+  </div>
+
   <script>
     const scanBtn = document.getElementById('scanBtn');
     const statusEl = document.getElementById('status');
     const secureWarnEl = document.getElementById('secureWarn');
 
     let connectedDevice = null;
+    let gattServer = null;
+    let ledCharacteristic = null;
+    const LED_SERVICE_UUID = '1011123e-8535-b5a0-7140-a304d2495cb7';
+    const LED_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb9';
 
     function setStatus(msg) {
       statusEl.textContent = msg;
@@ -50,10 +70,20 @@
         });
         setStatus(`Connecting to ${device.name || device.id} ...`);
         const server = await device.gatt.connect();
+        gattServer = server;
         connectedDevice = device;
         setStatus(`Connected: ${device.name || device.id}`);
         console.log('GATT Server:', server);
 
+        // Get LED service & characteristic
+        try {
+          const service = await server.getPrimaryService(LED_SERVICE_UUID);
+          ledCharacteristic = await service.getCharacteristic(LED_CHAR_UUID);
+          setStatus(`Connected: ${device.name || device.id} (LED ready)`);
+        } catch (e) {
+          console.error('Failed to get LED characteristic', e);
+          setStatus(`Connected: ${device.name || device.id}, but LED characteristic not found`);
+        }
         // Example: read a characteristic after connected
         // const service = await server.getPrimaryService('battery_service');
         // const char = await service.getCharacteristic('battery_level');
@@ -74,6 +104,58 @@
     window.addEventListener('load', () => {
       if (!isSecureContext) {
         secureWarnEl.style.display = 'block';
+      }
+      // bind color inputs
+      const labels = Array.from(document.querySelectorAll('#paletteGrid input[type="color"]'));
+      const applyButtons = Array.from(document.querySelectorAll('#paletteGrid .apply-btn'));
+      const rgbLabel = document.getElementById('rgbLabel');
+      const colorHexes = new Array(8);
+      const hexToRgb = (hex) => {
+        const h = hex.replace('#','');
+        const bigint = parseInt(h, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return { r, g, b };
+      };
+      const onChange = (ev, ledIndex) => {
+        const { r, g, b } = hexToRgb(ev.target.value);
+        rgbLabel.textContent = `RGB: ${r}, ${g}, ${b}`;
+        colorHexes[ledIndex] = ev.target.value;
+      };
+      labels.forEach((el, idx) => el.addEventListener('input', (ev) => onChange(ev, idx)));
+      // init saved colors
+      labels.forEach((el, idx) => colorHexes[idx] = el.value);
+      // Apply button -> write BLE only when clicked
+      applyButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const idx = Number(btn.dataset.idx);
+          if (!ledCharacteristic) {
+            setStatus('Connect a BLE device first');
+            return;
+          }
+          const hex = colorHexes[idx] || labels[idx]?.value;
+          const { r, g, b } = hexToRgb(hex);
+          const payload = new Uint8Array([0xE5, 0x07, idx, r, g, b, 0xE5]);
+          try {
+            if (typeof ledCharacteristic.writeValue === 'function') {
+              await ledCharacteristic.writeValue(payload);
+            } else if (typeof ledCharacteristic.writeValueWithoutResponse === 'function') {
+              await ledCharacteristic.writeValueWithoutResponse(payload);
+            } else {
+              throw new Error('Characteristic does not support write');
+            }
+            setStatus(`LED ${idx} color applied`);
+          } catch (err) {
+            console.error('Write failed', err);
+            setStatus(`Write failed: ${err.message || err}`);
+          }
+        });
+      });
+      // init with first color
+      if (labels[0]) {
+        const { r, g, b } = hexToRgb(labels[0].value);
+        rgbLabel.textContent = `RGB: ${r}, ${g}, ${b}`;
       }
     });
   </script>
