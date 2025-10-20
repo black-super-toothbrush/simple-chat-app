@@ -1146,6 +1146,15 @@
                         </button>
                     </span>
 
+                    <!-- 固件版本选择器 -->
+                    <div class="input-group" style="min-width: 180px;">
+                        <label for="firmwareSelect">Firmware Version</label>
+                        <select id="firmwareSelect" class="form-control">
+                            <option value="firmware1.0">firmware1.0</option>
+                            <option value="firmware2.0">firmware2.0</option>
+                        </select>
+                    </div>
+
                 </div>
             </div>
 
@@ -1853,7 +1862,8 @@
         let presetModes = [0, 0xA1, 0xA1, 0xA1, 0xA1, 0xA1]; // index 0 未使用，1-5对应preset 1-5，默认Steady模式
         
         // 固件版本配置
-        const TARGET_FIRMWARE_DATE = '251016'; // 目标固件版本日期 (YYMMDD格式)
+        let TARGET_FIRMWARE_DATE = '251016'; // 目标固件版本日期 (YYMMDD格式)
+const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
         
         // 当前设备状态跟踪 - B9命令的所有字节状态
         let currentB9State = {
@@ -2577,7 +2587,10 @@
 
         async function loadOTABinFile() {
             try {
-                const response = await fetch('./simple_ota.bin');
+                const selectedFirmware = window.selectedFirmwareVersion || 'firmware1.0';
+                const firmwareFileMap = { 'firmware1.0': './firmware_1_0.bin', 'firmware2.0': './firmware_2_0.bin' };
+                const otaBinPath = firmwareFileMap[selectedFirmware] || './simple_ota.bin';
+                const response = await fetch(otaBinPath);
                 if (!response.ok) {
                     throw new Error(`Failed to load simple_ota.bin: ${response.statusText}`);
                 }
@@ -3428,6 +3441,68 @@
             setTimeout(() => {
                 showNotification('PY32F071 设备控制工具已就绪', 'info', 2000);
             }, 1000);
+
+            // 初始化固件版本选择器
+            const firmwareSelect = document.getElementById('firmwareSelect');
+            if (firmwareSelect) {
+                window.selectedFirmwareVersion = firmwareSelect.value;
+                TARGET_FIRMWARE_DATE = FIRMWARE_DATE_MAP[firmwareSelect.value] || '251016';
+                log(`已选择固件: ${window.selectedFirmwareVersion}，日期: ${TARGET_FIRMWARE_DATE}`);
+
+                // 根据固件版本动态调整LED预设选项（0x14–0x18）
+                const applyLedPresetOptionsByFirmware = (selected) => {
+                    const ledSelect = document.getElementById('ledPresetSelect');
+                    if (!ledSelect) return;
+                    const halloweenValues = ['0x14','0x15','0x16','0x17','0x18'];
+                    // 先移除目标区间内的已有选项
+                    halloweenValues.forEach(val => {
+                        const idx = Array.from(ledSelect.options).findIndex(o => o.value === val);
+                        if (idx >= 0) ledSelect.remove(idx);
+                    });
+                    if (selected === 'firmware2.0') {
+                        // 只保留0x17，名称改为 custom animation
+                        const opt = document.createElement('option');
+                        opt.value = '0x17';
+                        opt.textContent = 'custom animation';
+                        ledSelect.appendChild(opt);
+                        // 如果当前值不在列表中，默认选中0x17
+                        if (!Array.from(ledSelect.options).some(o => o.value === ledSelect.value)) {
+                            ledSelect.value = '0x17';
+                        }
+                    } else {
+                        // 恢复原始选项与名称
+                        const originals = [
+                            { value: '0x14', text: 'Candy corn' },
+                            { value: '0x15', text: 'Redrum' },
+                            { value: '0x16', text: 'Skull&Bones' },
+                            { value: '0x17', text: 'Witches Brew' },
+                            { value: '0x18', text: 'Jack-O-Lantern' }
+                        ];
+                        originals.forEach(({value, text}) => {
+                            const opt = document.createElement('option');
+                            opt.value = value;
+                            opt.textContent = text;
+                            ledSelect.appendChild(opt);
+                        });
+                        // 若当前值不存在则默认选中0x14
+                        if (!Array.from(ledSelect.options).some(o => o.value === ledSelect.value)) {
+                            ledSelect.value = '0x14';
+                        }
+                    }
+                };
+
+                // 初始化应用一次
+                applyLedPresetOptionsByFirmware(window.selectedFirmwareVersion);
+
+                firmwareSelect.addEventListener('change', (e) => {
+                    window.selectedFirmwareVersion = e.target.value;
+                    TARGET_FIRMWARE_DATE = FIRMWARE_DATE_MAP[e.target.value] || '251016';
+                    log(`已选择固件: ${window.selectedFirmwareVersion}，日期: ${TARGET_FIRMWARE_DATE}`);
+                    // 变更后更新LED预设选项
+                    applyLedPresetOptionsByFirmware(window.selectedFirmwareVersion);
+                });
+            }
+
         });
 
         // 切换notifications开关
