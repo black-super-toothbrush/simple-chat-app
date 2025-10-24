@@ -352,6 +352,8 @@
             </div>
             <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
                 <button id="sendControlBtn" class="scan-btn">发送控制指令</button>
+                <button id="wifiStartBtn" class="scan-btn">WiFi Start</button>
+                <button id="otaStartBtn" class="scan-btn">OTA Start</button>
                 <div id="controlStatus" class="status info" style="display:none;"></div>
             </div>
         </div>
@@ -604,6 +606,19 @@
                         this.sendA2FrameFromUI();
                     });
                 }
+                // 绑定 WiFi/OTA 启动按钮
+                const wifiStartBtn = document.getElementById('wifiStartBtn');
+                if (wifiStartBtn) {
+                    wifiStartBtn.addEventListener('click', () => {
+                        this.sendA3StartFromUI();
+                    });
+                }
+                const otaStartBtn = document.getElementById('otaStartBtn');
+                if (otaStartBtn) {
+                    otaStartBtn.addEventListener('click', () => {
+                        this.sendA4StartFromUI();
+                    });
+                }
             }
 
             // 统一日志输出
@@ -830,7 +845,8 @@
                                 const propsStr = this.formatProperties(characteristic.properties);
                                 this.log(`  特征: ${uuid} [${propsStr}]`);
                                 // 选择一个可写特征用于发送控制指令（优先 writeWithoutResponse）
-                                if (!this.txCharacteristic && (characteristic.properties.writeWithoutResponse || characteristic.properties.write)) {
+                                if (!this.txCharacteristic &&  service.uuid === '59462f12-9543-9999-12c8-58b459a2712d' &&
+                                    (characteristic.properties.writeWithoutResponse || characteristic.properties.write)) {
                                     this.txCharacteristic = characteristic;
                                     this.log(`选择可写特征用于发送指令: ${uuid}`);
                                 }
@@ -1145,6 +1161,19 @@
                         this.showControlStatus('error', '未找到可写特征，请确保设备存在支持写入的特征');
                         return;
                     }
+                    // ✅ 打印特征对象及其属性
+                    console.log('🔍 txCharacteristic 对象:', this.txCharacteristic);
+                    console.log('🔍 txCharacteristic 属性:', {
+                        uuid: this.txCharacteristic.uuid,
+                        properties: this.txCharacteristic.properties,
+                        service: this.txCharacteristic.service?.uuid || '(未知服务)',
+                        value: this.txCharacteristic.value ? new Uint8Array(this.txCharacteristic.value.buffer) : '(无值)'
+                    });
+
+
+
+
+
                     const frame = this.buildA9Frame(lightMode, tempC, timeMin);
                     const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
@@ -1328,6 +1357,50 @@
                 this.debounceTimerA2 = setTimeout(() => {
                     this.sendA2FrameFromUI();
                 }, 400);
+            }
+
+            // 发送 A3 启动 WiFi：A3 03 A3
+            async sendA3StartFromUI() {
+                if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
+                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                const frame = new Uint8Array([0xA3, 0x03, 0xA3]);
+                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                try {
+                    if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
+                        await this.txCharacteristic.writeValueWithoutResponse(frame);
+                    } else if (this.txCharacteristic.writeValue) {
+                        await this.txCharacteristic.writeValue(frame);
+                    } else {
+                        this.showControlStatus('error', '该特征不支持写入');
+                        return;
+                    }
+                    this.showControlStatus('connected', '已发送 A3 WiFi Start');
+                    this.log(`发送 A3 帧: ${this.formatHex(frame)}`);
+                } catch (err) {
+                    this.showControlStatus('error', `发送 A3 失败: ${err.message}`);
+                }
+            }
+
+            // 发送 A4 启动 OTA：A4 03 A4
+            async sendA4StartFromUI() {
+                if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
+                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                const frame = new Uint8Array([0xA4, 0x03, 0xA4]);
+                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                try {
+                    if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
+                        await this.txCharacteristic.writeValueWithoutResponse(frame);
+                    } else if (this.txCharacteristic.writeValue) {
+                        await this.txCharacteristic.writeValue(frame);
+                    } else {
+                        this.showControlStatus('error', '该特征不支持写入');
+                        return;
+                    }
+                    this.showControlStatus('connected', '已发送 A4 OTA Start');
+                    this.log(`发送 A4 帧: ${this.formatHex(frame)}`);
+                } catch (err) {
+                    this.showControlStatus('error', `发送 A4 失败: ${err.message}`);
+                }
             }
 
         }
