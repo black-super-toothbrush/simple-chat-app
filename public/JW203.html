@@ -350,6 +350,11 @@
                     </div>
                 </div>
             </div>
+            <div style="margin-top:12px;">
+                <div style="color:#6c757d; margin-bottom:6px;">WiFi 配置</div>
+                <input id="ssidInput" type="text" placeholder="SSID" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px; margin-bottom:8px;">
+                <input id="passwordInput" type="text" placeholder="Password" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
+            </div>
             <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
                 <button id="sendControlBtn" class="scan-btn">发送控制指令</button>
                 <button id="wifiStartBtn" class="scan-btn">WiFi Start</button>
@@ -610,13 +615,13 @@
                 const wifiStartBtn = document.getElementById('wifiStartBtn');
                 if (wifiStartBtn) {
                     wifiStartBtn.addEventListener('click', () => {
-                        this.sendA3StartFromUI();
+                        this.sendWifiConfigFromUI();
                     });
                 }
                 const otaStartBtn = document.getElementById('otaStartBtn');
                 if (otaStartBtn) {
                     otaStartBtn.addEventListener('click', () => {
-                        this.sendA4StartFromUI();
+                        this.sendA6StartFromUI();
                     });
                 }
             }
@@ -1381,11 +1386,67 @@
                 }
             }
 
-            // 发送 A4 启动 OTA：A4 03 A4
-            async sendA4StartFromUI() {
+            // WiFi Start：A3 20 ssid前半段 A3；A4 20 ssid后半段 A4；A5 20 password A5
+            async sendWifiConfigFromUI() {
                 if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
                 if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
-                const frame = new Uint8Array([0xA4, 0x03, 0xA4]);
+                const ssid = (document.getElementById('ssidInput')?.value || '').trim();
+                const password = (document.getElementById('passwordInput')?.value || '').trim();
+                const enc = new TextEncoder();
+                const ssidBytes = enc.encode(ssid);
+                const pwdBytes = enc.encode(password);
+                const pad17 = (bytes) => {
+                    const out = new Uint8Array(17);
+                    out.set(bytes.slice(0, 17));
+                    return out;
+                };
+                const firstHalf = pad17(ssidBytes.slice(0, 17));
+                const secondHalf = pad17(ssidBytes.slice(17, 34));
+                const pwdPadded = pad17(pwdBytes);
+
+                const buildFrame = (head, payload, tail) => {
+                    const frame = new Uint8Array(20);
+                    frame[0] = head; frame[1] = 0x14; frame.set(payload, 2); frame[19] = tail;
+                    return frame;
+                };
+
+                const frameA3 = buildFrame(0xA3, firstHalf, 0xA3);
+                const frameA4 = buildFrame(0xA4, secondHalf, 0xA4);
+                const frameA5 = buildFrame(0xA5, pwdPadded, 0xA5);
+
+                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                const write = async (frame) => {
+                    if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
+                        await this.txCharacteristic.writeValueWithoutResponse(frame);
+                    } else if (this.txCharacteristic.writeValue) {
+                        await this.txCharacteristic.writeValue(frame);
+                    } else {
+                        throw new Error('该特征不支持写入');
+                    }
+                };
+                const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+                try {
+                    this.showControlStatus('scanning', '发送WiFi配置中...');
+                    await write(frameA3);
+                    this.log(`发送 A3 帧: ${this.formatHex(frameA3)} | SSID前半段`);
+                    await sleep(100);
+                    await write(frameA4);
+                    this.log(`发送 A4 帧: ${this.formatHex(frameA4)} | SSID后半段`);
+                    await sleep(100);
+                    await write(frameA5);
+                    this.log(`发送 A5 帧: ${this.formatHex(frameA5)} | Password`);
+                    this.showControlStatus('connected', 'WiFi配置发送完成');
+                } catch (err) {
+                    this.showControlStatus('error', `发送WiFi配置失败: ${err.message}`);
+                }
+            }
+
+            // OTA Start：A6 03 A6
+            async sendA6StartFromUI() {
+                if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
+                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                const frame = new Uint8Array([0xA6, 0x03, 0xA6]);
                 const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
                 try {
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
@@ -1396,10 +1457,10 @@
                         this.showControlStatus('error', '该特征不支持写入');
                         return;
                     }
-                    this.showControlStatus('connected', '已发送 A4 OTA Start');
-                    this.log(`发送 A4 帧: ${this.formatHex(frame)}`);
+                    this.showControlStatus('connected', '已发送 A6 OTA Start');
+                    this.log(`发送 A6 帧: ${this.formatHex(frame)}`);
                 } catch (err) {
-                    this.showControlStatus('error', `发送 A4 失败: ${err.message}`);
+                    this.showControlStatus('error', `发送 A6 失败: ${err.message}`);
                 }
             }
 
