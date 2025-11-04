@@ -1009,6 +1009,35 @@
                 }
             }
 
+            // 写特征后备解析：在移动端 properties 不可用时按固定UUID或方法存在性解析
+            async ensureTxCharacteristic() {
+                try {
+                    if (this.txCharacteristic) return true;
+                    if (!this.connectedServer) return false;
+                    const serviceUuid = '59462f12-9543-9999-12c8-58b459a2712d';
+                    const charUuid = '33333333-2222-2222-1111-111100000000';
+                    const service = await this.connectedServer.getPrimaryService(serviceUuid);
+                    let characteristic = null;
+                    try {
+                        characteristic = await service.getCharacteristic(charUuid);
+                    } catch (_) {
+                        const chars = await service.getCharacteristics();
+                        characteristic = chars.find(c => (c.uuid || '').toLowerCase() === charUuid)
+                            || chars.find(c => (c.writeValueWithoutResponse || c.writeValue));
+                    }
+                    if (characteristic) {
+                        this.txCharacteristic = characteristic;
+                        this.log(`选择可写特征(后备)：${characteristic.uuid}`);
+                        return true;
+                    }
+                    this.log('后备解析写特征失败：未找到支持写入的特征');
+                    return false;
+                } catch (e) {
+                    this.log(`后备解析写特征异常：${e.name || 'Error'}: ${e.message || ''}`);
+                    return false;
+                }
+            }
+
             // 在通知卡片中记录已订阅特征
             updateNotifyList(uuid, propsStr) {
                 if (!this.notifyList) return;
@@ -1232,8 +1261,11 @@
                         return;
                     }
                     if (!this.txCharacteristic) {
-                        this.showControlStatus('error', '未找到可写特征，请确保设备存在支持写入的特征');
-                        return;
+                        const prepared = await this.ensureTxCharacteristic();
+                        if (!prepared) {
+                            this.showControlStatus('error', '未找到可写特征，请确保设备存在支持写入的特征');
+                            return;
+                        }
                     }
                     // ✅ 打印特征对象及其属性
                     console.log('🔍 txCharacteristic 对象:', this.txCharacteristic);
@@ -1400,7 +1432,7 @@
 
             async sendA2FrameFromUI() {
                 if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
-                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                if (!this.txCharacteristic) { const ok = await this.ensureTxCharacteristic(); if (!ok) { this.showControlStatus('error', '未找到可写特征'); return; } }
                 const params = {
                     preHeatTemp: parseInt(this.b2PreHeatTemp?.value || '200', 10),
                     rampUpTemp: parseInt(this.b2RampUpTemp?.value || '200', 10),
@@ -1436,7 +1468,7 @@
             // 发送 A3 启动 WiFi：A3 03 A3
             async sendA3StartFromUI() {
                 if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
-                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                if (!this.txCharacteristic) { const ok = await this.ensureTxCharacteristic(); if (!ok) { this.showControlStatus('error', '未找到可写特征'); return; } }
                 const frame = new Uint8Array([0xA3, 0x03, 0xA3]);
                 const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                 try {
@@ -1458,7 +1490,7 @@
             // WiFi Start：A3 20 ssid前半段 A3；A4 20 ssid后半段 A4；A5 20 password A5
             async sendWifiConfigFromUI() {
                 if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
-                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                if (!this.txCharacteristic) { const ok = await this.ensureTxCharacteristic(); if (!ok) { this.showControlStatus('error', '未找到可写特征'); return; } }
                 const ssid = (document.getElementById('ssidInput')?.value || '').trim();
                 const password = (document.getElementById('passwordInput')?.value || '').trim();
                 const enc = new TextEncoder();
@@ -1514,9 +1546,9 @@
             // OTA Start：A6 03 A6
             async sendA6StartFromUI() {
                 if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
-                if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
+                if (!this.txCharacteristic) { const ok = await this.ensureTxCharacteristic(); if (!ok) { this.showControlStatus('error', '未找到可写特征'); return; } }
                 const frame = new Uint8Array([0xA6, 0x03, 0xA6]);
-                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                 try {
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                         await this.txCharacteristic.writeValueWithoutResponse(frame);
