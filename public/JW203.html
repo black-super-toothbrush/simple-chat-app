@@ -659,7 +659,13 @@
 
             // 特征属性转字符串
             formatProperties(props) {
-                return Object.keys(props).filter(k => props[k]).join(',');
+                const p = (props && typeof props === 'object') ? props : {};
+                try {
+                    const keys = Object.keys(p).filter(k => p[k]);
+                    return keys.length ? keys.join(',') : 'unknown';
+                } catch (e) {
+                    return 'unknown';
+                }
             }
 
             // 规范化UUID到128位或保留已识别别名
@@ -851,13 +857,13 @@
                                 this.log(`  特征: ${uuid} [${propsStr}]`);
                                 // 选择一个可写特征用于发送控制指令（优先 writeWithoutResponse）
                                 if (!this.txCharacteristic &&  service.uuid === '59462f12-9543-9999-12c8-58b459a2712d' &&
-                                    (characteristic.properties.writeWithoutResponse || characteristic.properties.write)) {
+                                    (characteristic.properties?.writeWithoutResponse || characteristic.properties?.write)) {
                                     this.txCharacteristic = characteristic;
                                     this.log(`选择可写特征用于发送指令: ${uuid}`);
                                 }
 
                                 // 订阅通知型特征
-                                if ((characteristic.properties.notify || characteristic.properties.indicate) && !this.subscribedNotifyUUIDs.has(uuid)) {
+                                if ((characteristic.properties?.notify || characteristic.properties?.indicate) && !this.subscribedNotifyUUIDs.has(uuid)) {
                                     try {
                                         await characteristic.startNotifications();
                                         characteristic.addEventListener('characteristicvaluechanged', (event) => {
@@ -888,7 +894,7 @@
                                     let value = 'N/A';
                                     
                                     try {
-                                        if (characteristic.properties.read) {
+                                        if (characteristic.properties?.read) {
                                             const dataView = await characteristic.readValue();
                                             const bytes = new Uint8Array(dataView.buffer);
                                             value = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
@@ -913,7 +919,7 @@
                                 } else {
                                     // 非目标特征也尝试打印其值（若可读）
                                     try {
-                                        if (characteristic.properties.read) {
+                                        if (characteristic.properties?.read) {
                                             const dv = await characteristic.readValue();
                                             const bytes = new Uint8Array(dv.buffer);
                                             const ascii = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
@@ -985,8 +991,9 @@
                     const charElement = document.createElement('div');
                     charElement.className = 'characteristic-item';
                     
-                    const properties = Object.keys(char.properties)
-                        .filter(prop => char.properties[prop])
+                    const propsObj = (char && typeof char === 'object' && char.properties && typeof char.properties === 'object') ? char.properties : {};
+                    const properties = Object.keys(propsObj)
+                        .filter(prop => propsObj[prop])
                         .map(prop => `<span class="property-tag">${prop}</span>`)
                         .join('');
 
@@ -1181,7 +1188,7 @@
 
 
                     const frame = this.buildA9Frame(lightMode, tempC, timeMin);
-                    const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                    const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                         await this.txCharacteristic.writeValueWithoutResponse(frame);
                     } else if (this.txCharacteristic.writeValue) {
@@ -1311,7 +1318,7 @@
                     cooldownTime: parseInt(this.b1CooldownTime?.value || '0', 10),
                 };
                 const frame = this.buildA1Frame(params);
-                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                 if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                     await this.txCharacteristic.writeValueWithoutResponse(frame);
                 } else if (this.txCharacteristic.writeValue) {
@@ -1346,7 +1353,7 @@
                     cooldownTime: parseInt(this.b2CooldownTime?.value || '0', 10),
                 };
                 const frame = this.buildA2Frame(params);
-                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                 if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                     await this.txCharacteristic.writeValueWithoutResponse(frame);
                 } else if (this.txCharacteristic.writeValue) {
@@ -1370,7 +1377,7 @@
                 if (!this.connectedServer) { this.showControlStatus('error', '设备未连接'); return; }
                 if (!this.txCharacteristic) { this.showControlStatus('error', '未找到可写特征'); return; }
                 const frame = new Uint8Array([0xA3, 0x03, 0xA3]);
-                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                 try {
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                         await this.txCharacteristic.writeValueWithoutResponse(frame);
@@ -1415,7 +1422,7 @@
                 const frameA4 = buildFrame(0xA4, secondHalf, 0xA4);
                 const frameA5 = buildFrame(0xA5, pwdPadded, 0xA5);
 
-                const supportsWriteWithout = this.txCharacteristic.properties.writeWithoutResponse;
+                const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                 const write = async (frame) => {
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                         await this.txCharacteristic.writeValueWithoutResponse(frame);
