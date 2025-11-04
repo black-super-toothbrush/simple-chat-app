@@ -657,15 +657,23 @@
                 return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
             }
 
-            // 特征属性转字符串
+            // 特征属性转字符串（兼容移动端：BluetoothCharacteristicProperties 的键通常不可枚举）
             formatProperties(props) {
                 const p = (props && typeof props === 'object') ? props : {};
-                try {
-                    const keys = Object.keys(p).filter(k => p[k]);
-                    return keys.length ? keys.join(',') : 'unknown';
-                } catch (e) {
-                    return 'unknown';
+                const known = [
+                    'broadcast', 'read', 'writeWithoutResponse', 'write',
+                    'notify', 'indicate', 'authenticatedSignedWrites',
+                    'reliableWrite', 'writableAuxiliaries'
+                ];
+                const enabled = [];
+                for (const k of known) {
+                    try {
+                        if (p[k]) enabled.push(k);
+                    } catch (_) {
+                        // ignore
+                    }
                 }
+                return enabled.length ? enabled.join(',') : 'unknown';
             }
 
             // 规范化UUID到128位或保留已识别别名
@@ -790,6 +798,8 @@
                         this.notifyStatus.className = 'status info';
                         this.notifyStatus.textContent = '未订阅到通知特征。若设备使用自定义服务，请在扫描前添加对应服务UUID（如 ffe0/fff0 或 128-bit）。';
                     }
+                    // 移动端后备：尝试固定UUID订阅通知
+                    await this.forceSubscribeFixedNotify();
                     
                 } catch (error) {
                     console.error('连接设备失败:', error);
@@ -940,11 +950,62 @@
                     }
                     
                     this.displayCharacteristics(targetCharacteristics);
-                    
+
                 } catch (error) {
                     console.error('读取设备特征失败:', error);
                     this.log(`读取设备特征失败：${error.message}`);
                     this.characteristicsContainer.innerHTML = `<p style="text-align: center; color: #cc0000; padding: 20px;">读取特征失败: ${error.message}</p>`;
+                }
+            }
+
+            // 固定UUID订阅后备逻辑：用于移动端无法枚举properties的情况
+            async forceSubscribeFixedNotify() {
+                try {
+                    if (!this.connectedServer) return;
+                    const serviceUuid = '59462f12-9543-9999-12c8-58b459a2712d';
+                    const charUuid = '33333333-2222-2222-1111-111100000000';
+                    if (this.subscribedNotifyUUIDs.has(charUuid)) return;
+
+                    const service = await this.connectedServer.getPrimaryService(serviceUuid);
+                    let characteristic = null;
+                    try {
+                        // 直接按UUID获取特征（若浏览器支持）
+                        characteristic = await service.getCharacteristic(charUuid);
+                    } catch (_) {
+                        // 回退：遍历服务下的全部特征匹配UUID
+                        const chars = await service.getCharacteristics();
+                        characteristic = chars.find(c => (c.uuid || '').toLowerCase() === charUuid);
+                    }
+
+                    if (!characteristic) {
+                        this.log('固定订阅失败：未找到固定UUID特征');
+                        return;
+                    }
+
+                    try {
+                        await characteristic.startNotifications();
+                        characteristic.addEventListener('characteristicvaluechanged', (event) => {
+                            const dv = event.target.value;
+                            const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+                            const ascii = new TextDecoder('utf-8').decode(bytes).replace(/\0+$/g, '');
+                            const hex = this.formatHex(bytes);
+                            this.notify(`${charUuid} -> ASCII: ${ascii}`);
+                            this.notify(`${charUuid} -> HEX: ${hex}`);
+                            this.handleStatusFrame(bytes);
+                        });
+                        this.subscribedNotifyUUIDs.add(charUuid);
+                        this.updateNotifyList(charUuid, 'notify');
+                        if (this.notifyStatus) {
+                            this.notifyStatus.style.display = 'block';
+                            this.notifyStatus.className = 'status connected';
+                            this.notifyStatus.textContent = '已订阅通知特征，等待消息...';
+                        }
+                        this.log('已通过固定UUID订阅通知特征');
+                    } catch (e) {
+                        this.log(`固定订阅通知失败：${e.name || 'Error'}: ${e.message || ''}`);
+                    }
+                } catch (e) {
+                    this.log(`固定订阅流程异常：${e.name || 'Error'}: ${e.message || ''}`);
                 }
             }
 
