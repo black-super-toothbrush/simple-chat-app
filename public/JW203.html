@@ -928,7 +928,8 @@
 
                         } catch (serviceError) {
                             console.warn('读取服务特征失败:', serviceError);
-                            this.log('读取服务特征失败');
+                            const reason = `${serviceError.name || 'Error'}: ${serviceError.message || ''}`;
+                            this.log(`读取服务特征失败：${reason}`);
                         }
                     }
                     
