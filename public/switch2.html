@@ -1832,6 +1832,14 @@
       <div id="colorPickerContainer" style="background:#fff; border-radius:16px; padding:32px 24px 16px 24px; box-shadow:0 8px 32px rgba(0,0,0,0.18); position:relative; min-width:320px;">
         <div id="iroColorPicker"></div>
         <div id="colorPickerRgbInfo" style="margin: 12px 0; text-align: center; font-size: 1.1em; color: #333;"></div>
+        <div id="colorPickerRgbInputs" style="display:flex; align-items:center; justify-content:center; gap:8px; margin:8px 0;">
+          <label for="picker_r" style="font-size:0.9em;">R</label>
+          <input type="number" id="picker_r" min="0" max="255" value="0" class="form-control" style="width:70px; padding:4px 8px;">
+          <label for="picker_g" style="font-size:0.9em;">G</label>
+          <input type="number" id="picker_g" min="0" max="255" value="0" class="form-control" style="width:70px; padding:4px 8px;">
+          <label for="picker_b" style="font-size:0.9em;">B</label>
+          <input type="number" id="picker_b" min="0" max="255" value="0" class="form-control" style="width:70px; padding:4px 8px;">
+        </div>
         <div style="text-align:right; margin-top:18px;">
           <button id="colorPickerOkBtn" class="btn btn-primary">setting</button>
           <button id="colorPickerCancelBtn" class="btn btn-secondary" style="margin-left:12px;">back</button>
@@ -4994,6 +5002,44 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
           let iroPicker = null;
           let currentColorPoint = 1;
           let iroPickerInitialColor = '#ff0000';
+          let pickerInputsBound = false;
+
+          function clamp255(v) {
+              const n = parseInt(v, 10);
+              if (isNaN(n)) return 0;
+              return Math.max(0, Math.min(255, n));
+          }
+
+          function setPickerRgbInputs(rgb) {
+              const rEl = document.getElementById('picker_r');
+              const gEl = document.getElementById('picker_g');
+              const bEl = document.getElementById('picker_b');
+              if (!rEl || !gEl || !bEl) return;
+              rEl.value = rgb.r;
+              gEl.value = rgb.g;
+              bEl.value = rgb.b;
+          }
+
+          function bindPickerInputEvents() {
+              if (pickerInputsBound) return;
+              const rEl = document.getElementById('picker_r');
+              const gEl = document.getElementById('picker_g');
+              const bEl = document.getElementById('picker_b');
+              if (!rEl || !gEl || !bEl) return;
+              const handler = () => {
+                  const r = clamp255(rEl.value);
+                  const g = clamp255(gEl.value);
+                  const b = clamp255(bEl.value);
+                  if (iroPicker) {
+                      iroPicker.color.rgb = { r, g, b };
+                      document.getElementById('colorPickerRgbInfo').textContent = `RGB: (${r}, ${g}, ${b})`;
+                  }
+              };
+              rEl.addEventListener('input', handler);
+              gEl.addEventListener('input', handler);
+              bEl.addEventListener('input', handler);
+              pickerInputsBound = true;
+          }
 
           // 打开调色盘弹窗
           function openColorPicker(point) {
@@ -5018,6 +5064,7 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
                       const rgb = color.rgb;
                       document.getElementById('colorPickerRgbInfo').textContent =
                           `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+                      setPickerRgbInputs(rgb);
                   });
               } else {
                   iroPicker.color.set(iroPickerInitialColor);
@@ -5025,7 +5072,9 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
                   const rgb = iroPicker.color.rgb;
                   document.getElementById('colorPickerRgbInfo').textContent =
                       `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+                  setPickerRgbInputs(rgb);
               }
+              bindPickerInputEvents();
               document.getElementById('colorPickerModal').style.display = 'flex';
           }
           // 关闭调色盘弹窗
@@ -5106,6 +5155,42 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
               let iroPicker = null;
               let currentColorPoint = 1;
               let iroPickerInitialColor = '#ff0000';
+              let pickerInputsBound = false;
+
+              function clamp255(v) {
+                  const n = parseInt(v, 10);
+                  if (isNaN(n)) return 0;
+                  return Math.max(0, Math.min(255, n));
+              }
+              function setPickerRgbInputs(rgb) {
+                  const rEl = document.getElementById('picker_r');
+                  const gEl = document.getElementById('picker_g');
+                  const bEl = document.getElementById('picker_b');
+                  if (!rEl || !gEl || !bEl) return;
+                  rEl.value = rgb.r;
+                  gEl.value = rgb.g;
+                  bEl.value = rgb.b;
+              }
+              function bindPickerInputEvents() {
+                  if (pickerInputsBound) return;
+                  const rEl = document.getElementById('picker_r');
+                  const gEl = document.getElementById('picker_g');
+                  const bEl = document.getElementById('picker_b');
+                  if (!rEl || !gEl || !bEl) return;
+                  const handler = () => {
+                      const r = clamp255(rEl.value);
+                      const g = clamp255(gEl.value);
+                      const b = clamp255(bEl.value);
+                      if (iroPicker) {
+                          iroPicker.color.rgb = { r, g, b };
+                          document.getElementById('colorPickerRgbInfo').textContent = `RGB: (${r}, ${g}, ${b})`;
+                      }
+                  };
+                  rEl.addEventListener('input', handler);
+                  gEl.addEventListener('input', handler);
+                  bEl.addEventListener('input', handler);
+                  pickerInputsBound = true;
+              }
 
               window.openColorPicker = function(point) {
                   currentColorPoint = point;
@@ -5129,6 +5214,7 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
                           const rgb = color.rgb;
                           document.getElementById('colorPickerRgbInfo').textContent =
                               `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+                          setPickerRgbInputs(rgb);
                       });
                   } else {
                       iroPicker.color.set(iroPickerInitialColor);
@@ -5136,7 +5222,9 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251016', 'firmware2.0': '250928' };
                       const rgb = iroPicker.color.rgb;
                       document.getElementById('colorPickerRgbInfo').textContent =
                           `RGB: (${rgb.r}, ${rgb.g}, ${rgb.b})`;
+                      setPickerRgbInputs(rgb);
                   }
+                  bindPickerInputEvents();
                   document.getElementById('colorPickerModal').style.display = 'flex';
               };
 
