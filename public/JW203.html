@@ -370,11 +370,16 @@
                     </div>
                 </div>
 
+                <div>
+                    <div class="toggle-circle-wrap">
+                        <button id="startStopToggleBtn" class="toggle-circle-btn start" aria-pressed="false">Start</button>
+                        <div id="boostWrap" style="display:none; margin-top:8px;">
+                            <button id="boostBtn" class="scan-btn">boost</button>
+                            <span id="boostDisplay" style="margin-left:8px; color:#6c757d;">boost:0</span>
+                        </div>
+                    </div>
 
-                <div class="toggle-circle-wrap">
-                    <button id="startStopToggleBtn" class="toggle-circle-btn start" aria-pressed="false">Start</button>
                 </div>
-
 
             </div>
             <div style="margin-top:12px;">
@@ -537,6 +542,10 @@
                 this.remainTimeValue = document.getElementById('remainTimeValue');
                 this.lightModeValue = document.getElementById('lightModeValue');
                 this.startStopToggleBtn = document.getElementById('startStopToggleBtn');
+                this.boostBtn = document.getElementById('boostBtn');
+                this.boostDisplay = document.getElementById('boostDisplay');
+                this.boostWrap = document.getElementById('boostWrap');
+                this.boostCount = 0;
                 this.deviceStatusTips = document.getElementById('deviceStatusTips');
                 this.txCharacteristic = null;
                 this.currentLightMode = 0;
@@ -652,6 +661,7 @@
                             btn.classList.add('stop');
                             btn.textContent = 'Stop';
                             btn.setAttribute('aria-pressed', 'true');
+                            if (this.boostWrap) this.boostWrap.style.display = 'inline-flex';
                             this.startSession = 0x01;
                             const mode = this.currentLightMode || 0;
                             const temp = parseInt(this.setTempInput?.value || '200', 10);
@@ -663,13 +673,27 @@
                             btn.classList.add('start');
                             btn.textContent = 'Start';
                             btn.setAttribute('aria-pressed', 'false');
+                            if (this.boostWrap) this.boostWrap.style.display = 'none';
                             this.startSession = 0x00;
+                            this.boostCount = 0;
                             const mode = this.currentLightMode || 0;
                             const temp = parseInt(this.setTempInput?.value || '200', 10);
                             const time = parseInt(this.setTimeInput?.value || '60', 10);
                             const autoSleepTime = parseInt(this.autoSleepTimeInput?.value || '10', 10);
                             this.sendControlCommand(mode, temp, time, autoSleepTime);
                         }
+                    });
+                }
+                // boost 计数按钮
+                if (this.boostBtn) {
+                    this.boostBtn.addEventListener('click', () => {
+                        this.boostCount = (this.boostCount ?? 0) + 1;
+                        if (this.boostDisplay) this.boostDisplay.textContent = `boost:${this.boostCount}`;
+                        const mode = this.currentLightMode || 0;
+                        const temp = parseInt(this.setTempInput?.value || '200', 10);
+                        const time = parseInt(this.setTimeInput?.value || '60', 10);
+                        const autoSleepTime = parseInt(this.autoSleepTimeInput?.value || '10', 10);
+                        this.sendControlCommand(mode, temp, time, autoSleepTime);
                     });
                 }
                 // 绑定 A1 发送按钮：用户修改完所有阶段参数后，统一点击发送
@@ -1324,9 +1348,9 @@
             // 构建 A9 控制帧: A9 07 lightMode set_temp(high) set_temp(low) set_time auto_sleep_time A9
             buildA9Frame(lightMode, setTempCelsius, setTimeMinutes, autoSleepTime) {
                 const START = 0xA9, END = 0xA9;
-                const buf = new Uint8Array(9);
+                const buf = new Uint8Array(10);
                 buf[0] = START;
-                buf[1] = 0x09;
+                buf[1] = 0x0a;
                 const lm = Math.max(0, Math.min(5, (lightMode || 0) | 0));
                 const tempRaw = Math.max(150, Math.min(300, Math.round((setTempCelsius || 150))));
                 const timeMin = Math.max(30, Math.min(120, (setTimeMinutes || 30) | 0));
@@ -1336,7 +1360,8 @@
                 buf[5] = timeMin & 0xFF;
                 buf[6] = autoSleepTime & 0xFF;
                 buf[7] = this.startSession;
-                buf[8] = END;
+                buf[8] = this.boostCount;
+                buf[9] = END;
                 return buf;
             }
 
