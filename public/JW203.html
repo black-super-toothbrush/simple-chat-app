@@ -349,6 +349,13 @@
                         <span>30min</span><span id="setTimeDisplay">60min</span><span>120min</span>
                     </div>
                 </div>
+                <div>
+                    <div style="color:#6c757d; margin:10px 0 6px;">自动休眠时间 (0-60min)</div>
+                    <input id="autoSleepTimeInput" type="range" min="0" max="60" step="1" value="10" style="width:100%" />
+                    <div style="display:flex;justify-content:space-between;color:#6c757d;font-size:0.9rem;">
+                        <span>0min</span><span id="autoSleepTimeDisplay">10min</span><span>60min</span>
+                    </div>
+                </div>
             </div>
             <div style="margin-top:12px;">
                 <div style="color:#6c757d; margin-bottom:6px;">WiFi 配置</div>
@@ -504,6 +511,8 @@
                 this.realTempValue = document.getElementById('realTempValue');
                 this.setTempValue = document.getElementById('setTempValue');
                 this.setTimeValue = document.getElementById('setTimeValue');
+                this.autoSleepTimeInput = document.getElementById('autoSleepTimeInput');
+                this.autoSleepTimeDisplay = document.getElementById('autoSleepTimeDisplay');
                 this.remainTimeValue = document.getElementById('remainTimeValue');
                 this.lightModeValue = document.getElementById('lightModeValue');
                 this.deviceStatusTips = document.getElementById('deviceStatusTips');
@@ -565,7 +574,8 @@
                             }
                             const temp = parseInt(this.setTempInput?.value || '200', 10);
                             const time = parseInt(this.setTimeInput?.value || '60', 10);
-                            this.sendControlCommand(mode, temp, time);
+                            const autoSleepTime = parseInt(this.autoSleepTimeInput?.value || '10', 10);
+                            this.sendControlCommand(mode, temp, time, autoSleepTime);   
                         });
                     });
                 }
@@ -589,12 +599,23 @@
                         this.scheduleDebouncedSend();
                     });
                 }
+                if (this.autoSleepTimeInput && this.autoSleepTimeDisplay) {
+                    this.autoSleepTimeInput.addEventListener('input', () => {
+                        const autoSleepTimeVal = parseInt(this.autoSleepTimeInput.value || '10', 10);
+                        this.autoSleepTimeDisplay.textContent = `${autoSleepTimeVal}min`;
+                        // 乐观更新状态卡片的自动休眠时间
+                        if (this.autoSleepTimeInput) this.autoSleepTimeInput.textContent = `${autoSleepTimeVal}Min`;
+                        // 变更即发送（防抖）
+                        this.scheduleDebouncedSend();
+                    });
+                }
                 if (this.sendControlBtn) {
                     this.sendControlBtn.addEventListener('click', () => {
                         const mode = this.currentLightMode || 0;
                         const temp = parseInt(this.setTempInput?.value || '200', 10);
                         const time = parseInt(this.setTimeInput?.value || '60', 10);
-                        this.sendControlCommand(mode, temp, time);
+                        const autoSleepTime = parseInt(this.autoSleepTimeInput?.value || '10', 10);
+                        this.sendControlCommand(mode, temp, time, autoSleepTime);
                     });
                 }
                 // 绑定 A1 发送按钮：用户修改完所有阶段参数后，统一点击发送
@@ -1117,7 +1138,8 @@
                         const lightMode = bytes[7];
                         const setTime = bytes[8];
                         const remainTime = (bytes[9] << 8) | bytes[10]; 
-                        this.updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime });
+                        const auto_sleep_time = bytes[11]; 
+                        this.updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime, auto_sleep_time});
                         return true;                        
                     }
                     else if (bytes[0] == 0xb1 && bytes[bytes.length - 1] == 0xb1) {
@@ -1176,17 +1198,20 @@
                 }
             }
 
-            updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime }) {
+            updateDeviceStatus({ battery, realTemp, setTemp, lightMode, setTime, remainTime, auto_sleep_time }) {
                 if (this.batteryValue) this.batteryValue.textContent = `${battery}%`;
                 if (this.realTempValue) this.realTempValue.textContent = `${realTemp}°C`;
                 if (this.setTempValue) this.setTempValue.textContent = `${setTemp}°C`;
                 if (this.setTimeValue) this.setTimeValue.textContent = `${setTime}Min`;
+                if (this.autoSleepTimeInput) this.autoSleepTimeInput.textContent = `${auto_sleep_time}Min`;     
                 // 同步设备控制卡片：更新滑动条的位置与数值显示
                 const tempC = Math.round(setTemp);
                 if (this.setTempInput) this.setTempInput.value = String(tempC);
                 if (this.setTempDisplay) this.setTempDisplay.textContent = `${tempC}℃`;
                 if (this.setTimeInput) this.setTimeInput.value = String(setTime);
+                if (this.autoSleepTimeInput) this.autoSleepTimeInput.value = String(auto_sleep_time);
                 if (this.setTimeDisplay) this.setTimeDisplay.textContent = `${setTime}min`;
+                if (this.autoSleepTimeDisplay) this.autoSleepTimeDisplay.textContent = `${auto_sleep_time}min`;
                 // 同步灯光模式按钮选中态
                 if (this.lightModeControls) {
                     const modeButtons = Array.from(this.lightModeControls.querySelectorAll('button[data-mode]'));
@@ -1236,12 +1261,12 @@
                 this.controlStatus.textContent = message;
             }
 
-            // 构建 A9 控制帧: A9 07 lightMode set_temp(high) set_temp(low) set_time A9
-            buildA9Frame(lightMode, setTempCelsius, setTimeMinutes) {
+            // 构建 A9 控制帧: A9 07 lightMode set_temp(high) set_temp(low) set_time auto_sleep_time A9
+            buildA9Frame(lightMode, setTempCelsius, setTimeMinutes, autoSleepTime) {
                 const START = 0xA9, END = 0xA9;
-                const buf = new Uint8Array(7);
+                const buf = new Uint8Array(8);
                 buf[0] = START;
-                buf[1] = 0x07;
+                buf[1] = 0x08;
                 const lm = Math.max(0, Math.min(5, (lightMode || 0) | 0));
                 const tempRaw = Math.max(150, Math.min(300, Math.round((setTempCelsius || 150))));
                 const timeMin = Math.max(30, Math.min(120, (setTimeMinutes || 30) | 0));
@@ -1249,12 +1274,13 @@
                 buf[3] = (tempRaw >> 8) & 0xFF;
                 buf[4] = tempRaw & 0xFF;
                 buf[5] = timeMin & 0xFF;
-                buf[6] = END;
+                buf[6] = autoSleepTime & 0xFF;
+                buf[7] = END;
                 return buf;
             }
 
             // 发送控制指令
-            async sendControlCommand(lightMode, tempC, timeMin) {
+            async sendControlCommand(lightMode, tempC, timeMin, autoSleepTime) {
                 try {
                     if (!this.connectedServer) {
                         this.showControlStatus('error', '设备未连接');
@@ -1279,8 +1305,7 @@
 
 
 
-
-                    const frame = this.buildA9Frame(lightMode, tempC, timeMin);
+                    const frame = this.buildA9Frame(lightMode, tempC, timeMin, autoSleepTime);
                     const supportsWriteWithout = !!this.txCharacteristic?.properties?.writeWithoutResponse;
                     if (supportsWriteWithout && this.txCharacteristic.writeValueWithoutResponse) {
                         await this.txCharacteristic.writeValueWithoutResponse(frame);
@@ -1290,7 +1315,7 @@
                         this.showControlStatus('error', '该特征不支持写入');
                         return;
                     }
-                    this.showControlStatus('connected', `已发送控制指令: 模式=${lightMode}, 温度=${tempC}℃, 时间=${timeMin}min`);
+                    this.showControlStatus('connected', `已发送控制指令: 模式=${lightMode}, 温度=${tempC}℃, 时间=${timeMin}min, 自动休眠=${autoSleepTime}min`);
                     this.log(`发送 A9 帧: ${this.formatHex(frame)}`);
                 } catch (e) {
                     this.showControlStatus('error', `发送失败: ${e.message || e}`);
@@ -1307,7 +1332,9 @@
                     const mode = this.currentLightMode || 0;
                     const temp = parseInt(this.setTempInput?.value || '200', 10);
                     const time = parseInt(this.setTimeInput?.value || '60', 10);
-                    this.sendControlCommand(mode, temp, time);
+                    const autoSleepTime = parseInt(this.autoSleepTimeInput?.value || '10', 10);
+                    console.log(`[Debounce] 即将发送控制: mode=${mode}, temp=${temp}℃, time=${time}min, autoSleep=${autoSleepTime}min`);
+                    this.sendControlCommand(mode, temp, time, autoSleepTime);
                     this.debounceTimer = null;
                 }, 400);
             }
