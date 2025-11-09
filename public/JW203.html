@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JW203 蓝牙设备管理</title>
+    <title>Nivora</title>
     <style>
         * {
             margin: 0;
@@ -233,7 +233,7 @@
             animation: spin 1s linear infinite;
         }
 
-        /* 操作日志样式 */
+        /* Operation log styles */
         .log-section {
             margin-top: 12px;
             text-align: left;
@@ -277,7 +277,7 @@
             }
         }
 
-        /* 圆形 Start/Stop 切换按钮样式 */
+        /* Circular Start/Stop toggle button styles */
         .toggle-circle-wrap { margin-top: 8px; }
         .toggle-circle-btn {
             width: 64px; height: 64px; border-radius: 50%;
@@ -294,40 +294,39 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔵 JW203 蓝牙设备管理</h1>
-            <p>扫描并连接BLE蓝牙设备，查看设备特征信息</p>
+            <h1>🔵 Nivora </h1>
         </div>
 
 
         <div class="card scan-section">
-            <h2>🔍 设备扫描</h2>
-            <button id="scanBtn" class="scan-btn">开始扫描设备</button>
+            <h2>🔍 Device Scan</h2>
+            <button id="scanBtn" class="scan-btn">Scan Devices</button>
             <div style="margin-top: 12px">
-                <label for="extraServicesInput" class="log-label" style="margin-bottom: 6px; display:block;">附加服务UUID（用于订阅通知，逗号分隔）</label>
-                <input id="extraServicesInput" type="text" placeholder="例如：ffe0, fff0 或 0000ffe0-0000-1000-8000-00805f9b34fb" value="59462f12-9543-9999-12c8-58b459a2712d" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
-                <div style="color:#6c757d; font-size: 0.9rem; margin-top: 6px;">提示：如设备使用自定义服务，请在扫描前填入对应服务UUID；短UUID会自动转换为128位。</div>
+                <!-- <label for="extraServicesInput" class="log-label" style="margin-bottom: 6px; display:block;">Extra Service UUIDs (for notifications, comma-separated)</label> -->
+                <input id="extraServicesInput" type="text" placeholder="Example: ffe0, fff0 or 0000ffe0-0000-1000-8000-00805f9b34fb" value="59462f12-9543-9999-12c8-58b459a2712d" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;"hidden>
+                <!-- <div style="color:#6c757d; font-size: 0.9rem; margin-top: 6px;">Tip: If the device uses custom services, enter the service UUIDs before scanning; short UUIDs will automatically convert to 128-bit.</div> -->
             </div>
             <div id="scanStatus" class="status" style="display: none;"></div>
             <div class="log-section">
-                <label class="log-label">操作日志</label>
+                <label class="log-label">Operation Log</label>
                 <pre id="opLog" class="log-output"></pre>
             </div>
         </div>
 
 
         <div class="card device-status">
-            <h2>📟 设备状态</h2>
+            <h2>📟 Device Status</h2>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div>
-                    <div style="color:#6c757d;">电量</div>
+                    <div style="color:#6c757d;">Battery</div>
                     <div id="batteryValue" class="characteristic-value">-</div>
                 </div>
                 <div>
-                    <div style="color:#6c757d;">实测温度</div>
+                    <div style="color:#6c757d;">Measured Temperature</div>
                     <div id="realTempValue" class="characteristic-value">-</div>
                 </div>
                 <div>
-                    <div style="color:#6c757d;">剩余时间</div>
+                    <div style="color:#6c757d;">Remaining Time</div>
                     <div id="remainTimeValue" class="characteristic-value">-</div>
                 </div>
             </div>
@@ -335,10 +334,10 @@
         </div>
 
         <div class="card control-section">
-            <h2>🎛️ 设备控制</h2>
+            <h2>🎛️ Device Control</h2>
             <div style="display:grid;grid-template-columns:1fr;gap:12px;">
                 <div>
-                    <div style="color:#6c757d; margin-bottom:6px;">灯光模式</div>
+                    <div style="color:#6c757d; margin-bottom:6px;">Light Mode</div>
                     <div id="lightModeControls" style="display:flex;gap:8px;flex-wrap:wrap;">
                         <button class="scan-btn" data-mode="0">0</button>
                         <button class="scan-btn" data-mode="1">1</button>
@@ -349,21 +348,21 @@
                     </div>
                 </div>
                 <div>
-                    <div style="color:#6c757d; margin:10px 0 6px;">设置温度 (150-300℃)</div>
+                    <div style="color:#6c757d; margin:10px 0 6px;">Set Temperature (150-300℃)</div>
                     <input id="setTempInput" type="range" min="150" max="300" step="5" value="200" style="width:100%" />
                     <div style="display:flex;justify-content:space-between;color:#6c757d;font-size:0.9rem;">
                         <span>150℃</span><span id="setTempDisplay">200℃</span><span>300℃</span>
                     </div>
                 </div>
                 <div>
-                    <div style="color:#6c757d; margin:10px 0 6px;">设置时间 (30-120min)</div>
+                    <div style="color:#6c757d; margin:10px 0 6px;">Set Time (30-120min)</div>
                     <input id="setTimeInput" type="range" min="30" max="120" step="5" value="60" style="width:100%" />
                     <div style="display:flex;justify-content:space-between;color:#6c757d;font-size:0.9rem;">
                         <span>30min</span><span id="setTimeDisplay">60min</span><span>120min</span>
                     </div>
                 </div>
                 <div>
-                    <div style="color:#6c757d; margin:10px 0 6px;">自动休眠时间 (0-60min)</div>
+                    <div style="color:#6c757d; margin:10px 0 6px;">Auto Sleep Time (0-60min)</div>
                     <input id="autoSleepTimeInput" type="range" min="0" max="60" step="1" value="10" style="width:100%" />
                     <div style="display:flex;justify-content:space-between;color:#6c757d;font-size:0.9rem;">
                         <span>0min</span><span id="autoSleepTimeDisplay">10min</span><span>60min</span>
@@ -383,12 +382,16 @@
 
             </div>
             <div style="margin-top:12px;">
-                <div style="color:#6c757d; margin-bottom:6px;">WiFi 配置</div>
-                <input id="ssidInput" type="text" placeholder="SSID" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px; margin-bottom:8px;">
-                <input id="passwordInput" type="text" placeholder="Password" style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
+                <div style="color:#6c757d; margin-bottom:6px;">WiFi Configuration</div>
+                <input id="ssidInput" type="text" placeholder="SSID"
+                 value="HUAWEI-Wifi6+"
+                 style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px; margin-bottom:8px;">
+                <input id="passwordInput" type="text" placeholder="Password" 
+                 value="@Focus2022"
+                 style="width:100%; padding:10px; border:1px solid #dee2e6; border-radius:8px;">
             </div>
             <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-                <button id="sendControlBtn" class="scan-btn">发送控制指令</button>
+                <button id="sendControlBtn" class="scan-btn">Send Control Command</button>
                 <button id="wifiStartBtn" class="scan-btn">WiFi Start</button>
                 <button id="otaStartBtn" class="scan-btn">OTA Start</button>
                 <div id="controlStatus" class="status info" style="display:none;"></div>
@@ -396,39 +399,39 @@
         </div>
         
         <div class="card b1-section">
-            <h2>🧪 Classic温度/时间 (B1/A1)</h2>
+            <h2>🧪 Classic Temperature/Time (B1/A1)</h2>
             <div style="overflow-x:auto;">
                 <table id="b1Table" style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr>
-                            <th style="text-align:left;color:#6c757d;">阶段</th>
-                            <th style="text-align:left;color:#6c757d;">温度(℃)</th>
-                            <th style="text-align:left;color:#6c757d;">时间(min)</th>
+                            <th style="text-align:left;color:#6c757d;">Stage</th>
+                            <th style="text-align:left;color:#6c757d;">Temperature (℃)</th>
+                            <th style="text-align:left;color:#6c757d;">Time (min)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>预热</td>
+                            <td>Preheat</td>
                             <td><input id="b1PreHeatTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b1PreHeatTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>升温</td>
+                            <td>Ramp Up</td>
                             <td><input id="b1RampUpTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b1RampUpTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>恒温</td>
+                            <td>Hold</td>
                             <td><input id="b1SteadyTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b1SteadyTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>增强</td>
+                            <td>Boost</td>
                             <td><input id="b1BoostTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b1BoostTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>降温</td>
+                            <td>Cooldown</td>
                             <td><input id="b1CooldownTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b1CooldownTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
@@ -436,45 +439,45 @@
                 </table>
             </div>
             <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-                <button id="sendA1Btn" class="scan-btn">发送阶段参数(A1)</button>
+                <button id="sendA1Btn" class="scan-btn">Send Stage Parameters (A1)</button>
             </div>
             <div id="b1Status" class="status info" style="display:none;margin-top:8px;"></div>
         </div>
         
         <div class="card b2-section">
-            <h2>🧪 Herbal温度/时间 (B2/A2)</h2>
+            <h2>🧪 Herbal Temperature/Time (B2/A2)</h2>
             <div style="overflow-x:auto;">
                 <table id="b2Table" style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr>
-                            <th style="text-align:left;color:#6c757d;">阶段</th>
-                            <th style="text-align:left;color:#6c757d;">温度(℃)</th>
-                            <th style="text-align:left;color:#6c757d;">时间(min)</th>
+                            <th style="text-align:left;color:#6c757d;">Stage</th>
+                            <th style="text-align:left;color:#6c757d;">Temperature (℃)</th>
+                            <th style="text-align:left;color:#6c757d;">Time (min)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>预热</td>
+                            <td>Preheat</td>
                             <td><input id="b2PreHeatTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b2PreHeatTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>升温</td>
+                            <td>Ramp Up</td>
                             <td><input id="b2RampUpTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b2RampUpTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>恒温</td>
+                            <td>Hold</td>
                             <td><input id="b2SteadyTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b2SteadyTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>增强</td>
+                            <td>Boost</td>
                             <td><input id="b2BoostTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b2BoostTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
                         <tr>
-                            <td>降温</td>
+                            <td>Cooldown</td>
                             <td><input id="b2CooldownTemp" type="number" min="60" max="300" step="1" value="200" style="width:100%"></td>
                             <td><input id="b2CooldownTime" type="number" min="0" max="120" step="1" value="0" style="width:100%"></td>
                         </tr>
@@ -483,7 +486,7 @@
             </div>
 
             <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-                <button id="sendA2Btn" class="scan-btn">发送阶段参数(A2)</button>
+                <button id="sendA2Btn" class="scan-btn">Send Stage Parameters (A2)</button>
             </div>
 
             <div id="b2Status" class="status info" style="display:none;margin-top:8px;"></div>
@@ -492,14 +495,14 @@
 
 
         <div class="card characteristics-section">
-            <h2>🔧 设备特征信息 (0x2A24-0x2A29)</h2>
+            <h2>🔧 Device Characteristics (0x2A24-0x2A29)</h2>
             <div id="characteristicsContainer">
-                <p style="text-align: center; color: #6c757d; padding: 20px;">请先连接设备以查看特征信息</p>
+                <p style="text-align: center; color: #6c757d; padding: 20px;">Please connect a device to view characteristics</p>
             </div>
         </div>
 
         <div class="card notify-section">
-            <h2>🔔 通知消息</h2>
+            <h2>🔔 Notifications</h2>
             <div id="notifyStatus" class="status info" style="display: none;"></div>
             <div id="notifyList" class="characteristics-grid"></div>
             <pre id="notifyLog" class="log-output" style="min-height: 120px"></pre>
@@ -564,7 +567,7 @@
                 this.b1Status = document.getElementById('b1Status');
                 
 
-                // 阶段参数A2
+                // Stage parameters A2
                 this.b2PreHeatTemp = document.getElementById('b2PreHeatTemp');
                 this.b2PreHeatTime = document.getElementById('b2PreHeatTime');
                 this.b2RampUpTemp = document.getElementById('b2RampUpTemp');
@@ -585,23 +588,23 @@
             init() {
                 this.scanBtn.addEventListener('click', () => this.scanForDevices());
                 
-                // 检查浏览器是否支持Web Bluetooth
+                // Check if the browser supports Web Bluetooth
                 if (!navigator.bluetooth) {
-                    this.showStatus('error', '此浏览器不支持Web Bluetooth API');
+                    this.showStatus('error', 'This browser does not support Web Bluetooth API');
                     this.scanBtn.disabled = true;
                 }
-                this.log('页面初始化完成');
+                this.log('Page initialization complete');
                 
-                // 设备控制卡片事件绑定
+                // Bind device control card events
                 if (this.lightModeControls) {
                     const modeButtons = Array.from(this.lightModeControls.querySelectorAll('button[data-mode]'));
                     modeButtons.forEach(btn => {
                         btn.addEventListener('click', () => {
                             const mode = parseInt(btn.getAttribute('data-mode')) || 0;
                             this.currentLightMode = mode;
-                            // 更新选中态
+                            // Update selection state
                             modeButtons.forEach(b => b.classList.toggle('active', b === btn));
-                            // 乐观更新状态卡片的灯光模式显示
+                            // Optimistically update light mode on status card
                             if (this.lightModeValue) {
                                 this.lightModeValue.textContent = this.mapLightMode(mode);
                             }
@@ -616,9 +619,9 @@
                     this.setTempInput.addEventListener('input', () => {
                         const tempVal = parseInt(this.setTempInput.value || '200', 10);
                         this.setTempDisplay.textContent = `${tempVal}℃`;
-                        // 乐观更新状态卡片的设置温度
+                        // Optimistically update set temperature on status card
                         if (this.setTempValue) this.setTempValue.textContent = `${tempVal}°C`;
-                        // 变更即发送（防抖）
+                        // Send on change (debounced)
                         this.scheduleDebouncedSend();
                     });
                 }
@@ -626,9 +629,9 @@
                     this.setTimeInput.addEventListener('input', () => {
                         const timeVal = parseInt(this.setTimeInput.value || '60', 10);
                         this.setTimeDisplay.textContent = `${timeVal}min`;
-                        // 乐观更新状态卡片的设置时间
+                        // Optimistically update set time on status card
                         if (this.setTimeValue) this.setTimeValue.textContent = `${timeVal}Min`;
-                        // 变更即发送（防抖）
+                        // Send on change (debounced)
                         this.scheduleDebouncedSend();
                     });
                 }
@@ -636,9 +639,9 @@
                     this.autoSleepTimeInput.addEventListener('input', () => {
                         const autoSleepTimeVal = parseInt(this.autoSleepTimeInput.value || '10', 10);
                         this.autoSleepTimeDisplay.textContent = `${autoSleepTimeVal}min`;
-                        // 乐观更新状态卡片的自动休眠时间
+                        // Optimistically update auto sleep time on status card
                         if (this.autoSleepTimeInput) this.autoSleepTimeInput.textContent = `${autoSleepTimeVal}Min`;
-                        // 变更即发送（防抖）
+                        // Send on change (debounced)
                         this.scheduleDebouncedSend();
                     });
                 }
@@ -651,7 +654,7 @@
                         this.sendControlCommand(mode, temp, time, autoSleepTime);
                     });
                 }
-                // 圆形 Start/Stop 切换按钮
+                // Circular Start/Stop toggle button
                 if (this.startStopToggleBtn) {
                     this.startStopToggleBtn.addEventListener('click', () => {
                         const btn = this.startStopToggleBtn;
@@ -684,7 +687,7 @@
                         }
                     });
                 }
-                // boost 计数按钮
+                // Boost count button
                 if (this.boostBtn) {
                     this.boostBtn.addEventListener('click', () => {
                         this.boostCount = (this.boostCount ?? 0) + 1;
@@ -696,21 +699,21 @@
                         this.sendControlCommand(mode, temp, time, autoSleepTime);
                     });
                 }
-                // 绑定 A1 发送按钮：用户修改完所有阶段参数后，统一点击发送
+                // Bind A1 send button: send after editing all stage parameters
                 const sendA1Btn = document.getElementById('sendA1Btn');
                 if (sendA1Btn) {
                     sendA1Btn.addEventListener('click', () => {
                         this.sendA1FrameFromUI();
                     });
                 }
-                // 绑定 A2 发送按钮：用户修改完所有阶段参数后，统一点击发送
+                // Bind A2 send button: send after editing all stage parameters
                 const sendA2Btn = document.getElementById('sendA2Btn');
                 if (sendA2Btn) {
                     sendA2Btn.addEventListener('click', () => {
                         this.sendA2FrameFromUI();
                     });
                 }
-                // 绑定 WiFi/OTA 启动按钮
+                // Bind WiFi/OTA start buttons
                 const wifiStartBtn = document.getElementById('wifiStartBtn');
                 if (wifiStartBtn) {
                     wifiStartBtn.addEventListener('click', () => {
@@ -725,7 +728,7 @@
                 }
             }
 
-            // 统一日志输出
+            // Unified log output
             log(message) {
                 const ts = new Date().toLocaleTimeString();
                 const text = `[${ts}] ${message}`;
@@ -738,7 +741,7 @@
                 console.log(text);
             }
 
-            // 通知日志输出
+            // Notification log output
             notify(message) {
                 const ts = new Date().toLocaleTimeString();
                 const text = `[${ts}] ${message}`;
@@ -751,12 +754,12 @@
                 console.log('[NOTIFY]', text);
             }
 
-            // 字节数组转 HEX 文本
+            // Byte array to HEX text
             formatHex(bytes) {
                 return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
             }
 
-            // 特征属性转字符串（兼容移动端：BluetoothCharacteristicProperties 的键通常不可枚举）
+            // Characteristic properties to string (mobile compatibility: keys often non-enumerable)
             formatProperties(props) {
                 const p = (props && typeof props === 'object') ? props : {};
                 const known = [
@@ -775,7 +778,7 @@
                 return enabled.length ? enabled.join(',') : 'unknown';
             }
 
-            // 规范化UUID到128位或保留已识别别名
+            // Normalize UUID to 128-bit or keep known aliases
             normalizeUuid(u) {
                 const v = (u || '').trim().toLowerCase();
                 if (!v) return '';
@@ -789,7 +792,7 @@
                 return v;
             }
 
-            // 解析用户输入的附加服务UUID列表
+            // Parse extra service UUIDs from user input
             parseExtraServices() {
                 const raw = this.extraServicesInput ? this.extraServicesInput.value : '';
                 const parts = raw.split(/[\s,;，；]+/).filter(Boolean).map(p => this.normalizeUuid(p));
@@ -798,10 +801,10 @@
 
             async scanForDevices() {
                 try {
-                    this.showStatus('scanning', '正在扫描设备...');
-                    this.log('开始扫描设备');
+                    this.showStatus('scanning', 'Scanning for devices...');
+                    this.log('Start scanning for devices');
                     this.scanBtn.disabled = true;
-                    this.scanBtn.innerHTML = '<span class="loading"></span> 扫描中...';
+                    this.scanBtn.innerHTML = '<span class="loading"></span> Scanning...';
 
                     const defaultServices = ['generic_access', 'generic_attribute', 'device_information', '0000180a-0000-1000-8000-00805f9b34fb'];
                     const commonNotifyServices = [
@@ -812,7 +815,7 @@
                     const optionalServices = Array.from(new Set([...defaultServices, ...commonNotifyServices, ...extra]));
 
                     this.log(`附加服务输入: ${this.extraServicesInput && this.extraServicesInput.value ? this.extraServicesInput.value : '(空)'}`);
-                    this.log(`请求的可选服务: ${optionalServices.join(', ')}`);
+                    this.log(`Requested optional services: ${optionalServices.join(', ')}`);
 
                     const device = await navigator.bluetooth.requestDevice({
                         acceptAllDevices: true,
