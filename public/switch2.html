@@ -1877,7 +1877,7 @@
         
         // 固件版本配置
         let TARGET_FIRMWARE_DATE = '251117'; // 目标固件版本日期 (YYMMDD格式)
-const FIRMWARE_DATE_MAP = { 'firmware1.0': '251117', 'firmware2.0': '250928' };
+const FIRMWARE_DATE_MAP = { 'firmware1.0': '251118', 'firmware2.0': '250928' };
         
         // 当前设备状态跟踪 - B9命令的所有字节状态
         let currentB9State = {
@@ -1980,6 +1980,8 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251117', 'firmware2.0': '250928' };
             0x26: 'Icicle',
             0x27: 'Sleigh Bells',
             0x28: 'Wintergreen',
+            0x29: 'Icicle V2',
+            0x2A: 'Wintergreen V2',
         };
 
 
@@ -3500,7 +3502,9 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251117', 'firmware2.0': '250928' };
                             { value: '0x25', text: 'poinsettia' },
                             { value: '0x26', text: 'Icicle' },
                             { value: '0x27', text: 'Sleigh Bells' },
-                            { value: '0x28', text: 'Wintergreen' }
+                            { value: '0x28', text: 'Wintergreen' },
+                            { value: '0x29', text: 'Icicle V2' },
+                            { value: '0x2A', text: 'Wintergreen V2' }
                         ];
                         originals.forEach(({value, text}) => {
                             const opt = document.createElement('option');
