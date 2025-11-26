@@ -1033,7 +1033,7 @@ function handleResponse(event) {
 
 
     // 检查是否是设备信息命令 C1-C7
-    if (data.length >= 2 && data[0] >= 0xC1 && data[0] <= 0xC7) {
+    if (data.length >= 2 && data[0] >= 0xC1 && data[0] <= 0xD7) {
         handleDeviceInfoCommand(data);
         return;
     }
@@ -1428,8 +1428,8 @@ let deviceInfo = {
     c2Data: null
 };
 
-// 处理设备信息命令 C1-C7
-// 数据包格式：命令字节(0xC1-0xC7) + 长度字节 + 数据 + 结尾命令字节
+// 处理设备信息命令 C1-D7
+// 数据包格式：命令字节(0xC1-0xD7) + 长度字节 + 数据 + 结尾命令字节
 function handleDeviceInfoCommand(data) {
     deviceInfoPacketCount++;
     
@@ -1450,14 +1450,14 @@ function handleDeviceInfoCommand(data) {
     const dataPayload = data.slice(2, packetLength - 1);
     try {
         switch (commandType) {
-            case 0xC1:
+            case 0xD1:
                 // C1: 设备名称第一部分 (17字节数据)
                 deviceInfo.c1Data = dataPayload;
                 const c1Text = Array.from(dataPayload).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
                 log(`Received C1 (Device Name Part 1, ${dataPayload.length} bytes): "${c1Text}"`);
                 break;
                 
-            case 0xC2:
+            case 0xD2:
                 // C2: 设备名称第二部分 (12字节数据)，与C1组合成完整设备名称
                 deviceInfo.c2Data = dataPayload;
                 const c2Text = Array.from(dataPayload).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
@@ -1473,7 +1473,7 @@ function handleDeviceInfoCommand(data) {
                 }
                 break;
                 
-            case 0xC3:
+            case 0xD3:
                 // C3: 序列号 (8字节数据)
                 deviceInfo.serialNumber = Array.from(dataPayload)
                     .map(b => String.fromCharCode(b))
@@ -1484,7 +1484,7 @@ function handleDeviceInfoCommand(data) {
                 log(`✓ Received C3 (Serial Number, ${dataPayload.length} bytes): "${deviceInfo.serialNumber}"`);
                 break;
                 
-            case 0xC4:
+            case 0xD4:
                 // C4: 型号名称 (8字节数据)
                 deviceInfo.modelName = Array.from(dataPayload)
                     .map(b => String.fromCharCode(b))
