@@ -1017,7 +1017,7 @@ function handleResponse(event) {
         return;
     }
 
-    if (data.length === 6 && data[0] === 0xA8 && data[5] === 0xA8) {
+    if (data.length === 6 && data[0] === 0xA5 && data[5] === 0xA5) {
         handleProfileData(data);
         return;
     }
@@ -2604,12 +2604,12 @@ async function syncTime() {
           
           // 构造B8命令数据包：B8 06 preset 0 profile B8
           const profileCommand = new Uint8Array(6);
-          profileCommand[0] = 0xB8;                      // 起始标识
+          profileCommand[0] = 0xB5;                      // 起始标识
           profileCommand[1] = 0x06;                      // 数据长度
           profileCommand[2] = preset;                    // 当前挡位
           profileCommand[3] = 0x00;                      // 固定为0
           profileCommand[4] = profileHex;                // profile模式值
-          profileCommand[5] = 0xB8;                      // 结束标识
+          profileCommand[5] = 0xB5;                      // 结束标识
 
           // 发送Profile设置命令
           await characteristic.writeValue(profileCommand);
