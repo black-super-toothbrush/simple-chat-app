@@ -222,6 +222,48 @@
                         </button>
                     </div>
                 </div>
+                <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+                    <strong>BLE Name:</strong>
+                    <input type="text" id="bleNameInput" class="form-control" placeholder="Enter new name (max 17 chars)" maxlength="17" style="width: 220px; padding: 4px 8px;" disabled>
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="setBleNameBtn" class="btn btn-secondary tooltip inner-content" onclick="setBleName()" disabled data-tooltip="Set BLE device name">
+                            <i class="fas fa-pen"></i>
+                            Set Name
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+                    <strong>BLE Serial:</strong>
+                    <input type="text" id="bleSerialInput" class="form-control" placeholder="Enter new serial (max 17 chars)" maxlength="17" style="width: 220px; padding: 4px 8px;" disabled>
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="setBleSerialBtn" class="btn btn-secondary tooltip inner-content" onclick="setBleSerial()" disabled data-tooltip="Set BLE serial name">
+                            <i class="fas fa-pen"></i>
+                            Set serial
+                        </button>
+                    </div>
+                </div>
+
+
+                <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+                    <strong>BLE Model:</strong>
+                    <input type="text" id="bleModelInput" class="form-control" placeholder="Enter new serial (max 17 chars)" maxlength="17" style="width: 220px; padding: 4px 8px;" disabled>
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="setBleModelBtn" class="btn btn-secondary tooltip inner-content" onclick="setBleModel()" disabled data-tooltip="Set BLE model name">
+                            <i class="fas fa-pen"></i>
+                            Set model
+                        </button>
+                    </div>
+                </div>
+
+
+
             </div>
         </div>
 

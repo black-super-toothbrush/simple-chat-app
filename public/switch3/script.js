@@ -862,7 +862,21 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         if (brightnessInput) brightnessInput.disabled = false;
 
         if (ledPresetSelect) ledPresetSelect.disabled = false;
-        
+        const bleNameInput = document.getElementById('bleNameInput');
+        const setBleNameBtn = document.getElementById('setBleNameBtn');
+        if (bleNameInput) bleNameInput.disabled = false;
+        if (setBleNameBtn) setBleNameBtn.disabled = false;
+
+        const bleSerialInput = document.getElementById('bleSerialInput');
+        const setBleSerialBtn = document.getElementById('setBleSerialBtn');
+        if (bleSerialInput) bleSerialInput.disabled = false;
+        if (setBleSerialBtn) setBleSerialBtn.disabled = false;
+
+        const bleModelInput = document.getElementById('bleModelInput');
+        const setBleModelBtn = document.getElementById('setBleModelBtn');
+        if (bleModelInput) bleModelInput.disabled = false;
+        if (setBleModelBtn) setBleModelBtn.disabled = false;
+
         // 启用温度预设输入框
         ['tempF1', 'tempF2', 'tempF3', 'tempF4', 'tempF5'].forEach(id => {
             const input = document.getElementById(id);
@@ -908,7 +922,21 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         }
 
         if (ledPresetSelect) ledPresetSelect.disabled = true;
+        const bleNameInput = document.getElementById('bleNameInput');
+        const setBleNameBtn = document.getElementById('setBleNameBtn');
+        if (bleNameInput) { bleNameInput.disabled = true; bleNameInput.value = ''; }
+        if (setBleNameBtn) setBleNameBtn.disabled = true;
+
+        const bleSerialInput = document.getElementById('bleSerialInput');
+        const setBleSerialBtn = document.getElementById('setBleSerialBtn');
+        if (bleSerialInput) { bleSerialInput.disabled = true; bleSerialInput.value = ''; }
+        if (setBleSerialBtn) setBleSerialBtn.disabled = true;
         
+        const bleModelInput = document.getElementById('bleModelInput');
+        const setBleModelBtn = document.getElementById('setBleModelBtn');
+        if (bleModelInput) { bleModelInput.disabled = true; bleModelInput.value = ''; }
+        if (setBleModelBtn) setBleModelBtn.disabled = true;
+
         // 禁用温度预设输入框
         ['tempF1', 'tempF2', 'tempF3', 'tempF4', 'tempF5'].forEach(id => {
             const input = document.getElementById(id);
@@ -2160,7 +2188,152 @@ async function toggleNotifications() {
     }
 }
 
+
+async function setBleSerial() {
+    if (!checkAuthentication()) {
+        return;
+    }   
+    if (!characteristic) {
+        log('Error: Device not connected');
+        showNotification('设备未连接', 'error');
+        return;
+    }
+    try {
+        const input = document.getElementById('bleSerialInput');
+        const name = (input?.value || '').trim();
+        if (!name) {
+            showNotification('please input serial', 'warning');
+            return;
+        }
+        const nameBytes = new TextEncoder().encode(name);
+        if (nameBytes.length > 17) {
+            showNotification('名称过长，最多17字节', 'error');
+            return;
+        }
+        const packet = new Uint8Array(0x14);
+        packet[0] = 0xD3;
+        packet[1] = 0x14;
+        for (let i = 0; i < nameBytes.length && i < 17; i++) {
+            packet[2 + i] = nameBytes[i];
+        }
+        for (let i = 2 + nameBytes.length; i < 19; i++) {
+            packet[i] = 0x00;
+        }
+        packet[19] = 0xD3;
+        await characteristic.writeValue(packet);
+        const packetHex = Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        log(`✓ BLE serial set to "${name}"`);
+        log(`  Packet data: ${packetHex}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+
+
+    } catch (error) {
+        log(`✗ Failed to set serial number: ${error.message}`);
+        showNotification(`set failed: ${error.message}`, 'error');
+    }
+}
 // 同步时间功能 - 发送格式：b1 09 year(2 byte) month day hour minute b1
+
+async function setBleName() {
+    if (!checkAuthentication()) {
+        return;
+    }
+    if (!characteristic) {
+        log('Error: Device not connected');
+        showNotification('设备未连接', 'error');
+        return;
+    }
+    try {
+        const input = document.getElementById('bleNameInput');
+        const name = (input?.value || '').trim();
+        if (!name) {
+            showNotification('请输入蓝牙名称', 'warning');
+            return;
+        }
+        const nameBytes = new TextEncoder().encode(name);
+        if (nameBytes.length > 17) {
+            showNotification('名称过长，最多17字节', 'error');
+            return;
+        }
+        const packet = new Uint8Array(0x14);
+        packet[0] = 0xD1;
+        packet[1] = 0x14;
+        for (let i = 0; i < nameBytes.length && i < 17; i++) {
+            packet[2 + i] = nameBytes[i];
+        }
+        for (let i = 2 + nameBytes.length; i < 19; i++) {
+            packet[i] = 0x00;
+        }
+        packet[19] = 0xD1;
+        await characteristic.writeValue(packet);
+        const packetHex = Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        log(`✓ BLE name set to "${name}"`);
+        log(`  Packet data: ${packetHex}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+
+        const packet1 = new Uint8Array(15);
+        packet1[0] = 0xD2;
+        packet1[1] = 0x0f;
+        for (let i = 0; i < nameBytes.length && i < 12; i++) {
+            packet1[2 + i] = 0x00;
+        }
+        packet1[14] = 0xD2;
+        await characteristic.writeValue(packet1);
+
+        const nameEl = document.getElementById('deviceName');
+        if (nameEl) nameEl.textContent = name;
+        showNotification('蓝牙名称已设置', 'success');
+    } catch (error) {
+        log(`✗ Failed to set BLE name: ${error.message}`);
+        showNotification(`设置失败: ${error.message}`, 'error');
+    }
+}
+
+async function setBleModel() {
+    if (!checkAuthentication()) {
+        return;
+    }   
+    if (!characteristic) {
+        log('Error: Device not connected');
+        showNotification('设备未连接', 'error');
+        return;
+    }
+    try {
+        const input = document.getElementById('bleModelInput');
+        const name = (input?.value || '').trim();
+        if (!name) {
+            showNotification('please input model', 'warning');
+            return;
+        }
+        const nameBytes = new TextEncoder().encode(name);
+        if (nameBytes.length > 17) {
+            showNotification('名称过长，最多17字节', 'error');
+            return;
+        }
+        const packet = new Uint8Array(0x14);
+        packet[0] = 0xD4;
+        packet[1] = 0x14;
+        for (let i = 0; i < nameBytes.length && i < 17; i++) {
+            packet[2 + i] = nameBytes[i];
+        }
+        for (let i = 2 + nameBytes.length; i < 19; i++) {
+            packet[i] = 0x00;
+        }
+        packet[19] = 0xD4;
+        await characteristic.writeValue(packet);
+        const packetHex = Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        log(`✓ BLE model set to "${name}"`);
+        log(`  Packet data: ${packetHex}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+        log(`✗ Failed to set model number: ${error.message}`);
+        showNotification(`set failed: ${error.message}`, 'error');
+    }
+}
+
+
 async function syncTime() {
     // 检查用户是否已登录
     if (!checkAuthentication()) {
