@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CARTA 3 Test Panel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 2.5rem;
+      max-width: 600px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      color: #2d3748;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: #718096;
+      font-size: 1rem;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .status-disconnected {
+      background: #fed7d7;
+      color: #c53030;
+    }
+
+    .status-connected {
+      background: #c6f6d5;
+      color: #25543e;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .section {
+      background: #f7fafc;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+      color: #2d3748;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+      font-family: inherit;
+    }
+
+    input[type="text"]:focus, input[type="password"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.75rem;
+      align-items: end;
+    }
+
+    .input-group input {
+      flex: 1;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+    }
+
+    .btn-secondary:hover {
+      box-shadow: 0 10px 25px rgba(237, 137, 54, 0.3);
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px dashed #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #f7fafc;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    input[type="file"]:hover {
+      border-color: #667eea;
+      background: #edf2f7;
+    }
+
+    input[type="file"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .connect-section {
+      text-align: center;
+    }
+
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-weight: 500;
+      display: none;
+    }
+
+    .alert-success {
+      background: #c6f6d5;
+      color: #25543e;
+      border: 1px solid #9ae6b4;
+    }
+
+    .alert-error {
+      background: #fed7d7;
+      color: #c53030;
+      border: 1px solid #feb2b2;
+    }
+
+    .alert-info {
+      background: #bee3f8;
+      color: #2c5282;
+      border: 1px solid #90cdf4;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+      
+      .container {
+        padding: 1.5rem;
+      }
+      
+      .input-group {
+        flex-direction: column;
+      }
+      
+      .input-group input {
+        margin-bottom: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CARTA 3 Test Panel</h1>
+      <p>Bluetooth Device Control Interface</p>
+    </div>
+
+    <div class="status-indicator status-disconnected" id="statusIndicator">
+      <div class="status-dot"></div>
+      <span id="statusText">Disconnected</span>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div class="section connect-section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M17.5 12.5c0 2.485-2.015 4.5-4.5 4.5s-4.5-2.015-4.5-4.5S10.515 8 13 8s4.5 2.015 4.5 4.5z"/>
+          <path d="M21 12.5c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
+        </svg>
+        Device Connection
+      </div>
+      <button id="connectBtn">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+          <path d="M2 17L12 22L22 17"/>
+          <path d="M2 12L12 17L22 12"/>
+        </svg>
+        Connect to Device
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M1 6L8 12L1 18V6Z"/>
+          <path d="M8 6V6C10.67 6 12.67 8 12.67 10.67V10.67C15.33 10.67 17.33 12.67 17.33 15.33V15.33"/>
+          <circle cx="20" cy="16" r="2"/>
+        </svg>
+        WiFi Configuration
+      </div>
+      <div class="form-group">
+        <label for="ssid">Network Name (SSID)</label>
+        <input type="text" id="ssid" placeholder="Enter WiFi network name">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter WiFi password">
+      </div>
+      <button id="startWifiBtn" class="btn-primary">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M19 21L12 14L5 21"/>
+          <path d="M5 3L12 10L19 3"/>
+        </svg>
+        Save WiFi Settings
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M21 2L13 10L8.5 5.5L3 11L8.5 16.5L13 12L21 20"/>
+        </svg>
+        OTA Updates
+      </div>
+      <!--
+      <div class="form-group">
+        <label for="binFile">Firmware File (.bin)</label>
+        <input type="file" id="binFile" accept=".bin">
+        <button id="sendBinBtn" class="btn-primary" style="margin-top: 0.5rem;">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14,2 14,8 20,8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10,9 9,9 8,9"/>
+          </svg>
+          Upload Firmware
+        </button>
+      </div>
+      -->
+      <div class="form-group">
+        <label for="otaUrl">OTA Download URL</label>
+        <div class="input-group">
+          <input type="text" id="otaUrl" placeholder="Enter OTA download URL">
+          <button id="startOtaBtn" class="btn-primary">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Start OTA
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <polyline points="4 17 10 11 4 5"/>
+          <line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+        Command Interface
+      </div>
+      <div class="form-group">
+        <label for="hexInput">Hex Data</label>
+        <div class="input-group">
+          <input type="text" id="hexInput" placeholder="e.g. AA 01 FF 00">
+          <button id="sendHexBtn" class="btn-secondary">
+            <svg class="icon" viewBox="0 0 24 24">
+              <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
+            </svg>
+            Send Hex
+          </button>
+        </div>
+      </div>
+      <div class="input-group">
+        <div style="flex: 1;">
+          <label for="asciiInput">ASCII Command</label>
+          <input type="text" id="asciiInput" placeholder="Enter command">
+        </div>
+        <button id="sendAsciiBtn" class="btn-secondary">
+          <svg class="icon" viewBox="0 0 24 24">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22,2 15,22 11,13 2,9"/>
+          </svg>
+          Send ASCII
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let characteristicToWrite = null;
+    let ackResolver = null;
+
+    // OTA packet building functions
+    const PAYLOAD_SIZE = 16;
+    const FRAME_SIZE = 22;
+    const HEADER_BYTE = 0xAA;
+    const TAIL_BYTE = 0xAA;
+
+    function crc16Modbus(buf) {
+      let crc = 0xFFFF;
+      for (let b of buf) {
+        crc ^= b;
+        for (let i = 0; i < 8; ++i) {
+          crc = (crc & 1) ? (crc >>> 1) ^ 0xA001 : crc >>> 1;
+        }
+      }
+      return crc & 0xFFFF;
+    }
+
+    function buildSmallPacket(seq, payload32) {
+      const frame = new Uint8Array(FRAME_SIZE);
+      frame[0] = HEADER_BYTE;
+      frame[1] = seq & 0xFF;
+      frame[2] = (seq >> 8) & 0xFF;
+      frame.fill(0xFF, 3);
+      frame.set(payload32, 3);
+      const crc = crc16Modbus(frame.subarray(1, 1 + 2 + PAYLOAD_SIZE));
+      frame[19] = (crc >> 8) & 0xFF;
+      frame[20] = crc & 0xFF;
+      frame[21] = TAIL_BYTE;
+      return frame;
+    }
+
+    function showAlert(message, type = 'info') {
+      const alertContainer = document.getElementById('alertContainer');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.textContent = message;
+      alertContainer.appendChild(alert);
+      alert.style.display = 'block';
+      
+      setTimeout(() => {
+        alert.style.opacity = '0';
+        setTimeout(() => alert.remove(), 300);
+      }, 5000);
+    }
+
+    function updateStatus(connected) {
+      const indicator = document.getElementById('statusIndicator');
+      const statusText = document.getElementById('statusText');
+      
+      if (connected) {
+        indicator.className = 'status-indicator status-connected';
+        statusText.textContent = 'Connected';
+      } else {
+        indicator.className = 'status-indicator status-disconnected';
+        statusText.textContent = 'Disconnected';
+      }
+    }
+
+    function waitForAck(timeout = 6000) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          console.warn("⚠️ ACK timeout, no device response received");
+          reject(new Error("Waiting for ACK timeout"));
+        }, timeout);
+
+        ackResolver = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+      });
+    }
+
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('connectBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/></svg>Connecting...';
+
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['1011123e-8535-b5a0-7140-a304d2495cb7']
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('1011123e-8535-b5a0-7140-a304d2495cb7');
+        const characteristics = await service.getCharacteristics();
+
+        for (const char of characteristics) {
+          console.log('Characteristic UUID:', char.uuid, 'Properties:', char.properties);
+          if (char.properties.notify) {
+            await char.startNotifications();
+            char.addEventListener('characteristicvaluechanged', event => {
+              const d = new Uint8Array(event.target.value.buffer);
+              
+              if (d.length === 3 && d[0] === 0x41 && d[1] === 0x57 && d[2] === 0x4B) {
+                console.log('✅ Received ACK');
+                if (typeof ackResolver === 'function') {
+                  ackResolver();
+                  ackResolver = null;
+                }
+                return;
+              }
+
+              if(d[0] != 0x99) {
+                console.log('Received Notify data:', d);
+              }
+            });
+          }
+
+          if (char.properties.write || char.properties.writeWithoutResponse) {
+            characteristicToWrite = char;
+            console.log('Found Write characteristic:', char.uuid);
+          }
+        }
+
+        updateStatus(true);
+        showAlert("Bluetooth device connected successfully!", "success");
+
+      } catch (e) {
+        console.error('Connection failed:', e);
+        showAlert('Connection failed: ' + e.message, "error");
+        updateStatus(false);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7L12 12L22 7L12 2Z"/><path d="M2 17L12 22L22 17"/><path d="M2 12L12 17L22 12"/></svg>Connect to Device';
+      }
+    });
+
+    document.getElementById('startWifiBtn').addEventListener('click', async () => {
+      const ssid = document.getElementById('ssid').value.trim();
+      const password = document.getElementById('password').value.trim();
+      
+      if (!ssid) {
+        showAlert("Please enter a WiFi network name (SSID)", "error");
+        return;
+      }
+
+      if (!characteristicToWrite) {
+        showAlert("Please connect to a Bluetooth device first", "error");
+        return;
+      }
+
+      const btn = document.getElementById('startWifiBtn');
+      btn.disabled = true;
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>Sending...';
+
+      try {
+        const data = new TextEncoder().encode(`wifi_${ssid} ${password}`);
+        await characteristicToWrite.writeValue(data);
+        showAlert("WiFi configuration sent successfully!", "success");
+      } catch (e) {
+        console.error('WiFi config failed:', e);
+        showAlert("Failed to send WiFi configuration: " + e.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
+    });
+
+    // Start OTA via URL
+    document.getElementById('startOtaBtn').addEventListener('click', async () => {
+      const otaUrl = document.getElementById('otaUrl').value.trim();
+      
+      if (!otaUrl) {
+        showAlert("Please enter an OTA download URL", "error");
+        return;
+      }
+
+      if (!characteristicToWrite) {
+        showAlert("Please connect to a Bluetooth device first", "error");
+        return;
+      }
+
+      const btn = document.getElementById('startOtaBtn');
+      btn.disabled = true;
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>Starting...';
+
+      try {
+        const data = new TextEncoder().encode(`url_${otaUrl}`);
+        await characteristicToWrite.writeValue(data);
+        showAlert("OTA URL sent successfully! Device will download firmware.", "success");
+      } catch (e) {
+        console.error('OTA URL send failed:', e);
+        showAlert("Failed to send OTA URL: " + e.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
+    });
+
+    /*
+    // Send BIN file for OTA
+    document.getElementById('sendBinBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('binFile');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        showAlert("Please select a .bin file", "error");
+        return;
+      }
+
+      if (!characteristicToWrite) {
+        showAlert("Please connect to a Bluetooth device first", "error");
+        return;
+      }
+
+      const btn = document.getElementById('sendBinBtn');
+      btn.disabled = true;
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>Uploading...';
+
+      try {
+        const arrayBuf = await file.arrayBuffer();
+        let bin = new Uint8Array(arrayBuf);
+        const realLength = bin.length;
+        
+        showAlert(`Uploading firmware (${realLength} bytes)...`, "info");
+
+        // Pad to 512-byte alignment
+        const padding = bin.length % 512;
+        if (padding !== 0) {
+          const padded = new Uint8Array(bin.length + (512 - padding)).fill(0xFF);
+          padded.set(bin);
+          bin = padded;
+        }
+
+        const totalBlocks = bin.length / 512;
+        const BATCH_SIZE = 32;
+
+        // Send header packet: REQ + block count + real length
+        const header = new Uint8Array(9);
+        header[0] = 0x52; header[1] = 0x45; header[2] = 0x51;
+        header[3] = (totalBlocks >> 8) & 0xFF;
+        header[4] = totalBlocks & 0xFF;
+        header[5] = (realLength >> 24) & 0xFF;
+        header[6] = (realLength >> 16) & 0xFF;
+        header[7] = (realLength >> 8) & 0xFF;
+        header[8] = realLength & 0xFF;
+
+        await characteristicToWrite.writeValue(header);
+        
+        try {
+          await waitForAck();
+          showAlert("Device acknowledged, sending firmware data...", "info");
+        } catch (e) {
+          throw new Error("Device did not acknowledge firmware transfer request");
+        }
+
+        // Send data packets
+        for (let offset = 0, seq = 0; offset < bin.length; offset += PAYLOAD_SIZE, ++seq) {
+          const remain = bin.length - offset;
+          const block32 = remain >= PAYLOAD_SIZE
+            ? bin.subarray(offset, offset + PAYLOAD_SIZE)
+            : new Uint8Array(PAYLOAD_SIZE).fill(0xFF)
+                .map((v, i) => (i < remain ? bin[offset + i] : v));
+
+          const pkt = buildSmallPacket(seq, block32);
+          await characteristicToWrite.writeValue(pkt);
+
+          if ((seq + 1) % BATCH_SIZE === 0 || (offset + PAYLOAD_SIZE) >= bin.length) {
+            try {
+              await waitForAck();
+            } catch (e) {
+              throw new Error(`Transfer failed at packet ${seq + 1}`);
+            }
+          }
+        }
+
+        showAlert("Firmware uploaded successfully!", "success");
+        fileInput.value = ''; // Clear file input
+
+      } catch (e) {
+        console.error('Firmware upload failed:', e);
+        showAlert("Firmware upload failed: " + e.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
+    });
+    */
+
+    // Send hex data
+    document.getElementById('sendHexBtn').addEventListener('click', async () => {
+      const hexStr = document.getElementById('hexInput').value.trim();
+      
+      if (!hexStr) {
+        showAlert("Please enter hex data", "error");
+        return;
+      }
+
+      if (!characteristicToWrite) {
+        showAlert("Please connect to a Bluetooth device first", "error");
+        return;
+      }
+
+      const btn = document.getElementById('sendHexBtn');
+      btn.disabled = true;
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>Sending...';
+
+      try {
+        const hexArray = hexStr.split(/\s+/).map(byte => {
+          const num = parseInt(byte, 16);
+          if (isNaN(num)) throw new Error(`Invalid hex byte: ${byte}`);
+          return num;
+        });
+        const data = new Uint8Array(hexArray);
+        await characteristicToWrite.writeValue(data);
+        showAlert(`Hex data sent: ${hexStr}`, "success");
+        document.getElementById('hexInput').value = '';
+      } catch (e) {
+        console.error('Hex send failed:', e);
+        showAlert("Failed to send hex data: " + e.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
+    });
+
+    // Send ASCII command
+    document.getElementById('sendAsciiBtn').addEventListener('click', async () => {
+      const asciiStr = document.getElementById('asciiInput').value.trim();
+      
+      if (!asciiStr) {
+        showAlert("Please enter a command", "error");
+        return;
+      }
+
+      if (!characteristicToWrite) {
+        showAlert("Please connect to a Bluetooth device first", "error");
+        return;
+      }
+
+      const btn = document.getElementById('sendAsciiBtn');
+      btn.disabled = true;
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>Sending...';
+
+      try {
+        const data = new TextEncoder().encode(asciiStr);
+        await characteristicToWrite.writeValue(data);
+        showAlert(`Command "${asciiStr}" sent successfully!`, "success");
+        document.getElementById('asciiInput').value = '';
+      } catch (e) {
+        console.error('Command send failed:', e);
+        showAlert("Failed to send command: " + e.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+      }
+    });
+
+    // Allow Enter key to send commands
+    document.getElementById('asciiInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('sendAsciiBtn').click();
+      }
+    });
+
+    document.getElementById('hexInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('sendHexBtn').click();
+      }
+    });
+
+    // Initialize OTA URL
+    window.addEventListener('DOMContentLoaded', () => {
+      const otaInput = document.getElementById('otaUrl');
+      otaInput.value = `http://fvstaging.com/ota/1.bin`;
+    });
+  </script>
+</body>
+</html>
