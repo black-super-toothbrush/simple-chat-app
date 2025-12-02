@@ -1069,7 +1069,36 @@ function handleResponse(event) {
     //log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => String.fromCharCode(b)).join('')}`);
     
     // 检查是否是OK响应
+    // const responseText = Array.from(data).map(b => String.fromCharCode(b)).join('');
+    // if (responseText.startsWith('OK')) {
+    //     log(`Block confirmed: ${responseText}`);
+    //     if (responsePromise) {
+    //         responsePromise.resolve(data);
+    //         responsePromise = null;
+    //     }
+    //     waitingForResponse = false;
+    // } else {
+    //     log(`Unexpected response: ${responseText}`);
+    //     // 即使响应格式不符合预期，也要清除等待状态避免卡住
+    //     if (responsePromise && waitingForResponse) {
+    //         log(`Clearing response wait due to unexpected response`);
+    //         responsePromise.resolve(data);
+    //         responsePromise = null;
+    //         waitingForResponse = false;
+    //     }
+    // }
+
+
+
+    // 先把数据转成 HEX 字符串方便调试
+    // 假设 data 是 Uint8Array 或者数组
+    const hexData = Array.from(data)
+        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+        .join(' ');
+
+    // 仍然保留 text 转换用于判断 'OK'
     const responseText = Array.from(data).map(b => String.fromCharCode(b)).join('');
+
     if (responseText.startsWith('OK')) {
         log(`Block confirmed: ${responseText}`);
         if (responsePromise) {
@@ -1078,7 +1107,11 @@ function handleResponse(event) {
         }
         waitingForResponse = false;
     } else {
-        log(`Unexpected response: ${responseText}`);
+        // --- 修改了这里 ---
+        // 打印原始 Hex 数据，并在括号里尝试打印一下字符串(方便看有没有混杂文本)
+        log(`Unexpected response [Hex]: ${hexData}`);
+        // log(`Raw text view: ${responseText}`); // 如果需要对照看乱码可以保留这行
+        
         // 即使响应格式不符合预期，也要清除等待状态避免卡住
         if (responsePromise && waitingForResponse) {
             log(`Clearing response wait due to unexpected response`);
@@ -1087,6 +1120,8 @@ function handleResponse(event) {
             waitingForResponse = false;
         }
     }
+
+
 }
 
 // 处理设备状态notify数据
