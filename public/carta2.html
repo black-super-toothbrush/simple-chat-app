@@ -51,7 +51,9 @@
   <!-- Percentage Slider -->
   <div class="form">
   <label for="percentSlider">Percentage Control (0-100):</label>
+  <button id="percentMinusBtn" title="Decrease">-</button>
   <input type="range" id="percentSlider" min="0" max="100" value="50" style="width: 60%;">
+  <button id="percentPlusBtn" title="Increase">+</button>
   <span id="percentValue">50</span>%
   </div>
 
@@ -68,6 +70,16 @@
   <div class="row"><label>LED Preset:</label><span class="val" id="ledPreset">--</span></div>
   <div class="row"><label>Dry Herb Time:</label><span class="val" id="dryTime">--</span></div>
   <div class="row"><label>Gesso Time:</label><span class="val" id="gessoTime">--</span></div>
+</div>
+<div class="panel" id="chartPanel">
+  <div class="row"><label>📈 实时温度曲线</label><span class="val">Side • Bottom • Power</span></div>
+  <div class="row">
+    <span class="val" style="color:#e74c3c">Side: <span id="curSide">--</span></span>
+    <span class="val" style="color:#3498db">Bottom: <span id="curBottom">--</span></span>
+    <span class="val" style="color:#2ecc71">Power: <span id="curPower">--</span></span>
+  </div>
+  <canvas id="chartCanvas" width="500" height="240"></canvas>
+  <div class="row"><span style="color:#e74c3c">● Side</span><span style="color:#3498db">● Bottom</span><span style="color:#2ecc71">● Power</span></div>
 </div>
 
 <script>
@@ -94,6 +106,9 @@ function waitForAck(timeout = 6000) {
 function set(id, value) {
   document.getElementById(id).textContent = value;
 }
+const chartDataSide=[];const chartDataBottom=[];const chartDataPower=[];const chartMaxPoints=200;
+function drawChart(){const c=document.getElementById('chartCanvas');if(!c)return;const x=c.getContext('2d'),w=c.width,h=c.height,m=30,pw=w-m*2,ph=h-m*2;x.clearRect(0,0,w,h);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.strokeStyle='#eee';x.lineWidth=1;for(let i=0;i<=4;i++){const y=m+i/4*ph;x.beginPath();x.moveTo(m,y);x.lineTo(m+pw,y);x.stroke();}const a=chartDataSide.concat(chartDataBottom,chartDataPower);if(!a.length){x.fillStyle='#666';x.font='14px sans-serif';x.fillText('等待数据…',m+10,m+20);return;}let mn=Math.min(...a),mx=Math.max(...a);if(mn===mx){mn-=1;mx+=1;}const sy=v=>m+(ph-(v-mn)/(mx-mn)*ph),ss=pw/Math.max(chartDataSide.length-1,1),sb=pw/Math.max(chartDataBottom.length-1,1),sp=pw/Math.max(chartDataPower.length-1,1);x.strokeStyle='#e74c3c';x.lineWidth=2;x.beginPath();for(let i=0;i<chartDataSide.length;i++){const xx=m+i*ss,yy=sy(chartDataSide[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#3498db';x.beginPath();for(let i=0;i<chartDataBottom.length;i++){const xx=m+i*sb,yy=sy(chartDataBottom[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#2ecc71';x.beginPath();for(let i=0;i<chartDataPower.length;i++){const xx=m+i*sp,yy=sy(chartDataPower[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#aaa';x.lineWidth=1;x.strokeRect(m,m,pw,ph);x.fillStyle='#666';x.font='12px sans-serif';x.fillText(`min:${mn}`,6,h-8);x.fillText(`max:${mx}`,6,16);} 
+function addDataToChart(s,b,p){chartDataSide.push(s);chartDataBottom.push(b);chartDataPower.push(p);if(chartDataSide.length>chartMaxPoints)chartDataSide.shift();if(chartDataBottom.length>chartMaxPoints)chartDataBottom.shift();if(chartDataPower.length>chartMaxPoints)chartDataPower.shift();set('curSide',s);set('curBottom',b);set('curPower',Number(p).toFixed(2));drawChart();}
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
   try {
@@ -125,8 +140,14 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
           if(d[0] != 0x99) {
             console.log('收到 Notify 数据:', d);
           }
-          
 
+          if (d[0] === 0xDD && d.length >= 17) {
+            const sideTemp = (d[3] << 8) | d[4];
+            const power = ((d[7] << 8) | d[8]) / 100;
+            const bottomTemp = (d[15] << 8) | d[16];
+            addDataToChart(sideTemp, bottomTemp, power);
+            return;
+          }
 
           if (d.length < 16) return;
           if (d[0] != 0x99)  return;
@@ -395,17 +416,18 @@ document.getElementById('sendBinBtn').addEventListener('click', async () => {
 window.addEventListener('DOMContentLoaded', () => {
   const otaInput = document.getElementById('otaUrl');
   otaInput.value = `${location.origin}/simple_ota.bin`;
+  drawChart();
   
   // 滑动条事件处理
   const percentSlider = document.getElementById('percentSlider');
   const percentValue = document.getElementById('percentValue');
+  const percentMinusBtn = document.getElementById('percentMinusBtn');
+  const percentPlusBtn = document.getElementById('percentPlusBtn');
   
-  // 实时更新显示值
   percentSlider.addEventListener('input', () => {
     percentValue.textContent = percentSlider.value;
   });
   
-  // 滑动完成后发送蓝牙数据
   percentSlider.addEventListener('change', async () => {
     const percent = parseInt(percentSlider.value);
     
@@ -415,13 +437,38 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     
     try {
-      // 构建数据包: B1 04 percent B1
       const data = new Uint8Array([0xB1, 0x04, percent, 0xB1]);
       await characteristicToWrite.writeValue(data);
       console.log(`已发送百分比数据: B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1`);
     } catch (e) {
       alert('发送失败: ' + e.message);
     }
+  });
+  
+  percentMinusBtn.addEventListener('click', async () => {
+    let v = parseInt(percentSlider.value) || 0;
+    if (v > 0) v -= 1;
+    percentSlider.value = v;
+    percentValue.textContent = v;
+    if (!characteristicToWrite) { alert('未连接蓝牙设备或未找到可写特征值'); return; }
+    try {
+      const data = new Uint8Array([0xB1, 0x04, v, 0xB1]);
+      await characteristicToWrite.writeValue(data);
+      console.log(`已发送百分比数据: B1 04 ${v.toString(16).padStart(2, '0').toUpperCase()} B1`);
+    } catch (e) { alert('发送失败: ' + e.message); }
+  });
+  
+  percentPlusBtn.addEventListener('click', async () => {
+    let v = parseInt(percentSlider.value) || 0;
+    if (v < 100) v += 1;
+    percentSlider.value = v;
+    percentValue.textContent = v;
+    if (!characteristicToWrite) { alert('未连接蓝牙设备或未找到可写特征值'); return; }
+    try {
+      const data = new Uint8Array([0xB1, 0x04, v, 0xB1]);
+      await characteristicToWrite.writeValue(data);
+      console.log(`已发送百分比数据: B1 04 ${v.toString(16).padStart(2, '0').toUpperCase()} B1`);
+    } catch (e) { alert('发送失败: ' + e.message); }
   });
 });
 
