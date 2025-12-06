@@ -142,7 +142,7 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
           }
 
           if (d[0] === 0xDD && d.length >= 17) {
-            const sideTemp = (d[3] << 8) | d[4];
+            const sideTemp = ((d[3] << 8) | d[4]) * 9 / 5 + 32;
             const power = ((d[7] << 8) | d[8]) / 100;
             const bottomTemp = (d[15] << 8) | d[16];
             addDataToChart(sideTemp, bottomTemp, power);
