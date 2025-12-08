@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Bluetooth Device Status Panel</title>
-  <!-- 引入 SheetJS 库用于生成 Excel 文件 -->
+  <!-- Include SheetJS library for Excel file generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body { font-family: sans-serif; background: #f8fbff; padding: 2em; }
@@ -16,7 +16,7 @@
     button, input { margin: 0.5em 0; padding: 0.6em; font-size: 1em; }
     .form { margin-top: 1em; }
     
-    /* 数据采集状态样式 */
+    /* Data Recording Status Styles */
     .recording-panel {
       background: #fff3cd;
       border: 2px solid #ffc107;
@@ -44,25 +44,25 @@
 <h2>📡 Bluetooth Status Panel</h2>
 <button id="connectBtn">🔗 Connect Bluetooth Device</button>
 
-<!-- 数据采集控制面板 -->
+<!-- Data Recording Control Panel -->
 <div class="panel" id="recordingPanel">
   <div class="row">
-    <label>📊 collection state:</label>
-    <span class="val status-idle" id="recordingStatus">idle</span>
+    <label>📊 Recording Status:</label>
+    <span class="val status-idle" id="recordingStatus">Idle</span>
   </div>
   <div class="row">
-    <label>collection count:</label>
+    <label>Data Points Recorded:</label>
     <span class="val" id="recordedCount">0</span>
   </div>
   <div class="row">
-    <label>stop detect time:</label>
+    <label>Stop Detection Time:</label>
     <span class="val">
-      <input type="number" id="stopThreshold" value="3" min="1" max="60" style="width: 60px;"> 秒
+      <input type="number" id="stopThreshold" value="5" min="1" max="60" style="width: 60px;"> seconds
     </span>
   </div>
   <div class="row">
-    <button id="manualExportBtn" style="background: #28a745; color: white;">💾 export Excel</button>
-    <button id="clearDataBtn" style="background: #dc3545; color: white;">🗑️ clear data</button>
+    <button id="manualExportBtn" style="background: #28a745; color: white;">💾 Export to Excel</button>
+    <button id="clearDataBtn" style="background: #dc3545; color: white;">🗑️ Clear Data</button>
   </div>
 </div>
 
@@ -94,13 +94,32 @@
   <button id="sendAsciiBtn">📝 Send ASCII</button>
   </div>
 
-  <!-- Percentage Slider -->
+  <!-- Wattage Control -->
   <div class="form">
-  <label for="percentSlider">Percentage Control (0-100):</label>
-  <button id="percentMinusBtn" title="Decrease">-</button>
-  <input type="range" id="percentSlider" min="0" max="100" value="50" style="width: 60%;">
-  <button id="percentPlusBtn" title="Increase">+</button>
-  <span id="percentValue">50</span>%
+    <label for="wattageSideSlider">Wattage Side (0-60W):</label>
+    <button id="sideMinusBtn" title="Decrease">-</button>
+    <input type="range" id="wattageSideSlider" min="0" max="60" value="30" style="width: 50%;">
+    <button id="sidePlusBtn" title="Increase">+</button>
+    <span id="wattageSideValue">30</span>W
+  </div>
+  
+  <div class="form">
+    <label for="wattageBottomSlider">Wattage Bottom (0-60W):</label>
+    <button id="bottomMinusBtn" title="Decrease">-</button>
+    <input type="range" id="wattageBottomSlider" min="0" max="60" value="30" style="width: 50%;">
+    <button id="bottomPlusBtn" title="Increase">+</button>
+    <span id="wattageBottomValue">30</span>W
+  </div>
+  
+  <div class="form">
+    <label>Total Power:</label>
+    <span id="totalWattage" style="font-weight: bold; color: #dc3545;">60</span>W / 60W (Max)
+  </div>
+  
+  <div class="form">
+    <label>Calculated Percentage:</label>
+    <span id="calculatedPercent" style="font-weight: bold; color: #07c160;">50</span>%
+    <button id="sendWattageBtn" style="background: #07c160; color: white; margin-left: 10px;">📤 Send Data</button>
   </div>
 
 </div>
@@ -118,7 +137,7 @@
   <div class="row"><label>Gesso Time:</label><span class="val" id="gessoTime">--</span></div>
 </div>
 <div class="panel" id="chartPanel">
-  <div class="row"><label>📈 实时温度曲线</label><span class="val">Side • Bottom • Power</span></div>
+  <div class="row"><label>📈 Real-time Temperature Chart</label><span class="val">Side • Bottom • Power</span></div>
   <div class="row">
     <span class="val" style="color:#e74c3c">Side: <span id="curSide">--</span></span>
     <span class="val" style="color:#3498db">Bottom: <span id="curBottom">--</span></span>
@@ -129,39 +148,39 @@
 </div>
 
 <script>
-let characteristicToWrite = null; // 保存可写特征值
+let characteristicToWrite = null; // Save writable characteristic
 
-// ==================== 数据采集相关变量 ====================
-let recordedData = []; // 存储所有采集的数据
-let isRecording = false; // 是否正在采集
-let lastDataTime = null; // 最后一次接收数据的时间
-let stopCheckInterval = null; // 停止检测定时器
-let recordingStartTime = null; // 开始采集的时间
+// ==================== Data Recording Related Variables ====================
+let recordedData = []; // Store all collected data
+let isRecording = false; // Whether recording is in progress
+let lastDataTime = null; // Last time data was received
+let stopCheckInterval = null; // Stop detection timer
+let recordingStartTime = null; // Recording start time
 
-// 更新采集状态显示
+// Update recording status display
 function updateRecordingStatus(status) {
   const statusEl = document.getElementById('recordingStatus');
   const panelEl = document.getElementById('recordingPanel');
   
   if (status === 'recording') {
-    statusEl.innerHTML = '<span class="recording-indicator"></span>collecting...';
+    statusEl.innerHTML = '<span class="recording-indicator"></span>Recording...';
     statusEl.className = 'val status-recording';
     panelEl.classList.add('recording-panel');
     isRecording = true;
   } else if (status === 'stopped') {
-    statusEl.textContent = 'collection completed';
+    statusEl.textContent = 'Completed';
     statusEl.className = 'val status-stopped';
     panelEl.classList.remove('recording-panel');
     isRecording = false;
   } else {
-    statusEl.textContent = 'idle';
+    statusEl.textContent = 'Idle';
     statusEl.className = 'val status-idle';
     panelEl.classList.remove('recording-panel');
     isRecording = false;
   }
 }
 
-// 开始数据采集
+// Start data recording
 function startRecording() {
   if (isRecording) return;
   
@@ -169,34 +188,34 @@ function startRecording() {
   recordingStartTime = new Date();
   updateRecordingStatus('recording');
   
-  console.log('✅ 开始数据采集');
+  console.log('✅ Start data recording');
   
-  // 启动停止检测定时器
+  // Start stop detection timer
   startStopDetection();
 }
 
-// 停止数据采集并导出
+// Stop data recording and export
 function stopRecording() {
   if (!isRecording) return;
   
   updateRecordingStatus('stopped');
-  console.log(`✅ 数据采集完成，共采集 ${recordedData.length} 条数据`);
+  console.log(`✅ Recording completed, ${recordedData.length} data points collected`);
   
-  // 停止检测定时器
+  // Stop detection timer
   if (stopCheckInterval) {
     clearInterval(stopCheckInterval);
     stopCheckInterval = null;
   }
   
-  // 自动导出Excel
+  // Auto export to Excel
   if (recordedData.length > 0) {
     exportToExcel();
   } else {
-    alert('没有采集到数据');
+    alert('No data collected');
   }
 }
 
-// 启动停止检测
+// Start stop detection
 function startStopDetection() {
   if (stopCheckInterval) {
     clearInterval(stopCheckInterval);
@@ -209,18 +228,18 @@ function startStopDetection() {
     const now = Date.now();
     
     if (lastDataTime && (now - lastDataTime) > threshold) {
-      console.log(`⏹️ 数据停止超过 ${threshold/1000} 秒，自动停止采集`);
+      console.log(`⏹️ Data stopped for more than ${threshold/1000} seconds, auto-stop recording`);
       stopRecording();
     }
   }, 1000);
 }
 
-// 记录数据点
+// Record data point
 function recordDataPoint(side, bottom, power) {
   const timestamp = new Date();
   const dataPoint = {
     timestamp: timestamp.toISOString(),
-    time: timestamp.toLocaleString('zh-CN'),
+    time: timestamp.toLocaleString('en-US'),
     side: side,
     bottom: bottom,
     power: power
@@ -229,37 +248,37 @@ function recordDataPoint(side, bottom, power) {
   recordedData.push(dataPoint);
   lastDataTime = Date.now();
   
-  // 更新显示
+  // Update display
   document.getElementById('recordedCount').textContent = recordedData.length;
   
-  // 如果还没开始采集，则自动开始
+  // Auto start recording if not started
   if (!isRecording) {
     startRecording();
   }
 }
 
-// 导出为Excel文件
+// Export to Excel file
 function exportToExcel() {
   if (recordedData.length === 0) {
-    alert('没有数据可导出');
+    alert('No data to export');
     return;
   }
   
-  // 创建工作簿
+  // Create workbook
   const wb = XLSX.utils.book_new();
   
-  // 准备数据
+  // Prepare data
   const wsData = [
-    ['时间戳', '时间', 'Side Temperature', 'Bottom Temperature', 'Power'],
+    ['Timestamp', 'Time', 'Side Temperature', 'Bottom Temperature', 'Power'],
     ...recordedData.map(d => [d.timestamp, d.time, d.side, d.bottom, d.power])
   ];
   
-  // 添加统计信息
+  // Add statistics
   wsData.push([]);
-  wsData.push(['统计信息']);
-  wsData.push(['总数据点', recordedData.length]);
-  wsData.push(['采集开始时间', recordingStartTime ? recordingStartTime.toLocaleString('zh-CN') : '']);
-  wsData.push(['采集结束时间', new Date().toLocaleString('zh-CN')]);
+  wsData.push(['Statistics']);
+  wsData.push(['Total Data Points', recordedData.length]);
+  wsData.push(['Recording Start Time', recordingStartTime ? recordingStartTime.toLocaleString('en-US') : '']);
+  wsData.push(['Recording End Time', new Date().toLocaleString('en-US')]);
   
   if (recordedData.length > 0) {
     const sides = recordedData.map(d => d.side);
@@ -267,23 +286,23 @@ function exportToExcel() {
     const powers = recordedData.map(d => d.power);
     
     wsData.push([]);
-    wsData.push(['Side - 最小值', Math.min(...sides).toFixed(2)]);
-    wsData.push(['Side - 最大值', Math.max(...sides).toFixed(2)]);
-    wsData.push(['Side - 平均值', (sides.reduce((a,b) => a+b, 0) / sides.length).toFixed(2)]);
+    wsData.push(['Side - Min', Math.min(...sides).toFixed(2)]);
+    wsData.push(['Side - Max', Math.max(...sides).toFixed(2)]);
+    wsData.push(['Side - Average', (sides.reduce((a,b) => a+b, 0) / sides.length).toFixed(2)]);
     wsData.push([]);
-    wsData.push(['Bottom - 最小值', Math.min(...bottoms).toFixed(2)]);
-    wsData.push(['Bottom - 最大值', Math.max(...bottoms).toFixed(2)]);
-    wsData.push(['Bottom - 平均值', (bottoms.reduce((a,b) => a+b, 0) / bottoms.length).toFixed(2)]);
+    wsData.push(['Bottom - Min', Math.min(...bottoms).toFixed(2)]);
+    wsData.push(['Bottom - Max', Math.max(...bottoms).toFixed(2)]);
+    wsData.push(['Bottom - Average', (bottoms.reduce((a,b) => a+b, 0) / bottoms.length).toFixed(2)]);
     wsData.push([]);
-    wsData.push(['Power - 最小值', Math.min(...powers).toFixed(2)]);
-    wsData.push(['Power - 最大值', Math.max(...powers).toFixed(2)]);
-    wsData.push(['Power - 平均值', (powers.reduce((a,b) => a+b, 0) / powers.length).toFixed(2)]);
+    wsData.push(['Power - Min', Math.min(...powers).toFixed(2)]);
+    wsData.push(['Power - Max', Math.max(...powers).toFixed(2)]);
+    wsData.push(['Power - Average', (powers.reduce((a,b) => a+b, 0) / powers.length).toFixed(2)]);
   }
   
-  // 创建工作表
+  // Create worksheet
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   
-  // 设置列宽
+  // Set column widths
   ws['!cols'] = [
     { wch: 25 },
     { wch: 20 },
@@ -292,26 +311,26 @@ function exportToExcel() {
     { wch: 12 }
   ];
   
-  // 添加工作表到工作簿
-  XLSX.utils.book_append_sheet(wb, ws, '温度数据');
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Temperature Data');
   
-  // 生成文件名
-  const filename = `温度数据_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}.xlsx`;
+  // Generate filename
+  const filename = `Temperature_Data_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}.xlsx`;
   
-  // 下载文件
+  // Download file
   XLSX.writeFile(wb, filename);
   
-  console.log(`✅ Excel 文件已导出: ${filename}`);
-  alert(`数据已导出到文件: ${filename}\n共 ${recordedData.length} 条数据`);
+  console.log(`✅ Excel file exported: ${filename}`);
+  alert(`Data exported to file: ${filename}\nTotal ${recordedData.length} data points`);
 }
 
-// 清空数据
+// Clear recorded data
 function clearRecordedData() {
   if (isRecording) {
-    const confirm = window.confirm('正在采集中，确定要清空数据吗？');
+    const confirm = window.confirm('Recording in progress. Are you sure you want to clear the data?');
     if (!confirm) return;
     
-    // 停止采集
+    // Stop recording
     if (stopCheckInterval) {
       clearInterval(stopCheckInterval);
       stopCheckInterval = null;
@@ -321,36 +340,36 @@ function clearRecordedData() {
   recordedData = [];
   document.getElementById('recordedCount').textContent = '0';
   updateRecordingStatus('idle');
-  console.log('🗑️ 数据已清空');
+  console.log('🗑️ Data cleared');
 }
 
-// 按钮事件绑定
+// Button event bindings
 document.getElementById('manualExportBtn').addEventListener('click', () => {
   if (recordedData.length === 0) {
-    alert('没有数据可导出');
+    alert('No data to export');
     return;
   }
   exportToExcel();
 });
 
 document.getElementById('clearDataBtn').addEventListener('click', () => {
-  const confirm = window.confirm('确定要清空所有采集的数据吗？');
+  const confirm = window.confirm('Are you sure you want to clear all recorded data?');
   if (confirm) {
     clearRecordedData();
   }
 });
 
-// ==================== 原有代码 ====================
+// ==================== Original Code ====================
 
-/* 等待设备返回 AWK（41 57 4B），带超时 */
+/* Wait for device to return AWK (41 57 4B) with timeout */
 function waitForAck(timeout = 6000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      console.warn("⚠️ ACK 超时，未收到设备响应");
-      reject(new Error("等待 AWK 超时"));
+      console.warn("⚠️ ACK timeout, no device response received");
+      reject(new Error("AWK timeout"));
     }, timeout);
 
-    // 保存一个触发器到全局，收到 AWK 时会调用它
+    // Save a trigger globally, will be called when AWK is received
     ackResolver = () => {
       clearTimeout(timer);
       resolve();
@@ -363,7 +382,7 @@ function set(id, value) {
   document.getElementById(id).textContent = value;
 }
 const chartDataSide=[];const chartDataBottom=[];const chartDataPower=[];const chartMaxPoints=200;
-function drawChart(){const c=document.getElementById('chartCanvas');if(!c)return;const x=c.getContext('2d'),w=c.width,h=c.height,m=30,pw=w-m*2,ph=h-m*2;x.clearRect(0,0,w,h);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.strokeStyle='#eee';x.lineWidth=1;for(let i=0;i<=4;i++){const y=m+i/4*ph;x.beginPath();x.moveTo(m,y);x.lineTo(m+pw,y);x.stroke();}const a=chartDataSide.concat(chartDataBottom,chartDataPower);if(!a.length){x.fillStyle='#666';x.font='14px sans-serif';x.fillText('等待数据…',m+10,m+20);return;}let mn=Math.min(...a),mx=Math.max(...a);if(mn===mx){mn-=1;mx+=1;}const sy=v=>m+(ph-(v-mn)/(mx-mn)*ph),ss=pw/Math.max(chartDataSide.length-1,1),sb=pw/Math.max(chartDataBottom.length-1,1),sp=pw/Math.max(chartDataPower.length-1,1);x.strokeStyle='#e74c3c';x.lineWidth=2;x.beginPath();for(let i=0;i<chartDataSide.length;i++){const xx=m+i*ss,yy=sy(chartDataSide[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#3498db';x.beginPath();for(let i=0;i<chartDataBottom.length;i++){const xx=m+i*sb,yy=sy(chartDataBottom[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#2ecc71';x.beginPath();for(let i=0;i<chartDataPower.length;i++){const xx=m+i*sp,yy=sy(chartDataPower[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#aaa';x.lineWidth=1;x.strokeRect(m,m,pw,ph);x.fillStyle='#666';x.font='12px sans-serif';x.fillText(`min:${mn}`,6,h-8);x.fillText(`max:${mx}`,6,16);} 
+function drawChart(){const c=document.getElementById('chartCanvas');if(!c)return;const x=c.getContext('2d'),w=c.width,h=c.height,m=30,pw=w-m*2,ph=h-m*2;x.clearRect(0,0,w,h);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.strokeStyle='#eee';x.lineWidth=1;for(let i=0;i<=4;i++){const y=m+i/4*ph;x.beginPath();x.moveTo(m,y);x.lineTo(m+pw,y);x.stroke();}const a=chartDataSide.concat(chartDataBottom,chartDataPower);if(!a.length){x.fillStyle='#666';x.font='14px sans-serif';x.fillText('Waiting for data...',m+10,m+20);return;}let mn=Math.min(...a),mx=Math.max(...a);if(mn===mx){mn-=1;mx+=1;}const sy=v=>m+(ph-(v-mn)/(mx-mn)*ph),ss=pw/Math.max(chartDataSide.length-1,1),sb=pw/Math.max(chartDataBottom.length-1,1),sp=pw/Math.max(chartDataPower.length-1,1);x.strokeStyle='#e74c3c';x.lineWidth=2;x.beginPath();for(let i=0;i<chartDataSide.length;i++){const xx=m+i*ss,yy=sy(chartDataSide[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#3498db';x.beginPath();for(let i=0;i<chartDataBottom.length;i++){const xx=m+i*sb,yy=sy(chartDataBottom[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#2ecc71';x.beginPath();for(let i=0;i<chartDataPower.length;i++){const xx=m+i*sp,yy=sy(chartDataPower[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#aaa';x.lineWidth=1;x.strokeRect(m,m,pw,ph);x.fillStyle='#666';x.font='12px sans-serif';x.fillText(`min:${mn}`,6,h-8);x.fillText(`max:${mx}`,6,16);} 
 
 function addDataToChart(s,b,p){
   chartDataSide.push(s);
@@ -713,58 +732,195 @@ window.addEventListener('DOMContentLoaded', () => {
   otaInput.value = `${location.origin}/simple_ota.bin`;
   drawChart();
   
-  // 滑动条事件处理
-  const percentSlider = document.getElementById('percentSlider');
-  const percentValue = document.getElementById('percentValue');
-  const percentMinusBtn = document.getElementById('percentMinusBtn');
-  const percentPlusBtn = document.getElementById('percentPlusBtn');
+  // 功率滑动条元素
+  const wattageSideSlider = document.getElementById('wattageSideSlider');
+  const wattageBottomSlider = document.getElementById('wattageBottomSlider');
+  const wattageSideValue = document.getElementById('wattageSideValue');
+  const wattageBottomValue = document.getElementById('wattageBottomValue');
+  const calculatedPercent = document.getElementById('calculatedPercent');
+  const totalWattage = document.getElementById('totalWattage');
+  const sendWattageBtn = document.getElementById('sendWattageBtn');
   
-  percentSlider.addEventListener('input', () => {
-    percentValue.textContent = percentSlider.value;
+  // 按钮元素
+  const sideMinusBtn = document.getElementById('sideMinusBtn');
+  const sidePlusBtn = document.getElementById('sidePlusBtn');
+  const bottomMinusBtn = document.getElementById('bottomMinusBtn');
+  const bottomPlusBtn = document.getElementById('bottomPlusBtn');
+  
+  // 最大总功率限制
+  const MAX_TOTAL_WATTAGE = 60;
+  
+  // 计算百分比的函数
+  function calculatePercent() {
+    const sideW = parseInt(wattageSideSlider.value);
+    const bottomW = parseInt(wattageBottomSlider.value);
+    const total = sideW + bottomW;
+    
+    if (total === 0) {
+      return 0;
+    }
+    
+    const percent = Math.round((sideW / total) * 100);
+    return percent;
+  }
+  
+  // 更新显示的函数
+  function updateDisplay() {
+    wattageSideValue.textContent = wattageSideSlider.value;
+    wattageBottomValue.textContent = wattageBottomSlider.value;
+    
+    const total = parseInt(wattageSideSlider.value) + parseInt(wattageBottomSlider.value);
+    totalWattage.textContent = total;
+    
+    // 根据总功率改变颜色
+    if (total > MAX_TOTAL_WATTAGE) {
+      totalWattage.style.color = '#dc3545'; // 红色
+    } else if (total === MAX_TOTAL_WATTAGE) {
+      totalWattage.style.color = '#ffc107'; // 黄色
+    } else {
+      totalWattage.style.color = '#28a745'; // 绿色
+    }
+    
+    calculatedPercent.textContent = calculatePercent();
+  }
+  
+  // 更新 Bottom 滑动条的最大值
+  function updateBottomMax() {
+    const sideW = parseInt(wattageSideSlider.value);
+    const maxBottom = MAX_TOTAL_WATTAGE - sideW;
+    wattageBottomSlider.max = maxBottom;
+    
+    // 如果当前 Bottom 值超过新的最大值，自动调整
+    if (parseInt(wattageBottomSlider.value) > maxBottom) {
+      wattageBottomSlider.value = maxBottom;
+    }
+  }
+  
+  // 更新 Side 滑动条的最大值
+  function updateSideMax() {
+    const bottomW = parseInt(wattageBottomSlider.value);
+    const maxSide = MAX_TOTAL_WATTAGE - bottomW;
+    wattageSideSlider.max = maxSide;
+    
+    // 如果当前 Side 值超过新的最大值，自动调整
+    if (parseInt(wattageSideSlider.value) > maxSide) {
+      wattageSideSlider.value = maxSide;
+    }
+  }
+  
+  // Side 滑动条事件
+  wattageSideSlider.addEventListener('input', () => {
+    updateBottomMax(); // 更新 Bottom 的最大值
+    updateDisplay();
   });
   
-  percentSlider.addEventListener('change', async () => {
-    const percent = parseInt(percentSlider.value);
+  // Bottom 滑动条事件
+  wattageBottomSlider.addEventListener('input', () => {
+    updateSideMax(); // 更新 Side 的最大值
+    updateDisplay();
+  });
+  
+  // Side - 按钮
+  sideMinusBtn.addEventListener('click', () => {
+    let v = parseInt(wattageSideSlider.value) || 0;
+    if (v > 0) v -= 1;
+    wattageSideSlider.value = v;
+    updateBottomMax();
+    updateDisplay();
+  });
+  
+  // Side + 按钮
+  sidePlusBtn.addEventListener('click', () => {
+    let v = parseInt(wattageSideSlider.value) || 0;
+    const bottomW = parseInt(wattageBottomSlider.value);
+    const maxSide = MAX_TOTAL_WATTAGE - bottomW;
+    
+    if (v < maxSide) {
+      v += 1;
+      wattageSideSlider.value = v;
+      updateBottomMax();
+      updateDisplay();
+    }
+  });
+  
+  // Bottom - 按钮
+  bottomMinusBtn.addEventListener('click', () => {
+    let v = parseInt(wattageBottomSlider.value) || 0;
+    if (v > 0) v -= 1;
+    wattageBottomSlider.value = v;
+    updateSideMax();
+    updateDisplay();
+  });
+  
+  // Bottom + 按钮
+  bottomPlusBtn.addEventListener('click', () => {
+    let v = parseInt(wattageBottomSlider.value) || 0;
+    const sideW = parseInt(wattageSideSlider.value);
+    const maxBottom = MAX_TOTAL_WATTAGE - sideW;
+    
+    if (v < maxBottom) {
+      v += 1;
+      wattageBottomSlider.value = v;
+      updateSideMax();
+      updateDisplay();
+    }
+  });
+  
+  // Send data button
+  sendWattageBtn.addEventListener('click', async () => {
+    const sideW = parseInt(wattageSideSlider.value);
+    const bottomW = parseInt(wattageBottomSlider.value);
+    const total = sideW + bottomW;
+    
+    // Check if total power exceeds limit
+    if (total > MAX_TOTAL_WATTAGE) {
+      alert(`Error: Total power ${total}W exceeds limit ${MAX_TOTAL_WATTAGE}W!\nPlease adjust power settings.`);
+      return;
+    }
+    
+    if (total === 0) {
+      alert('Error: Total power cannot be 0W!');
+      return;
+    }
+    
+    const percent = calculatePercent();
     
     if (!characteristicToWrite) {
-      alert('未连接蓝牙设备或未找到可写特征值');
+      alert('Bluetooth device not connected or writable characteristic not found');
       return;
     }
     
     try {
+      // Send B1 command first
       const data = new Uint8Array([0xB1, 0x04, percent, 0xB1]);
       await characteristicToWrite.writeValue(data);
-      console.log(`已发送百分比数据: B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1`);
+      console.log(`Power data sent: Side=${sideW}W, Bottom=${bottomW}W, Total=${total}W, Percent=${percent}%`);
+      console.log(`Bluetooth packet: B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1`);
+      
+      // Wait 200ms before sending CF command
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Calculate TotalPower * 10
+      const totalPowerTimes10 = total * 10;
+      const highByte = (totalPowerTimes10 >> 8) & 0xFF;
+      const lowByte = totalPowerTimes10 & 0xFF;
+      
+      // Send CF command: CF 0B TotalPower*10(high) TotalPower*10(low) 01 F4 00 96 00 14 CF
+      const cfData = new Uint8Array([0xCF, 0x0B, highByte, lowByte, 0x01, 0xF4, 0x00, 0x96, 0x00, 0x14, 0xCF]);
+      await characteristicToWrite.writeValue(cfData);
+      console.log(`CF command sent: Total=${total}W, TotalPower*10=${totalPowerTimes10}`);
+      console.log(`Bluetooth packet: CF 0B ${highByte.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()} 01 F4 00 96 00 14 CF`);
+      
+      alert(`✅ Sent successfully!\n\nSide: ${sideW}W\nBottom: ${bottomW}W\nTotal Power: ${total}W\nPercentage: ${percent}%\n\nCommands sent:\n1. B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1\n2. CF 0B ${highByte.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()} 01 F4 00 96 00 14 CF`);
     } catch (e) {
-      alert('发送失败: ' + e.message);
+      alert('Send failed: ' + e.message);
     }
   });
   
-  percentMinusBtn.addEventListener('click', async () => {
-    let v = parseInt(percentSlider.value) || 0;
-    if (v > 0) v -= 1;
-    percentSlider.value = v;
-    percentValue.textContent = v;
-    if (!characteristicToWrite) { alert('未连接蓝牙设备或未找到可写特征值'); return; }
-    try {
-      const data = new Uint8Array([0xB1, 0x04, v, 0xB1]);
-      await characteristicToWrite.writeValue(data);
-      console.log(`已发送百分比数据: B1 04 ${v.toString(16).padStart(2, '0').toUpperCase()} B1`);
-    } catch (e) { alert('发送失败: ' + e.message); }
-  });
-  
-  percentPlusBtn.addEventListener('click', async () => {
-    let v = parseInt(percentSlider.value) || 0;
-    if (v < 100) v += 1;
-    percentSlider.value = v;
-    percentValue.textContent = v;
-    if (!characteristicToWrite) { alert('未连接蓝牙设备或未找到可写特征值'); return; }
-    try {
-      const data = new Uint8Array([0xB1, 0x04, v, 0xB1]);
-      await characteristicToWrite.writeValue(data);
-      console.log(`已发送百分比数据: B1 04 ${v.toString(16).padStart(2, '0').toUpperCase()} B1`);
-    } catch (e) { alert('发送失败: ' + e.message); }
-  });
+  // Initialize display
+  updateBottomMax();
+  updateSideMax();
+  updateDisplay();
 });
 
 
