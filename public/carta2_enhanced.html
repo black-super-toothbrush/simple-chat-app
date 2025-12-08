@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bluetooth Device Status Panel</title>
+  <!-- 引入 SheetJS 库用于生成 Excel 文件 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #f8fbff; padding: 2em; }
+    h2 { margin-bottom: 1em; }
+    .panel { background: #fff; padding: 1em; border-radius: 10px; box-shadow: 0 0 6px #ccc; max-width: 500px; margin-bottom: 1em; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #ddd; }
+    .row:last-child { border: none; }
+    label { font-weight: bold; }
+    .val { font-family: monospace; }
+    button, input { margin: 0.5em 0; padding: 0.6em; font-size: 1em; }
+    .form { margin-top: 1em; }
+    
+    /* 数据采集状态样式 */
+    .recording-panel {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+    }
+    .recording-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #dc3545;
+      margin-right: 8px;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+    .status-recording { color: #dc3545; font-weight: bold; }
+    .status-idle { color: #6c757d; }
+    .status-stopped { color: #28a745; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h2>📡 Bluetooth Status Panel</h2>
+<button id="connectBtn">🔗 Connect Bluetooth Device</button>
+
+<!-- 数据采集控制面板 -->
+<div class="panel" id="recordingPanel">
+  <div class="row">
+    <label>📊 数据采集状态:</label>
+    <span class="val status-idle" id="recordingStatus">待机中</span>
+  </div>
+  <div class="row">
+    <label>已采集数据点:</label>
+    <span class="val" id="recordedCount">0</span>
+  </div>
+  <div class="row">
+    <label>停止检测时间:</label>
+    <span class="val">
+      <input type="number" id="stopThreshold" value="5" min="1" max="60" style="width: 60px;"> 秒
+    </span>
+  </div>
+  <div class="row">
+    <button id="manualExportBtn" style="background: #28a745; color: white;">💾 手动导出 Excel</button>
+    <button id="clearDataBtn" style="background: #dc3545; color: white;">🗑️ 清空数据</button>
+  </div>
+</div>
+
+<div class="form">
+  <label for="ssid">SSID:</label>
+  <input type="text" id="ssid" placeholder="Enter WiFi SSID">
+  <label for="password">Password:</label>
+  <input type="text" id="password" placeholder="Enter WiFi password">
+  <button id="startWifiBtn">🚀 Start WiFi</button>
+
+  <!-- OTA BIN Upload -->
+  <div style="margin-top:1em;">
+    <label for="binFile">Select OTA Firmware (.bin):</label>
+    <input type="file" id="binFile" accept=".bin">
+    <button id="sendBinBtn">📦 Send OTA BIN</button>
+  </div>
+
+  <!-- OTA URL Input -->
+  <div style="margin-top: 1em;">
+  <label for="otaUrl">OTA URL:</label>
+  <input type="text" id="otaUrl" placeholder="Enter OTA download URL" style="width: 50%;">
+  <button id="startOtaBtn">⬇️ Start WiFi OTA</button>
+  </div>
+
+  <div class="form">
+  <label for="hexInput">Send Hex Data Manually:</label>
+  <input type="text" id="hexInput" placeholder="e.g. AA 01 FF 00" style="width: 60%;">
+  <button id="sendHexBtn">📤 Send Hex</button>
+  <button id="sendAsciiBtn">📝 Send ASCII</button>
+  </div>
+
+  <!-- Percentage Slider -->
+  <div class="form">
+  <label for="percentSlider">Percentage Control (0-100):</label>
+  <button id="percentMinusBtn" title="Decrease">-</button>
+  <input type="range" id="percentSlider" min="0" max="100" value="50" style="width: 60%;">
+  <button id="percentPlusBtn" title="Increase">+</button>
+  <span id="percentValue">50</span>%
+  </div>
+
+</div>
+
+<div class="panel" id="statusPanel">
+  <div class="row"><label>Atomizer Type:</label><span class="val" id="atomizer">--</span></div>
+  <div class="row"><label>Dry Herb Preset:</label><span class="val" id="dryPreset">--</span></div>
+  <div class="row"><label>Gesso Preset:</label><span class="val" id="gessoPreset">--</span></div>
+  <div class="row"><label>Countdown:</label><span class="val" id="countdown">--</span></div>
+  <div class="row"><label>Current Temp:</label><span class="val" id="curTemp">--</span></div>
+  <div class="row"><label>Preset Temp:</label><span class="val" id="presetTemp">--</span></div>
+  <div class="row"><label>Battery Level:</label><span class="val" id="battery">--</span></div>
+  <div class="row"><label>LED Preset:</label><span class="val" id="ledPreset">--</span></div>
+  <div class="row"><label>Dry Herb Time:</label><span class="val" id="dryTime">--</span></div>
+  <div class="row"><label>Gesso Time:</label><span class="val" id="gessoTime">--</span></div>
+</div>
+<div class="panel" id="chartPanel">
+  <div class="row"><label>📈 实时温度曲线</label><span class="val">Side • Bottom • Power</span></div>
+  <div class="row">
+    <span class="val" style="color:#e74c3c">Side: <span id="curSide">--</span></span>
+    <span class="val" style="color:#3498db">Bottom: <span id="curBottom">--</span></span>
+    <span class="val" style="color:#2ecc71">Power: <span id="curPower">--</span></span>
+  </div>
+  <canvas id="chartCanvas" width="500" height="240"></canvas>
+  <div class="row"><span style="color:#e74c3c">● Side</span><span style="color:#3498db">● Bottom</span><span style="color:#2ecc71">● Power</span></div>
+</div>
+
+<script>
+let characteristicToWrite = null; // 保存可写特征值
+
+// ==================== 数据采集相关变量 ====================
+let recordedData = []; // 存储所有采集的数据
+let isRecording = false; // 是否正在采集
+let lastDataTime = null; // 最后一次接收数据的时间
+let stopCheckInterval = null; // 停止检测定时器
+let recordingStartTime = null; // 开始采集的时间
+
+// 更新采集状态显示
+function updateRecordingStatus(status) {
+  const statusEl = document.getElementById('recordingStatus');
+  const panelEl = document.getElementById('recordingPanel');
+  
+  if (status === 'recording') {
+    statusEl.innerHTML = '<span class="recording-indicator"></span>正在采集...';
+    statusEl.className = 'val status-recording';
+    panelEl.classList.add('recording-panel');
+    isRecording = true;
+  } else if (status === 'stopped') {
+    statusEl.textContent = '采集完成';
+    statusEl.className = 'val status-stopped';
+    panelEl.classList.remove('recording-panel');
+    isRecording = false;
+  } else {
+    statusEl.textContent = '待机中';
+    statusEl.className = 'val status-idle';
+    panelEl.classList.remove('recording-panel');
+    isRecording = false;
+  }
+}
+
+// 开始数据采集
+function startRecording() {
+  if (isRecording) return;
+  
+  recordedData = [];
+  recordingStartTime = new Date();
+  updateRecordingStatus('recording');
+  
+  console.log('✅ 开始数据采集');
+  
+  // 启动停止检测定时器
+  startStopDetection();
+}
+
+// 停止数据采集并导出
+function stopRecording() {
+  if (!isRecording) return;
+  
+  updateRecordingStatus('stopped');
+  console.log(`✅ 数据采集完成，共采集 ${recordedData.length} 条数据`);
+  
+  // 停止检测定时器
+  if (stopCheckInterval) {
+    clearInterval(stopCheckInterval);
+    stopCheckInterval = null;
+  }
+  
+  // 自动导出Excel
+  if (recordedData.length > 0) {
+    exportToExcel();
+  } else {
+    alert('没有采集到数据');
+  }
+}
+
+// 启动停止检测
+function startStopDetection() {
+  if (stopCheckInterval) {
+    clearInterval(stopCheckInterval);
+  }
+  
+  stopCheckInterval = setInterval(() => {
+    if (!isRecording) return;
+    
+    const threshold = parseInt(document.getElementById('stopThreshold').value) * 1000;
+    const now = Date.now();
+    
+    if (lastDataTime && (now - lastDataTime) > threshold) {
+      console.log(`⏹️ 数据停止超过 ${threshold/1000} 秒，自动停止采集`);
+      stopRecording();
+    }
+  }, 1000);
+}
+
+// 记录数据点
+function recordDataPoint(side, bottom, power) {
+  const timestamp = new Date();
+  const dataPoint = {
+    timestamp: timestamp.toISOString(),
+    time: timestamp.toLocaleString('zh-CN'),
+    side: side,
+    bottom: bottom,
+    power: power
+  };
+  
+  recordedData.push(dataPoint);
+  lastDataTime = Date.now();
+  
+  // 更新显示
+  document.getElementById('recordedCount').textContent = recordedData.length;
+  
+  // 如果还没开始采集，则自动开始
+  if (!isRecording) {
+    startRecording();
+  }
+}
+
+// 导出为Excel文件
+function exportToExcel() {
+  if (recordedData.length === 0) {
+    alert('没有数据可导出');
+    return;
+  }
+  
+  // 创建工作簿
+  const wb = XLSX.utils.book_new();
+  
+  // 准备数据
+  const wsData = [
+    ['时间戳', '时间', 'Side Temperature', 'Bottom Temperature', 'Power'],
+    ...recordedData.map(d => [d.timestamp, d.time, d.side, d.bottom, d.power])
+  ];
+  
+  // 添加统计信息
+  wsData.push([]);
+  wsData.push(['统计信息']);
+  wsData.push(['总数据点', recordedData.length]);
+  wsData.push(['采集开始时间', recordingStartTime ? recordingStartTime.toLocaleString('zh-CN') : '']);
+  wsData.push(['采集结束时间', new Date().toLocaleString('zh-CN')]);
+  
+  if (recordedData.length > 0) {
+    const sides = recordedData.map(d => d.side);
+    const bottoms = recordedData.map(d => d.bottom);
+    const powers = recordedData.map(d => d.power);
+    
+    wsData.push([]);
+    wsData.push(['Side - 最小值', Math.min(...sides).toFixed(2)]);
+    wsData.push(['Side - 最大值', Math.max(...sides).toFixed(2)]);
+    wsData.push(['Side - 平均值', (sides.reduce((a,b) => a+b, 0) / sides.length).toFixed(2)]);
+    wsData.push([]);
+    wsData.push(['Bottom - 最小值', Math.min(...bottoms).toFixed(2)]);
+    wsData.push(['Bottom - 最大值', Math.max(...bottoms).toFixed(2)]);
+    wsData.push(['Bottom - 平均值', (bottoms.reduce((a,b) => a+b, 0) / bottoms.length).toFixed(2)]);
+    wsData.push([]);
+    wsData.push(['Power - 最小值', Math.min(...powers).toFixed(2)]);
+    wsData.push(['Power - 最大值', Math.max(...powers).toFixed(2)]);
+    wsData.push(['Power - 平均值', (powers.reduce((a,b) => a+b, 0) / powers.length).toFixed(2)]);
+  }
+  
+  // 创建工作表
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // 设置列宽
+  ws['!cols'] = [
+    { wch: 25 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 12 }
+  ];
+  
+  // 添加工作表到工作簿
+  XLSX.utils.book_append_sheet(wb, ws, '温度数据');
+  
+  // 生成文件名
+  const filename = `温度数据_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)}.xlsx`;
+  
+  // 下载文件
+  XLSX.writeFile(wb, filename);
+  
+  console.log(`✅ Excel 文件已导出: ${filename}`);
+  alert(`数据已导出到文件: ${filename}\n共 ${recordedData.length} 条数据`);
+}
+
+// 清空数据
+function clearRecordedData() {
+  if (isRecording) {
+    const confirm = window.confirm('正在采集中，确定要清空数据吗？');
+    if (!confirm) return;
+    
+    // 停止采集
+    if (stopCheckInterval) {
+      clearInterval(stopCheckInterval);
+      stopCheckInterval = null;
+    }
+  }
+  
+  recordedData = [];
+  document.getElementById('recordedCount').textContent = '0';
+  updateRecordingStatus('idle');
+  console.log('🗑️ 数据已清空');
+}
+
+// 按钮事件绑定
+document.getElementById('manualExportBtn').addEventListener('click', () => {
+  if (recordedData.length === 0) {
+    alert('没有数据可导出');
+    return;
+  }
+  exportToExcel();
+});
+
+document.getElementById('clearDataBtn').addEventListener('click', () => {
+  const confirm = window.confirm('确定要清空所有采集的数据吗？');
+  if (confirm) {
+    clearRecordedData();
+  }
+});
+
+// ==================== 原有代码 ====================
+
+/* 等待设备返回 AWK（41 57 4B），带超时 */
+function waitForAck(timeout = 6000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      console.warn("⚠️ ACK 超时，未收到设备响应");
+      reject(new Error("等待 AWK 超时"));
+    }, timeout);
+
+    // 保存一个触发器到全局，收到 AWK 时会调用它
+    ackResolver = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+  });
+}
+
+
+function set(id, value) {
+  document.getElementById(id).textContent = value;
+}
+const chartDataSide=[];const chartDataBottom=[];const chartDataPower=[];const chartMaxPoints=200;
+function drawChart(){const c=document.getElementById('chartCanvas');if(!c)return;const x=c.getContext('2d'),w=c.width,h=c.height,m=30,pw=w-m*2,ph=h-m*2;x.clearRect(0,0,w,h);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.strokeStyle='#eee';x.lineWidth=1;for(let i=0;i<=4;i++){const y=m+i/4*ph;x.beginPath();x.moveTo(m,y);x.lineTo(m+pw,y);x.stroke();}const a=chartDataSide.concat(chartDataBottom,chartDataPower);if(!a.length){x.fillStyle='#666';x.font='14px sans-serif';x.fillText('等待数据…',m+10,m+20);return;}let mn=Math.min(...a),mx=Math.max(...a);if(mn===mx){mn-=1;mx+=1;}const sy=v=>m+(ph-(v-mn)/(mx-mn)*ph),ss=pw/Math.max(chartDataSide.length-1,1),sb=pw/Math.max(chartDataBottom.length-1,1),sp=pw/Math.max(chartDataPower.length-1,1);x.strokeStyle='#e74c3c';x.lineWidth=2;x.beginPath();for(let i=0;i<chartDataSide.length;i++){const xx=m+i*ss,yy=sy(chartDataSide[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#3498db';x.beginPath();for(let i=0;i<chartDataBottom.length;i++){const xx=m+i*sb,yy=sy(chartDataBottom[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#2ecc71';x.beginPath();for(let i=0;i<chartDataPower.length;i++){const xx=m+i*sp,yy=sy(chartDataPower[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#aaa';x.lineWidth=1;x.strokeRect(m,m,pw,ph);x.fillStyle='#666';x.font='12px sans-serif';x.fillText(`min:${mn}`,6,h-8);x.fillText(`max:${mx}`,6,16);} 
+
+function addDataToChart(s,b,p){
+  chartDataSide.push(s);
+  chartDataBottom.push(b);
+  chartDataPower.push(p);
+  if(chartDataSide.length>chartMaxPoints)chartDataSide.shift();
+  if(chartDataBottom.length>chartMaxPoints)chartDataBottom.shift();
+  if(chartDataPower.length>chartMaxPoints)chartDataPower.shift();
+  set('curSide',s);
+  set('curBottom',b);
+  set('curPower',Number(p).toFixed(2));
+  drawChart();
+  
+  // ✅ 记录数据点
+  recordDataPoint(s, b, p);
+}
+
+document.getElementById('connectBtn').addEventListener('click', async () => {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['1011123e-8535-b5a0-7140-a304d2495cb7']
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService('1011123e-8535-b5a0-7140-a304d2495cb7');
+    const characteristics = await service.getCharacteristics();
+
+    for (const char of characteristics) {
+      console.log('特征值 UUID:', char.uuid, 'Properties:', char.properties);
+      if (char.properties.notify) {
+        await char.startNotifications();
+        char.addEventListener('characteristicvaluechanged', event => {
+          const d = new Uint8Array(event.target.value.buffer);
+          /* ---------- AWK 检测 ---------- */
+          if (d.length === 3 && d[0] === 0x41 && d[1] === 0x57 && d[2] === 0x4B) {
+            console.log('✅ 收到 AWK');
+            if (typeof ackResolver === 'function') {
+              ackResolver();
+              ackResolver = null;
+            }
+            return;
+          }
+
+          if(d[0] != 0x99) {
+            console.log('收到 Notify 数据:', d);
+          }
+
+          if (d[0] === 0xDD && d.length >= 17) {
+            const sideTemp = ((d[3] << 8) | d[4]) * 9 / 5 + 32;
+            const power = ((d[7] << 8) | d[8]) / 100;
+            const bottomTemp = (d[15] << 8) | d[16];
+            addDataToChart(sideTemp, bottomTemp, power);
+            return;
+          }
+
+          if (d.length < 16) return;
+          if (d[0] != 0x99)  return;
+          const byte2 = d[2];
+          const byte3 = d[3];
+          const byte4 = d[4];
+          const byte5 = d[5];
+          const temp = (d[6] << 8) | d[7];
+          const dryTemp = (d[8] << 8) | d[9];
+          const gessoTemp = (d[10] << 8) | d[11];
+          const battery = d[12];
+          const ledPreset = d[13] >> 4;
+          const dryTime = d[14];
+          const gessoTime = d[15];
+          
+          let presetTemp = 0;
+          if(byte2 == 0x40)  presetTemp = dryTemp;
+          if(byte2 == 0x60)  presetTemp = gessoTemp;
+          if(byte2 == 0xA0)  presetTemp = dryTemp;
+          if(byte2 == 0x30)  presetTemp = gessoTemp;
+
+          const atomizerMap = {
+            0x40: 'Gesso', 0x60: 'Gesso', 0xA0: 'Dry Herb', 0x30: 'Gesso Max', 0x00: 'No Atomizer'
+          };
+          const unitMap = {
+            0x11: '℉', 0x22: '℃'
+          };
+
+          set('atomizer', atomizerMap[byte2] || `0x${byte2.toString(16)}`);
+          set('dryPreset', byte4 >> 4);
+          set('gessoPreset', byte4 & 0x0F);
+          set('countdown', `${byte5}s`);
+          set('curTemp', temp + unitMap[byte3]);
+          set('presetTemp', presetTemp + unitMap[byte3]);
+          set('battery', `${battery}%`);
+          set('ledPreset', ledPreset);
+          set('dryTime', `${dryTime}s`);
+          set('gessoTime', `${gessoTime}s`);
+          console.log('找到 Notify 特征值:', char.uuid);
+        });
+      }
+
+      if (char.properties.write || char.properties.writeWithoutResponse) {
+        characteristicToWrite = char;
+        console.log('找到 Write 特征值:', char.uuid);
+      }
+    }
+
+    alert("蓝牙设备连接成功！");
+
+  } catch (e) {
+    alert('连接失败: ' + e);
+  }
+});
+
+document.getElementById('startWifiBtn').addEventListener('click', async () => {
+  const ssid = document.getElementById('ssid').value;
+  const password = document.getElementById('password').value;
+
+  if (!ssid || !password) {
+    alert("请输入完整的 SSID 和密码");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未连接蓝牙设备或未找到可写特征值");
+    return;
+  }
+
+  try {
+    const encoder = new TextEncoder();
+    const ssidBytes = encoder.encode(ssid);
+    const passwordBytes = encoder.encode(password);
+
+    if (ssidBytes.length > 32 || passwordBytes.length > 64) {
+      alert("SSID 或密码过长");
+      return;
+    }
+
+    const data = new Uint8Array(1 + 1 + ssidBytes.length + 1 + passwordBytes.length);
+    data[0] = 0xC0;
+    data[1] = ssidBytes.length;
+    data.set(ssidBytes, 2);
+    data[2 + ssidBytes.length] = passwordBytes.length;
+    data.set(passwordBytes, 3 + ssidBytes.length);
+
+    await characteristicToWrite.writeValue(data);
+    alert("WiFi 信息已发送");
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
+});
+
+document.getElementById('startOtaBtn').addEventListener('click', async () => {
+  const otaUrl = document.getElementById('otaUrl').value.trim();
+  
+  if (!otaUrl) {
+    alert("请输入 OTA 下载 URL");
+    return;
+  }
+  
+  if (!characteristicToWrite) {
+    alert("未连接蓝牙设备或未找到可写特征值");
+    return;
+  }
+  
+  try {
+    const encoder = new TextEncoder();
+    const urlBytes = encoder.encode(otaUrl);
+    
+    if (urlBytes.length > 128) {
+      alert("URL 太长（限128字节）");
+      return;
+    }
+    
+    const data = new Uint8Array(1 + 1 + urlBytes.length);
+    data[0] = 0xD0;
+    data[1] = urlBytes.length;
+    data.set(urlBytes, 2);
+    
+    await characteristicToWrite.writeValue(data);
+    alert("OTA URL 已发送，设备即将开始下载并更新...");
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
+});
+
+document.getElementById('sendHexBtn').addEventListener('click', async () => {
+  const hex = document.getElementById('hexInput').value.trim();
+  if (!hex) {
+    alert("请输入十六进制数据，例如：AA 01 FF 00");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未连接蓝牙设备或未找到可写特征值");
+    return;
+  }
+
+  try {
+    const byteArray = hex.split(/\s+/).map(b => parseInt(b, 16));
+    const data = new Uint8Array(byteArray);
+    await characteristicToWrite.writeValue(data);
+    alert("已发送 Hex 数据");
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
+});
+
+document.getElementById('sendAsciiBtn').addEventListener('click', async () => {
+  const asciiStr = document.getElementById('hexInput').value.trim();
+  if (!asciiStr) {
+    alert("请输入 ASCII 字符串");
+    return;
+  }
+
+  if (!characteristicToWrite) {
+    alert("未连接蓝牙设备或未找到可写特征值");
+    return;
+  }
+
+  try {
+    const data = new TextEncoder().encode(asciiStr); // 转成 UTF-8 字节流
+    await characteristicToWrite.writeValue(data);
+    alert("已发送 ASCII 字符串");
+  } catch (e) {
+    alert("发送失败: " + e.message);
+  }
+});
+
+
+
+/* ---------- 封包：返回 Uint8Array( 518 ) ---------- */
+const PAYLOAD_SIZE = 16;        // 每帧有效数据 32B
+const FRAME_SIZE   = 22;   // 1+2+16+2+1
+const HEADER_BYTE  = 0xAA;
+const TAIL_BYTE    = 0xAA;
+function crc16Modbus(buf) {
+  let crc = 0xFFFF;
+  for (let b of buf) {
+    crc ^= b;
+    for (let i = 0; i < 8; ++i)
+      crc = (crc & 1) ? (crc >>> 1) ^ 0xA001 : crc >>> 1;
+  }
+  return crc & 0xFFFF;
+}
+function buildSmallPacket(seq, payload32) {
+  const frame = new Uint8Array(FRAME_SIZE);
+
+  frame[0] = HEADER_BYTE;           // 帧头
+  frame[1] = seq & 0xFF;           // Seq_L
+  frame[2] = (seq >> 8) & 0xFF;    // Seq_H
+
+  frame.fill(0xFF, 3);             // 先把 32B 区域填 0xFF
+  frame.set(payload32, 3);         // 写入实际数据
+
+  const crc = crc16Modbus(frame.subarray(1, 1 + 2 + PAYLOAD_SIZE)); // Seq+Payload
+  frame[19] = (crc >> 8) & 0xFF;    // CRC 高
+  frame[20] =  crc & 0xFF;          // CRC 低
+  frame[21] = TAIL_BYTE;            // 帧尾
+
+  return frame;
+}
+
+
+
+
+
+/* ---------- 选择 BIN → 分包 → 写入 ---------- */
+document.getElementById('sendBinBtn').addEventListener('click', async () => {
+  const f = document.getElementById('binFile').files[0];
+  if (!f) { alert('请选择 .bin 文件'); return; }
+  if (!characteristicToWrite) { alert('请先连接蓝牙设备'); return; }
+
+  try {
+    const arrayBuf = await f.arrayBuffer();
+    let bin = new Uint8Array(arrayBuf);
+    const realLength = bin.length; // 原始长度
+    console.log(`📦 选择的 OTA bin 文件大小: ${realLength} 字节`);
+    // ✅ 补齐到 512 字节对齐（不足补 0xFF）
+    const padding = bin.length % 512;
+    if (padding !== 0) {
+      const padded = new Uint8Array(bin.length + (512 - padding)).fill(0xFF);
+      padded.set(bin);
+      bin = padded;
+    }
+    const totalBlocks = bin.length / 512; // 512 字节为一个块
+    const totalPkts = bin.length / PAYLOAD_SIZE; // 16 字节每包
+
+    // ✅ 发送头包：0x52 0x45 0x51 + len_L + len_H
+    const header = new Uint8Array(9);
+    header[0] = 0x52;
+    header[1] = 0x45;
+    header[2] = 0x51;
+    header[3] = (totalBlocks >> 8) & 0xFF;
+    header[4] = totalBlocks & 0xFF;
+
+    header[5] = (realLength >> 24) & 0xFF;
+    header[6] = (realLength >> 16) & 0xFF;
+    header[7] = (realLength >> 8) & 0xFF;
+    header[8] = realLength & 0xFF;
+
+    console.log(`📦 发送 REQ 包，总块数: ${totalBlocks}, 实际字节数: ${realLength}`);
+    await characteristicToWrite.writeValue(header);
+    try {
+      await waitForAck();  // 等设备 ACK
+      console.log("✅ 收到 ACK，开始发送数据...");
+    } catch (e) {
+      alert("REQ 阶段失败: " + e.message);
+      return;
+    }
+
+
+
+
+    const BATCH_SIZE = 32;  // 每 N 包等一次 ACK
+
+    for (let offset = 0, seq = 0; offset < bin.length; offset += PAYLOAD_SIZE, ++seq) {
+      const remain = bin.length - offset;
+      const block32 = remain >= PAYLOAD_SIZE
+            ? bin.subarray(offset, offset + PAYLOAD_SIZE)
+            : new Uint8Array(PAYLOAD_SIZE).fill(0xFF)
+                  .map((v, i) => (i < remain ? bin[offset + i] : v));
+
+      const pkt = buildSmallPacket(seq, block32);
+      console.log(`Sending pkt data pkt=${pkt}, seq=${seq}, size=${pkt.length}, remain=${remain}`);
+      await characteristicToWrite.writeValue(pkt);
+
+      if ((seq + 1) % BATCH_SIZE === 0 || (offset + PAYLOAD_SIZE) >= bin.length) {
+        console.log(`🕐 Batch ${seq + 1} sent, waiting for ACK...`);
+        try {
+          await waitForAck();  // 每32帧等一次 AWK
+        } catch (e) {
+          alert(e.message);
+          return;
+        }
+      }
+    }
+
+
+      alert('OTA bin 全部发送完成！');
+    } 
+  catch (e) {
+    alert('发送失败: ' + e.message);
+  }
+});
+
+
+
+window.addEventListener('DOMContentLoaded', () => {
+  const otaInput = document.getElementById('otaUrl');
+  otaInput.value = `${location.origin}/simple_ota.bin`;
+  drawChart();
+  
+  // 滑动条事件处理
+  const percentSlider = document.getElementById('percentSlider');
+  const percentValue = document.getElementById('percentValue');
+  const percentMinusBtn = document.getElementById('percentMinusBtn');
+  const percentPlusBtn = document.getElementById('percentPlusBtn');
+  
+  percentSlider.addEventListener('input', () => {
+    percentValue.textContent = percentSlider.value;
+  });
+  
+  percentSlider.addEventListener('change', async () => {
+    const percent = parseInt(percentSlider.value);
+    
+    if (!characteristicToWrite) {
+      alert('未连接蓝牙设备或未找到可写特征值');
+      return;
+    }
+    
+    try {
+      const data = new Uint8Array([0xB1, 0x04, percent, 0xB1]);
+      await characteristicToWrite.writeValue(data);
+      console.log(`已发送百分比数据: B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1`);
+    } catch (e) {
+      alert('发送失败: ' + e.message);
+    }
+  });
+  
+  percentMinusBtn.addEventListener('click', async () => {
+    let v = parseInt(percentSlider.value) || 0;
+    if (v > 0) v -= 1;
+    percentSlider.value = v;
+    percentValue.textContent = v;
+    if (!characteristicToWrite) { alert('未连接蓝牙设备或未找到可写特征值'); return; }
+    try {
+      const data = new Uint8Array([0xB1, 0x04, v, 0xB1]);
+      await characteristicToWrite.writeValue(data);
+      console.log(`已发送百分比数据: B1 04 ${v.toString(16).padStart(2, '0').toUpperCase()} B1`);
+    } catch (e) { alert('发送失败: ' + e.message); }
+  });
+  
+  percentPlusBtn.addEventListener('click', async () => {
+    let v = parseInt(percentSlider.value) || 0;
+    if (v < 100) v += 1;
+    percentSlider.value = v;
+    percentValue.textContent = v;
+    if (!characteristicToWrite) { alert('未连接蓝牙设备或未找到可写特征值'); return; }
+    try {
+      const data = new Uint8Array([0xB1, 0x04, v, 0xB1]);
+      await characteristicToWrite.writeValue(data);
+      console.log(`已发送百分比数据: B1 04 ${v.toString(16).padStart(2, '0').toUpperCase()} B1`);
+    } catch (e) { alert('发送失败: ' + e.message); }
+  });
+});
+
+
+</script>
+
+</body>
+</html>
