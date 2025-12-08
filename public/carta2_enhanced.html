@@ -47,22 +47,22 @@
 <!-- 数据采集控制面板 -->
 <div class="panel" id="recordingPanel">
   <div class="row">
-    <label>📊 数据采集状态:</label>
-    <span class="val status-idle" id="recordingStatus">待机中</span>
+    <label>📊 collection state:</label>
+    <span class="val status-idle" id="recordingStatus">idle</span>
   </div>
   <div class="row">
-    <label>已采集数据点:</label>
+    <label>collection count:</label>
     <span class="val" id="recordedCount">0</span>
   </div>
   <div class="row">
-    <label>停止检测时间:</label>
+    <label>stop detect time:</label>
     <span class="val">
-      <input type="number" id="stopThreshold" value="5" min="1" max="60" style="width: 60px;"> 秒
+      <input type="number" id="stopThreshold" value="3" min="1" max="60" style="width: 60px;"> 秒
     </span>
   </div>
   <div class="row">
-    <button id="manualExportBtn" style="background: #28a745; color: white;">💾 手动导出 Excel</button>
-    <button id="clearDataBtn" style="background: #dc3545; color: white;">🗑️ 清空数据</button>
+    <button id="manualExportBtn" style="background: #28a745; color: white;">💾 export Excel</button>
+    <button id="clearDataBtn" style="background: #dc3545; color: white;">🗑️ clear data</button>
   </div>
 </div>
 
@@ -144,17 +144,17 @@ function updateRecordingStatus(status) {
   const panelEl = document.getElementById('recordingPanel');
   
   if (status === 'recording') {
-    statusEl.innerHTML = '<span class="recording-indicator"></span>正在采集...';
+    statusEl.innerHTML = '<span class="recording-indicator"></span>collecting...';
     statusEl.className = 'val status-recording';
     panelEl.classList.add('recording-panel');
     isRecording = true;
   } else if (status === 'stopped') {
-    statusEl.textContent = '采集完成';
+    statusEl.textContent = 'collection completed';
     statusEl.className = 'val status-stopped';
     panelEl.classList.remove('recording-panel');
     isRecording = false;
   } else {
-    statusEl.textContent = '待机中';
+    statusEl.textContent = 'idle';
     statusEl.className = 'val status-idle';
     panelEl.classList.remove('recording-panel');
     isRecording = false;
