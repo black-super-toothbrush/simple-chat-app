@@ -119,6 +119,25 @@
   <div class="form">
     <label>Calculated Percentage:</label>
     <span id="calculatedPercent" style="font-weight: bold; color: #07c160;">50</span>%
+  </div>
+  
+  <div class="form">
+    <label for="bottomWattagePercentSlider">Bottom Wattage Percent (0-100%):</label>
+    <button id="bottomPercentMinusBtn" title="Decrease">-</button>
+    <input type="range" id="bottomWattagePercentSlider" min="0" max="100" value="50" style="width: 50%;">
+    <button id="bottomPercentPlusBtn" title="Increase">+</button>
+    <span id="bottomWattagePercentValue">50</span>%
+  </div>
+  
+  <div class="form">
+    <label for="switchTimeSlider">Switch Time Point (0-60s):</label>
+    <button id="switchTimeMinusBtn" title="Decrease">-</button>
+    <input type="range" id="switchTimeSlider" min="0" max="60" value="30" style="width: 50%;">
+    <button id="switchTimePlusBtn" title="Increase">+</button>
+    <span id="switchTimeValue">30</span>s
+  </div>
+  
+  <div class="form">
     <button id="sendWattageBtn" style="background: #07c160; color: white; margin-left: 10px;">📤 Send Data</button>
   </div>
 
@@ -732,7 +751,7 @@ window.addEventListener('DOMContentLoaded', () => {
   otaInput.value = `${location.origin}/simple_ota.bin`;
   drawChart();
   
-  // 功率滑动条元素
+  // Power slider elements
   const wattageSideSlider = document.getElementById('wattageSideSlider');
   const wattageBottomSlider = document.getElementById('wattageBottomSlider');
   const wattageSideValue = document.getElementById('wattageSideValue');
@@ -741,16 +760,26 @@ window.addEventListener('DOMContentLoaded', () => {
   const totalWattage = document.getElementById('totalWattage');
   const sendWattageBtn = document.getElementById('sendWattageBtn');
   
-  // 按钮元素
+  // New slider elements
+  const bottomWattagePercentSlider = document.getElementById('bottomWattagePercentSlider');
+  const bottomWattagePercentValue = document.getElementById('bottomWattagePercentValue');
+  const switchTimeSlider = document.getElementById('switchTimeSlider');
+  const switchTimeValue = document.getElementById('switchTimeValue');
+  
+  // Button elements
   const sideMinusBtn = document.getElementById('sideMinusBtn');
   const sidePlusBtn = document.getElementById('sidePlusBtn');
   const bottomMinusBtn = document.getElementById('bottomMinusBtn');
   const bottomPlusBtn = document.getElementById('bottomPlusBtn');
+  const bottomPercentMinusBtn = document.getElementById('bottomPercentMinusBtn');
+  const bottomPercentPlusBtn = document.getElementById('bottomPercentPlusBtn');
+  const switchTimeMinusBtn = document.getElementById('switchTimeMinusBtn');
+  const switchTimePlusBtn = document.getElementById('switchTimePlusBtn');
   
-  // 最大总功率限制
+  // Maximum total power limit
   const MAX_TOTAL_WATTAGE = 60;
   
-  // 计算百分比的函数
+  // Calculate percentage function
   function calculatePercent() {
     const sideW = parseInt(wattageSideSlider.value);
     const bottomW = parseInt(wattageBottomSlider.value);
@@ -764,7 +793,7 @@ window.addEventListener('DOMContentLoaded', () => {
     return percent;
   }
   
-  // 更新显示的函数
+  // Update display function
   function updateDisplay() {
     wattageSideValue.textContent = wattageSideSlider.value;
     wattageBottomValue.textContent = wattageBottomSlider.value;
@@ -772,31 +801,33 @@ window.addEventListener('DOMContentLoaded', () => {
     const total = parseInt(wattageSideSlider.value) + parseInt(wattageBottomSlider.value);
     totalWattage.textContent = total;
     
-    // 根据总功率改变颜色
+    // Change color based on total power
     if (total > MAX_TOTAL_WATTAGE) {
-      totalWattage.style.color = '#dc3545'; // 红色
+      totalWattage.style.color = '#dc3545'; // Red
     } else if (total === MAX_TOTAL_WATTAGE) {
-      totalWattage.style.color = '#ffc107'; // 黄色
+      totalWattage.style.color = '#ffc107'; // Yellow
     } else {
-      totalWattage.style.color = '#28a745'; // 绿色
+      totalWattage.style.color = '#28a745'; // Green
     }
     
     calculatedPercent.textContent = calculatePercent();
+    bottomWattagePercentValue.textContent = bottomWattagePercentSlider.value;
+    switchTimeValue.textContent = switchTimeSlider.value;
   }
   
-  // 更新 Bottom 滑动条的最大值
+  // Update Bottom slider max value
   function updateBottomMax() {
     const sideW = parseInt(wattageSideSlider.value);
     const maxBottom = MAX_TOTAL_WATTAGE - sideW;
     wattageBottomSlider.max = maxBottom;
     
-    // 如果当前 Bottom 值超过新的最大值，自动调整
+    // Adjust if current Bottom value exceeds new max
     if (parseInt(wattageBottomSlider.value) > maxBottom) {
       wattageBottomSlider.value = maxBottom;
     }
   }
   
-  // 更新 Side 滑动条的最大值
+  // Update Side slider max value
   function updateSideMax() {
     const bottomW = parseInt(wattageBottomSlider.value);
     const maxSide = MAX_TOTAL_WATTAGE - bottomW;
@@ -852,7 +883,7 @@ window.addEventListener('DOMContentLoaded', () => {
     updateDisplay();
   });
   
-  // Bottom + 按钮
+  // Bottom + button
   bottomPlusBtn.addEventListener('click', () => {
     let v = parseInt(wattageBottomSlider.value) || 0;
     const sideW = parseInt(wattageSideSlider.value);
@@ -864,6 +895,48 @@ window.addEventListener('DOMContentLoaded', () => {
       updateSideMax();
       updateDisplay();
     }
+  });
+  
+  // Bottom Wattage Percent slider event
+  bottomWattagePercentSlider.addEventListener('input', () => {
+    updateDisplay();
+  });
+  
+  // Bottom Percent - button
+  bottomPercentMinusBtn.addEventListener('click', () => {
+    let v = parseInt(bottomWattagePercentSlider.value) || 0;
+    if (v > 0) v -= 1;
+    bottomWattagePercentSlider.value = v;
+    updateDisplay();
+  });
+  
+  // Bottom Percent + button
+  bottomPercentPlusBtn.addEventListener('click', () => {
+    let v = parseInt(bottomWattagePercentSlider.value) || 0;
+    if (v < 100) v += 1;
+    bottomWattagePercentSlider.value = v;
+    updateDisplay();
+  });
+  
+  // Switch Time slider event
+  switchTimeSlider.addEventListener('input', () => {
+    updateDisplay();
+  });
+  
+  // Switch Time - button
+  switchTimeMinusBtn.addEventListener('click', () => {
+    let v = parseInt(switchTimeSlider.value) || 0;
+    if (v > 0) v -= 1;
+    switchTimeSlider.value = v;
+    updateDisplay();
+  });
+  
+  // Switch Time + button
+  switchTimePlusBtn.addEventListener('click', () => {
+    let v = parseInt(switchTimeSlider.value) || 0;
+    if (v < 60) v += 1;
+    switchTimeSlider.value = v;
+    updateDisplay();
   });
   
   // Send data button
@@ -884,6 +957,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     
     const percent = calculatePercent();
+    const bottomWattagePercent = parseInt(bottomWattagePercentSlider.value);
+    const switchTimePoint = parseInt(switchTimeSlider.value);
     
     if (!characteristicToWrite) {
       alert('Bluetooth device not connected or writable characteristic not found');
@@ -891,11 +966,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     
     try {
-      // Send B1 command first
-      const data = new Uint8Array([0xB1, 0x04, percent, 0xB1]);
+      // Send B1 command first: B1 06 percent bottomWattagePercent switchTimePoint B1
+      const data = new Uint8Array([0xB1, 0x06, percent, bottomWattagePercent, switchTimePoint, 0xB1]);
       await characteristicToWrite.writeValue(data);
-      console.log(`Power data sent: Side=${sideW}W, Bottom=${bottomW}W, Total=${total}W, Percent=${percent}%`);
-      console.log(`Bluetooth packet: B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1`);
+      console.log(`Power data sent: Side=${sideW}W, Bottom=${bottomW}W, Total=${total}W, Percent=${percent}%, BottomWattagePercent=${bottomWattagePercent}%, SwitchTime=${switchTimePoint}s`);
+      console.log(`Bluetooth packet: B1 06 ${percent.toString(16).padStart(2, '0').toUpperCase()} ${bottomWattagePercent.toString(16).padStart(2, '0').toUpperCase()} ${switchTimePoint.toString(16).padStart(2, '0').toUpperCase()} B1`);
       
       // Wait 200ms before sending CF command
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -911,7 +986,7 @@ window.addEventListener('DOMContentLoaded', () => {
       console.log(`CF command sent: Total=${total}W, TotalPower*10=${totalPowerTimes10}`);
       console.log(`Bluetooth packet: CF 0B ${highByte.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()} 01 F4 00 96 00 14 CF`);
       
-      alert(`✅ Sent successfully!\n\nSide: ${sideW}W\nBottom: ${bottomW}W\nTotal Power: ${total}W\nPercentage: ${percent}%\n\nCommands sent:\n1. B1 04 ${percent.toString(16).padStart(2, '0').toUpperCase()} B1\n2. CF 0B ${highByte.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()} 01 F4 00 96 00 14 CF`);
+      alert(`✅ Sent successfully!\n\nSide: ${sideW}W\nBottom: ${bottomW}W\nTotal Power: ${total}W\nPercentage: ${percent}%\nBottom Wattage %: ${bottomWattagePercent}%\nSwitch Time: ${switchTimePoint}s\n\nCommands sent:\n1. B1 06 ${percent.toString(16).padStart(2, '0').toUpperCase()} ${bottomWattagePercent.toString(16).padStart(2, '0').toUpperCase()} ${switchTimePoint.toString(16).padStart(2, '0').toUpperCase()} B1\n2. CF 0B ${highByte.toString(16).padStart(2, '0').toUpperCase()} ${lowByte.toString(16).padStart(2, '0').toUpperCase()} 01 F4 00 96 00 14 CF`);
     } catch (e) {
       alert('Send failed: ' + e.message);
     }
