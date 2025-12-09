@@ -156,14 +156,22 @@
   <div class="row"><label>Gesso Time:</label><span class="val" id="gessoTime">--</span></div>
 </div>
 <div class="panel" id="chartPanel">
-  <div class="row"><label>📈 Real-time Temperature Chart</label><span class="val">Side • Bottom • Power</span></div>
+  <div class="row"><label>📈 Real-time Temperature Chart</label><span class="val">Side • Bottom • Side Power • Bottom Power</span></div>
   <div class="row">
     <span class="val" style="color:#e74c3c">Side: <span id="curSide">--</span></span>
     <span class="val" style="color:#3498db">Bottom: <span id="curBottom">--</span></span>
-    <span class="val" style="color:#2ecc71">Power: <span id="curPower">--</span></span>
+  </div>
+  <div class="row">
+    <span class="val" style="color:#2ecc71">Side Power: <span id="curSidePower">--</span>W</span>
+    <span class="val" style="color:#f39c12">Bottom Power: <span id="curBottomPower">--</span>W</span>
   </div>
   <canvas id="chartCanvas" width="500" height="240"></canvas>
-  <div class="row"><span style="color:#e74c3c">● Side</span><span style="color:#3498db">● Bottom</span><span style="color:#2ecc71">● Power</span></div>
+  <div class="row">
+    <span style="color:#e74c3c">● Side Temp</span>
+    <span style="color:#3498db">● Bottom Temp</span>
+    <span style="color:#2ecc71">● Side Power</span>
+    <span style="color:#f39c12">● Bottom Power</span>
+  </div>
 </div>
 
 <script>
@@ -254,14 +262,16 @@ function startStopDetection() {
 }
 
 // Record data point
-function recordDataPoint(side, bottom, power) {
+function recordDataPoint(side, bottom, totalPower, sidePower, bottomPower) {
   const timestamp = new Date();
   const dataPoint = {
     timestamp: timestamp.toISOString(),
     time: timestamp.toLocaleString('en-US'),
     side: side,
     bottom: bottom,
-    power: power
+    totalPower: totalPower,
+    sidePower: sidePower,
+    bottomPower: bottomPower
   };
   
   recordedData.push(dataPoint);
@@ -288,8 +298,8 @@ function exportToExcel() {
   
   // Prepare data
   const wsData = [
-    ['Timestamp', 'Time', 'Side Temperature', 'Bottom Temperature', 'Power'],
-    ...recordedData.map(d => [d.timestamp, d.time, d.side, d.bottom, d.power])
+    ['Timestamp', 'Time', 'Side Temperature', 'Bottom Temperature', 'Total Power', 'Side Power', 'Bottom Power'],
+    ...recordedData.map(d => [d.timestamp, d.time, d.side, d.bottom, d.totalPower, d.sidePower, d.bottomPower])
   ];
   
   // Add statistics
@@ -302,20 +312,30 @@ function exportToExcel() {
   if (recordedData.length > 0) {
     const sides = recordedData.map(d => d.side);
     const bottoms = recordedData.map(d => d.bottom);
-    const powers = recordedData.map(d => d.power);
+    const totalPowers = recordedData.map(d => d.totalPower);
+    const sidePowers = recordedData.map(d => d.sidePower);
+    const bottomPowers = recordedData.map(d => d.bottomPower);
     
     wsData.push([]);
-    wsData.push(['Side - Min', Math.min(...sides).toFixed(2)]);
-    wsData.push(['Side - Max', Math.max(...sides).toFixed(2)]);
-    wsData.push(['Side - Average', (sides.reduce((a,b) => a+b, 0) / sides.length).toFixed(2)]);
+    wsData.push(['Side Temperature - Min', Math.min(...sides).toFixed(2)]);
+    wsData.push(['Side Temperature - Max', Math.max(...sides).toFixed(2)]);
+    wsData.push(['Side Temperature - Average', (sides.reduce((a,b) => a+b, 0) / sides.length).toFixed(2)]);
     wsData.push([]);
-    wsData.push(['Bottom - Min', Math.min(...bottoms).toFixed(2)]);
-    wsData.push(['Bottom - Max', Math.max(...bottoms).toFixed(2)]);
-    wsData.push(['Bottom - Average', (bottoms.reduce((a,b) => a+b, 0) / bottoms.length).toFixed(2)]);
+    wsData.push(['Bottom Temperature - Min', Math.min(...bottoms).toFixed(2)]);
+    wsData.push(['Bottom Temperature - Max', Math.max(...bottoms).toFixed(2)]);
+    wsData.push(['Bottom Temperature - Average', (bottoms.reduce((a,b) => a+b, 0) / bottoms.length).toFixed(2)]);
     wsData.push([]);
-    wsData.push(['Power - Min', Math.min(...powers).toFixed(2)]);
-    wsData.push(['Power - Max', Math.max(...powers).toFixed(2)]);
-    wsData.push(['Power - Average', (powers.reduce((a,b) => a+b, 0) / powers.length).toFixed(2)]);
+    wsData.push(['Total Power - Min', Math.min(...totalPowers).toFixed(2)]);
+    wsData.push(['Total Power - Max', Math.max(...totalPowers).toFixed(2)]);
+    wsData.push(['Total Power - Average', (totalPowers.reduce((a,b) => a+b, 0) / totalPowers.length).toFixed(2)]);
+    wsData.push([]);
+    wsData.push(['Side Power - Min', Math.min(...sidePowers).toFixed(2)]);
+    wsData.push(['Side Power - Max', Math.max(...sidePowers).toFixed(2)]);
+    wsData.push(['Side Power - Average', (sidePowers.reduce((a,b) => a+b, 0) / sidePowers.length).toFixed(2)]);
+    wsData.push([]);
+    wsData.push(['Bottom Power - Min', Math.min(...bottomPowers).toFixed(2)]);
+    wsData.push(['Bottom Power - Max', Math.max(...bottomPowers).toFixed(2)]);
+    wsData.push(['Bottom Power - Average', (bottomPowers.reduce((a,b) => a+b, 0) / bottomPowers.length).toFixed(2)]);
   }
   
   // Create worksheet
@@ -327,7 +347,9 @@ function exportToExcel() {
     { wch: 20 },
     { wch: 18 },
     { wch: 20 },
-    { wch: 12 }
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 14 }
   ];
   
   // Add worksheet to workbook
@@ -400,23 +422,189 @@ function waitForAck(timeout = 6000) {
 function set(id, value) {
   document.getElementById(id).textContent = value;
 }
-const chartDataSide=[];const chartDataBottom=[];const chartDataPower=[];const chartMaxPoints=200;
-function drawChart(){const c=document.getElementById('chartCanvas');if(!c)return;const x=c.getContext('2d'),w=c.width,h=c.height,m=30,pw=w-m*2,ph=h-m*2;x.clearRect(0,0,w,h);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.strokeStyle='#eee';x.lineWidth=1;for(let i=0;i<=4;i++){const y=m+i/4*ph;x.beginPath();x.moveTo(m,y);x.lineTo(m+pw,y);x.stroke();}const a=chartDataSide.concat(chartDataBottom,chartDataPower);if(!a.length){x.fillStyle='#666';x.font='14px sans-serif';x.fillText('Waiting for data...',m+10,m+20);return;}let mn=Math.min(...a),mx=Math.max(...a);if(mn===mx){mn-=1;mx+=1;}const sy=v=>m+(ph-(v-mn)/(mx-mn)*ph),ss=pw/Math.max(chartDataSide.length-1,1),sb=pw/Math.max(chartDataBottom.length-1,1),sp=pw/Math.max(chartDataPower.length-1,1);x.strokeStyle='#e74c3c';x.lineWidth=2;x.beginPath();for(let i=0;i<chartDataSide.length;i++){const xx=m+i*ss,yy=sy(chartDataSide[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#3498db';x.beginPath();for(let i=0;i<chartDataBottom.length;i++){const xx=m+i*sb,yy=sy(chartDataBottom[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#2ecc71';x.beginPath();for(let i=0;i<chartDataPower.length;i++){const xx=m+i*sp,yy=sy(chartDataPower[i]);if(i===0)x.moveTo(xx,yy);else x.lineTo(xx,yy);}x.stroke();x.strokeStyle='#aaa';x.lineWidth=1;x.strokeRect(m,m,pw,ph);x.fillStyle='#666';x.font='12px sans-serif';x.fillText(`min:${mn}`,6,h-8);x.fillText(`max:${mx}`,6,16);} 
 
-function addDataToChart(s,b,p){
-  chartDataSide.push(s);
-  chartDataBottom.push(b);
-  chartDataPower.push(p);
-  if(chartDataSide.length>chartMaxPoints)chartDataSide.shift();
-  if(chartDataBottom.length>chartMaxPoints)chartDataBottom.shift();
-  if(chartDataPower.length>chartMaxPoints)chartDataPower.shift();
-  set('curSide',s);
-  set('curBottom',b);
-  set('curPower',Number(p).toFixed(2));
+// Chart data arrays
+const chartDataSide = [];
+const chartDataBottom = [];
+const chartDataSidePower = [];
+const chartDataBottomPower = [];
+const chartMaxPoints = 200;
+
+// Global variables to store current settings
+let currentCountdown = 0;
+let currentSwitchTimePoint = 30;
+let currentCalculatedPercent = 50;
+let currentBottomWattagePercent = 50;
+
+function drawChart() {
+  const c = document.getElementById('chartCanvas');
+  if (!c) return;
+  
+  const ctx = c.getContext('2d');
+  const w = c.width;
+  const h = c.height;
+  const margin = 30;
+  const plotWidth = w - margin * 2;
+  const plotHeight = h - margin * 2;
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+  
+  // Draw grid lines
+  ctx.strokeStyle = '#eee';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = margin + (i / 4) * plotHeight;
+    ctx.beginPath();
+    ctx.moveTo(margin, y);
+    ctx.lineTo(margin + plotWidth, y);
+    ctx.stroke();
+  }
+  
+  // Check if we have data
+  const allData = chartDataSide.concat(chartDataBottom, chartDataSidePower, chartDataBottomPower);
+  if (!allData.length) {
+    ctx.fillStyle = '#666';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Waiting for data...', margin + 10, margin + 20);
+    return;
+  }
+  
+  // Calculate min and max
+  let minVal = Math.min(...allData);
+  let maxVal = Math.max(...allData);
+  if (minVal === maxVal) {
+    minVal -= 1;
+    maxVal += 1;
+  }
+  
+  // Scale function
+  const scaleY = (value) => margin + (plotHeight - ((value - minVal) / (maxVal - minVal)) * plotHeight);
+  
+  // Calculate x spacing for each dataset
+  const spacingSide = plotWidth / Math.max(chartDataSide.length - 1, 1);
+  const spacingBottom = plotWidth / Math.max(chartDataBottom.length - 1, 1);
+  const spacingSidePower = plotWidth / Math.max(chartDataSidePower.length - 1, 1);
+  const spacingBottomPower = plotWidth / Math.max(chartDataBottomPower.length - 1, 1);
+  
+  // Draw Side Temperature (red)
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < chartDataSide.length; i++) {
+    const x = margin + i * spacingSide;
+    const y = scaleY(chartDataSide[i]);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  
+  // Draw Bottom Temperature (blue)
+  ctx.strokeStyle = '#3498db';
+  ctx.beginPath();
+  for (let i = 0; i < chartDataBottom.length; i++) {
+    const x = margin + i * spacingBottom;
+    const y = scaleY(chartDataBottom[i]);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  
+  // Draw Side Power (green)
+  ctx.strokeStyle = '#2ecc71';
+  ctx.beginPath();
+  for (let i = 0; i < chartDataSidePower.length; i++) {
+    const x = margin + i * spacingSidePower;
+    const y = scaleY(chartDataSidePower[i]);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  
+  // Draw Bottom Power (orange)
+  ctx.strokeStyle = '#f39c12';
+  ctx.beginPath();
+  for (let i = 0; i < chartDataBottomPower.length; i++) {
+    const x = margin + i * spacingBottomPower;
+    const y = scaleY(chartDataBottomPower[i]);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  
+  // Draw border
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(margin, margin, plotWidth, plotHeight);
+  
+  // Draw min/max labels
+  ctx.fillStyle = '#666';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(`min: ${minVal.toFixed(1)}`, 6, h - 8);
+  ctx.fillText(`max: ${maxVal.toFixed(1)}`, 6, 16);
+}
+
+function addDataToChart(sideTemp, bottomTemp, totalPower) {
+  // Get current switch time point from slider
+  const switchTimeSliderElement = document.getElementById('switchTimeSlider');
+  if (switchTimeSliderElement) {
+    currentSwitchTimePoint = parseInt(switchTimeSliderElement.value);
+  }
+  
+  // Get current calculated percent from display
+  const calculatedPercentElement = document.getElementById('calculatedPercent');
+  if (calculatedPercentElement) {
+    currentCalculatedPercent = parseInt(calculatedPercentElement.textContent) || 50;
+  }
+  
+  // Get current bottom wattage percent from slider
+  const bottomWattagePercentSliderElement = document.getElementById('bottomWattagePercentSlider');
+  if (bottomWattagePercentSliderElement) {
+    currentBottomWattagePercent = parseInt(bottomWattagePercentSliderElement.value);
+  }
+  
+  // Calculate side_power and bottom_power based on conditions
+  let sidePower, bottomPower;
+  
+  if (currentCountdown != 0 && currentCountdown > currentSwitchTimePoint) {
+    // Condition 1: Use Calculated Percentage
+    sidePower = (currentCalculatedPercent / 100) * totalPower;
+    bottomPower = ((100 - currentCalculatedPercent) / 100) * totalPower;
+    console.log(`💡 Power calc mode 1: Countdown=${currentCountdown}s > SwitchTime=${currentSwitchTimePoint}s, using Calculated%=${currentCalculatedPercent}%`);
+  } else {
+    // Condition 2: Use Bottom Wattage Percent
+    sidePower = ((100 - currentBottomWattagePercent) / 100) * totalPower;
+    bottomPower = (currentBottomWattagePercent / 100) * totalPower;
+    console.log(`💡 Power calc mode 2: Countdown=${currentCountdown}s <= SwitchTime=${currentSwitchTimePoint}s, using BottomWattage%=${currentBottomWattagePercent}%`);
+  }
+  
+  console.log(`⚡ Total Power: ${totalPower.toFixed(2)}W → Side: ${sidePower.toFixed(2)}W, Bottom: ${bottomPower.toFixed(2)}W`);
+  
+  // Add data to arrays
+  chartDataSide.push(sideTemp);
+  chartDataBottom.push(bottomTemp);
+  chartDataSidePower.push(sidePower);
+  chartDataBottomPower.push(bottomPower);
+  
+  // Maintain max points limit
+  if (chartDataSide.length > chartMaxPoints) chartDataSide.shift();
+  if (chartDataBottom.length > chartMaxPoints) chartDataBottom.shift();
+  if (chartDataSidePower.length > chartMaxPoints) chartDataSidePower.shift();
+  if (chartDataBottomPower.length > chartMaxPoints) chartDataBottomPower.shift();
+  
+  // Update display
+  set('curSide', sideTemp.toFixed(1));
+  set('curBottom', bottomTemp);
+  set('curSidePower', sidePower.toFixed(2));
+  set('curBottomPower', bottomPower.toFixed(2));
+  
+  // Redraw chart
   drawChart();
   
-  // ✅ 记录数据点
-  recordDataPoint(s, b, p);
+  // Record data point with side_power and bottom_power
+  recordDataPoint(sideTemp, bottomTemp, totalPower, sidePower, bottomPower);
 }
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -436,9 +624,14 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
         await char.startNotifications();
         char.addEventListener('characteristicvaluechanged', event => {
           const d = new Uint8Array(event.target.value.buffer);
-          /* ---------- AWK 检测 ---------- */
+          
+          // Print all received data in hex format
+          const hexString = Array.from(d).map(byte => byte.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+          console.log(`📩 Received data (${d.length} bytes): ${hexString}`);
+          
+          /* ---------- AWK Detection ---------- */
           if (d.length === 3 && d[0] === 0x41 && d[1] === 0x57 && d[2] === 0x4B) {
-            console.log('✅ 收到 AWK');
+            console.log('✅ Received AWK');
             if (typeof ackResolver === 'function') {
               ackResolver();
               ackResolver = null;
@@ -446,20 +639,27 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
             return;
           }
 
-          if(d[0] != 0x99) {
-            console.log('收到 Notify 数据:', d);
-          }
-
           if (d[0] === 0xDD && d.length >= 17) {
+            console.log('📊 Processing 0xDD packet (Temperature data)');
             const sideTemp = ((d[3] << 8) | d[4]) * 9 / 5 + 32;
             const power = ((d[7] << 8) | d[8]) / 100;
             const bottomTemp = (d[15] << 8) | d[16];
+            console.log(`  Side Temp: ${sideTemp.toFixed(2)}°F, Bottom Temp: ${bottomTemp}, Power: ${power.toFixed(2)}W`);
             addDataToChart(sideTemp, bottomTemp, power);
             return;
           }
 
-          if (d.length < 16) return;
-          if (d[0] != 0x99)  return;
+          if (d.length < 16) {
+            console.log('⚠️ Data too short, ignored');
+            return;
+          }
+          
+          if (d[0] != 0x99) {
+            console.log('⚠️ Not a 0x99 packet, ignored');
+            return;
+          }
+          
+          console.log('📋 Processing 0x99 packet (Status data)');
           const byte2 = d[2];
           const byte3 = d[3];
           const byte4 = d[4];
@@ -489,13 +689,18 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
           set('dryPreset', byte4 >> 4);
           set('gessoPreset', byte4 & 0x0F);
           set('countdown', `${byte5}s`);
+          
+          // Update global countdown variable for power calculation
+          currentCountdown = byte5;
+          
           set('curTemp', temp + unitMap[byte3]);
           set('presetTemp', presetTemp + unitMap[byte3]);
           set('battery', `${battery}%`);
           set('ledPreset', ledPreset);
           set('dryTime', `${dryTime}s`);
           set('gessoTime', `${gessoTime}s`);
-          console.log('找到 Notify 特征值:', char.uuid);
+          
+          console.log(`  Atomizer: ${atomizerMap[byte2] || '0x'+byte2.toString(16)}, Battery: ${battery}%, Temp: ${temp}, Countdown: ${byte5}s`);
         });
       }
 
