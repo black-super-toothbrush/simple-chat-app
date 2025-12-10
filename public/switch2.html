@@ -1234,6 +1234,31 @@
                             <td><strong>Session Total Time:</strong></td>
                             <td><span id="sessionTotalTime">--</span></td>
                         </tr>
+                        <tr>
+                            <td><strong>DeviceOn Time:</strong></td>
+                            <td><span id="DeviceOnTime">--</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Preset 1 Cycles:</strong></td>
+                            <td><span id="presetCycles1">--</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Preset 2 Cycles:</strong></td>
+                            <td><span id="presetCycles2">--</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Preset 3 Cycles:</strong></td>
+                            <td><span id="presetCycles3">--</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Preset 4 Cycles:</strong></td>
+                            <td><span id="presetCycles4">--</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Preset 5 Cycles:</strong></td>
+                            <td><span id="presetCycles5">--</span></td>
+                        </tr>
+
                     </table>
                 </div>
                 <div style="margin-top: 16px;">
@@ -3107,22 +3132,35 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251118', 'firmware2.0': '251119' };
                     log(`✗ Failed to parse 19-byte A2 statistics: ${error.message}`);
                     showNotification('统计信息解析失败', 'error');
                 }
-            } else if (data.length === 7) {
+            } else if (data.length === 0x0B) {
                 // 7字节的A2数据包 - Session Total Time
                 try {
                     // 解析Session Total Time (4字节，大端序)
                     const sessionTotalTime = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
-                    
+                    const deviceOnTime = (data[6] << 24) | data[7] << 16 | data[8] << 8 | data[9];
                     // 更新Session Total Time显示
-                    updateSessionTotalTimeDisplay(sessionTotalTime);
+                    updateSessionTotalTimeDisplay(sessionTotalTime, deviceOnTime);
                     
-                    log(`✓ Session Total Time received: ${sessionTotalTime} seconds`);
+                    log(`✓ Session Total Time received: ${sessionTotalTime} seconds, Device On Time: ${deviceOnTime} seconds`);
                     log(`  Raw time data: ${Array.from(data.slice(2, -1)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
                     
                 } catch (error) {
                     log(`✗ Failed to parse 7-byte A2 session time: ${error.message}`);
                 }
-            } else {
+            } 
+            else if (data.length === 0x0D) {
+                const presetCycles_1 = (data[2] << 8) | data[3];   
+                const presetCycles_2 = (data[4] << 8) | data[5];   
+                const presetCycles_3 = (data[6] << 8) | data[7];
+                const presetCycles_4 = (data[8] << 8) | data[9];
+                const presetCycles_5 = (data[10] << 8) | data[11];
+                document.getElementById('presetCycles1').textContent = `${presetCycles_1}`; 
+                document.getElementById('presetCycles2').textContent = `${presetCycles_2}`;
+                document.getElementById('presetCycles3').textContent = `${presetCycles_3}`;
+                document.getElementById('presetCycles4').textContent = `${presetCycles_4}`;
+                document.getElementById('presetCycles5').textContent = `${presetCycles_5}`;  
+            }
+            else {
                 // 其他长度的A2数据包
                 log(`✓ Received A2 packet (${data.length} bytes) - data: ${Array.from(data.slice(2, -1)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
             }
@@ -3156,12 +3194,17 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251118', 'firmware2.0': '251119' };
         }
 
         // 更新Session Total Time显示
-        function updateSessionTotalTimeDisplay(totalTimeSeconds) {
+        function updateSessionTotalTimeDisplay(totalTimeSeconds,deviceTimeSeconds) {
             // 将秒数转换为更易读的格式
             const hours = Math.floor(totalTimeSeconds / 3600);
             const minutes = Math.floor((totalTimeSeconds % 3600) / 60);
             const seconds = totalTimeSeconds % 60;
-            
+  
+            const hours2 = Math.floor(deviceTimeSeconds / 3600);
+            const minutes2 = Math.floor((deviceTimeSeconds % 3600) / 60);
+            const seconds2 = deviceTimeSeconds % 60;
+
+
             let timeStr = '';
             if (hours > 0) {
                 timeStr = `${hours}h ${minutes}m ${seconds}s`;
@@ -3170,8 +3213,19 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251118', 'firmware2.0': '251119' };
             } else {
                 timeStr = `${seconds}s`;
             }
-            
+    
+            let timeStr2 = '';
+            if (hours2 > 0) {
+                timeStr2 = `${hours2}h ${minutes2}m ${seconds2}s`;
+            } else if (minutes2 > 0) {
+                timeStr2 = `${minutes2}m ${seconds2}s`;
+            } else {
+                timeStr2 = `${seconds2}s`;
+            }
+
+
             document.getElementById('sessionTotalTime').textContent = timeStr;
+            document.getElementById('DeviceOnTime').textContent = timeStr2;
         }
 
         // 重置设备统计信息显示
@@ -3185,6 +3239,13 @@ const FIRMWARE_DATE_MAP = { 'firmware1.0': '251118', 'firmware2.0': '251119' };
             document.getElementById('deviceResets').textContent = '--';
             document.getElementById('favoriteHeatingTime').textContent = '--';
             document.getElementById('sessionTotalTime').textContent = '--';
+            document.getElementById('DeviceOnTime').textContent = '--';
+            document.getElementById('presetCycles1').textContent = '--';
+            document.getElementById('presetCycles2').textContent = '--';
+            document.getElementById('presetCycles3').textContent = '--';
+            document.getElementById('presetCycles4').textContent = '--';
+            document.getElementById('presetCycles5').textContent = '--';
+
         }
 
                 // 更新设备状态显示
