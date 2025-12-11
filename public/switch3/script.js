@@ -690,8 +690,8 @@ const LED_COLORS = {
 };
 
 // OTA协议常量 - 匹配固件代码格式
-const CHUNK_SIZE = 32;  // 每个数据包的数据大小
-const PACKET_SIZE = 36; // 总包大小：4字节地址 + 32字节数据
+const CHUNK_SIZE = 16;  // 每个数据包的数据大小
+const PACKET_SIZE = 20; // 总包大小：4字节地址 + 16字节数据
 const BLOCK_SIZE = 2048; // Flash块大小
 const RESPONSE_TIMEOUT = 10000; // 响应超时时间
 
@@ -1930,18 +1930,18 @@ function createStartCommand(dataLength, crc16) {
 
 // 创建数据包
 function createDataPacket(chunkIndex, chunkData) {
-    const packet = new Uint8Array(36);
+    const packet = new Uint8Array(PACKET_SIZE);
     packet.fill(0xFF);
-    
+
     // 地址 (4字节, 大端序)
     packet[0] = (chunkIndex >> 24) & 0xFF;
     packet[1] = (chunkIndex >> 16) & 0xFF;
     packet[2] = (chunkIndex >> 8) & 0xFF;
     packet[3] = chunkIndex & 0xFF;
-    
-    // 数据 (32字节, 从16改为32)
+
+    // 数据 (16字节)
     packet.set(chunkData, 4);
-    
+
     return packet;
 }
 
@@ -2035,44 +2035,44 @@ async function startOTA() {
         let offset = 0;
         let chunkIndex = 0;
         const totalChunks = Math.ceil(firmwareData.length / CHUNK_SIZE);
-        
+
         while (offset < firmwareData.length && isOtaInProgress) {
             // Check connection status
             if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
                 throw new Error('Device connection interrupted');
             }
-            
+
             const remainingBytes = firmwareData.length - offset;
             const chunkSize = Math.min(CHUNK_SIZE, remainingBytes);
             const chunkData = firmwareData.slice(offset, offset + chunkSize);
-            
-            // 如果数据不足32字节，用0xFF填充 (从16改为32)
+
+            // 如果数据不足CHUNK_SIZE字节，用0xFF填充
             const paddedChunk = new Uint8Array(CHUNK_SIZE);
             paddedChunk.fill(0xFF);
             paddedChunk.set(chunkData);
-            
+
             const dataPacket = createDataPacket(chunkIndex, paddedChunk);
-            
+
             // 检查是否需要等待2048字节块的确认
             const isBlockEnd = ((offset + chunkSize) % BLOCK_SIZE === 0) || (offset + chunkSize >= firmwareData.length);
-            
-            if (chunkIndex % 32 === 0 || chunkIndex < 10) { // Log every 32 packets or first 10
+
+            if (chunkIndex % 128 === 0 || chunkIndex < 10) { // Log every 32 packets or first 10
                 log(`Send data packet ${chunkIndex}/${totalChunks}, offset: ${offset}, size: ${chunkSize}, block_end: ${isBlockEnd}`);
             }
-            
+
             await sendPacket(dataPacket, `data packet ${chunkIndex}`, isBlockEnd);
-            
+
             offset += chunkSize;
             chunkIndex++;
             sentPackets++;
-            
+
             updateProgress(sentPackets, totalPackets);
-            
+
             // 每个数据包之间的延时，块结束时等待更长时间
             if (isBlockEnd) {
-                await new Promise(resolve => setTimeout(resolve, 50)); // 块结束等待100ms
+                await new Promise(resolve => setTimeout(resolve, 50)); // 块结束等待50ms
             } else {
-                await new Promise(resolve => setTimeout(resolve, 5)); // 普通包等待10ms
+                await new Promise(resolve => setTimeout(resolve, 5)); // 普通包等待5ms
             }
         }
         
