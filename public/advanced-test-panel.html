@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CARTA 3 Advanced Test Panel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 2.5rem;
+      max-width: 480px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .header h1 {
+      color: #2d3748;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .header p {
+      color: #718096;
+      font-size: 0.875rem;
+    }
+
+    .status-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 25px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .status-disconnected { background: #fed7d7; color: #c53030; }
+    .status-connected { background: #c6f6d5; color: #25543e; }
+    .status-unknown { background: #e2e8f0; color: #718096; }
+    .status-warning { background: #fefcbf; color: #975a16; }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .section {
+      background: #f7fafc;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+      border: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+      color: #2d3748;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .form-group {
+      margin-bottom: 0.75rem;
+    }
+
+    .form-group:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      background: white;
+      font-family: inherit;
+    }
+
+    input[type="text"]:focus, input[type="password"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    button:active { transform: translateY(0); }
+
+    button:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 16px rgba(72, 187, 120, 0.3); }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #fc8181 0%, #e53e3e 100%);
+    }
+    .btn-danger:hover { box-shadow: 0 6px 16px rgba(229, 62, 62, 0.3); }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+    }
+    .btn-secondary:hover { box-shadow: 0 6px 16px rgba(237, 137, 54, 0.3); }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    .btn-text {
+      background: none;
+      color: #667eea;
+      padding: 0.35rem 0;
+      text-transform: none;
+      font-size: 0.85rem;
+      letter-spacing: normal;
+      box-shadow: none;
+    }
+    .btn-text:hover {
+      background: none;
+      box-shadow: none;
+      text-decoration: underline;
+      transform: none;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .connect-section { text-align: center; }
+
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      display: none;
+    }
+
+    .alert-success { background: #c6f6d5; color: #25543e; border: 1px solid #9ae6b4; }
+    .alert-error { background: #fed7d7; color: #c53030; border: 1px solid #feb2b2; }
+    .alert-info { background: #bee3f8; color: #2c5282; border: 1px solid #90cdf4; }
+
+    /* Network list — phone-style */
+    .network-list {
+      list-style: none;
+    }
+
+    .network-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0.5rem;
+      border-bottom: 1px solid #e2e8f0;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+
+    .network-item:last-child { border-bottom: none; }
+    .network-item:hover { background: #edf2f7; }
+    .network-item.selected { background: #ebf4ff; }
+
+    .network-item.connecting {
+      background: #ebf8ff;
+      pointer-events: none;
+    }
+
+    .network-item.connecting .network-detail {
+      color: #3182ce;
+    }
+
+    .connecting-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #bee3f8;
+      border-top-color: #3182ce;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .network-item.connected {
+      background: #f0fff4;
+    }
+
+    .network-item.connected .network-name {
+      color: #25543e;
+      font-weight: 600;
+    }
+
+    .network-item.connected .network-detail {
+      color: #38a169;
+    }
+
+    .network-item.error {
+      background: #fff5f5;
+      animation: shake 0.4s ease;
+    }
+
+    .network-item.error .network-name {
+      color: #c53030;
+    }
+
+    .password-row input.input-error {
+      border-color: #e53e3e;
+      box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.15);
+    }
+
+    .error-hint {
+      color: #c53030;
+      font-size: 0.78rem;
+      margin-top: 0.3rem;
+      font-weight: 500;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-4px); }
+      40% { transform: translateX(4px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(2px); }
+    }
+
+    .network-signal {
+      flex-shrink: 0;
+      width: 20px;
+      height: 16px;
+      display: flex;
+      align-items: flex-end;
+      gap: 1.5px;
+    }
+
+    .signal-bar {
+      width: 3.5px;
+      border-radius: 1px;
+      background: #cbd5e0;
+      transition: background 0.2s;
+    }
+
+    .signal-bar.active { background: #4a5568; }
+
+    .network-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .network-name {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #2d3748;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .network-detail {
+      font-size: 0.75rem;
+      color: #a0aec0;
+    }
+
+    .network-lock {
+      flex-shrink: 0;
+      color: #a0aec0;
+    }
+
+    .network-lock svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .scanning-spinner {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #a0aec0;
+    }
+
+    .scanning-spinner .dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #a0aec0;
+      padding: 1.5rem 1rem;
+      font-style: italic;
+      font-size: 0.875rem;
+    }
+
+    /* Password prompt (inline under selected network) */
+    .password-prompt {
+      padding: 0.75rem 0.5rem 0.5rem;
+      display: none;
+    }
+
+    .password-prompt.visible { display: block; }
+
+    .password-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .password-row input {
+      flex: 1;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.9rem;
+    }
+
+    /* Manual entry section */
+    .manual-entry { display: none; }
+    .manual-entry.visible { display: block; }
+
+    /* Event log */
+    .event-log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.75rem;
+      background: #1a202c;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 0.6rem;
+      margin-top: 0.5rem;
+    }
+
+    .event-log .log-entry {
+      padding: 0.2rem 0;
+      border-bottom: 1px solid #2d3748;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .event-log .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #718096; flex-shrink: 0; }
+    .log-hex { color: #90cdf4; }
+    .log-decoded { color: #68d391; }
+    .log-error { color: #fc8181; }
+    .log-scan { color: #f6e05e; }
+
+    .achievement-list {
+      list-style: none;
+    }
+
+    .achievement-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.5rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.9rem;
+    }
+
+    .achievement-item:last-child { border-bottom: none; }
+
+    .achievement-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .achievement-badge.locked {
+      background: #e2e8f0;
+      color: #a0aec0;
+    }
+
+    .achievement-badge.unlocked {
+      background: #c6f6d5;
+      color: #25543e;
+    }
+
+    .achievement-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .achievement-name {
+      font-weight: 500;
+      color: #2d3748;
+    }
+
+    .achievement-item.locked .achievement-name {
+      color: #a0aec0;
+    }
+
+    .achievement-status {
+      font-size: 0.75rem;
+      color: #a0aec0;
+    }
+
+    .streak-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.5rem;
+      text-align: center;
+    }
+
+    .streak-card {
+      background: #f7fafc;
+      border-radius: 10px;
+      padding: 0.6rem 0.4rem;
+      border: 1px solid #e2e8f0;
+    }
+
+    .streak-card .label {
+      font-size: 0.7rem;
+      color: #a0aec0;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+
+    .streak-card .value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #2d3748;
+    }
+
+    .achievement-item.unlocked .achievement-status {
+      color: #38a169;
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem; }
+      .container { padding: 1.5rem; }
+      .btn-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CARTA 3 - Advanced Test Panel</h1>
+    </div>
+
+    <div class="status-row">
+      <div class="status-indicator status-disconnected" id="bleStatus">
+        <div class="status-dot"></div>
+        <span id="bleStatusText">BLE Disconnected</span>
+      </div>
+      <div class="status-indicator status-unknown" id="wifiStatus">
+        <div class="status-dot"></div>
+        <span id="wifiStatusText">WiFi Unknown</span>
+      </div>
+      <div class="status-indicator status-unknown" id="wifiSwRevStatus">
+        <span id="wifiSwRev">WiFi FW: --</span>
+      </div>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div class="section connect-section">
+      <button id="connectBtn">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+          <path d="M2 17L12 22L22 17"/>
+          <path d="M2 12L12 17L22 12"/>
+        </svg>
+        Connect to Device
+      </button>
+    </div>
+
+    <div class="section connect-section">
+      <button id="clockSyncBtn" disabled>
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Clock Sync
+      </button>
+    </div>
+
+    <!-- Networks -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <line x1="12" y1="20" x2="12.01" y2="20"/>
+        </svg>
+        WiFi
+        <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+          <button id="scanBtn" class="btn-sm btn-primary">Scan</button>
+          <button id="enableBtn" class="btn-sm btn-secondary">Enable</button>
+          <button id="disableBtn" class="btn-sm btn-danger">Disable</button>
+        </div>
+      </div>
+
+      <!-- Scanning indicator -->
+      <div id="scanningIndicator" class="scanning-spinner" style="display: none;">
+        Scanning<span class="dots"></span>
+      </div>
+
+      <!-- Network list -->
+      <ul class="network-list" id="networkList" style="display: none;"></ul>
+
+      <!-- Disconnect (shown after results) -->
+      <div id="networkActions" style="display: none; margin-top: 0.75rem;" class="btn-row">
+        <button id="disconnectBtn" class="btn-sm btn-danger">Disconnect</button>
+      </div>
+
+      <!-- Manual entry toggle + form -->
+      <div style="margin-top: 0.75rem; text-align: center;">
+        <button class="btn-text" id="manualToggleBtn">Enter network manually</button>
+      </div>
+
+      <div class="manual-entry" id="manualEntry">
+        <div class="form-group" style="margin-top: 0.75rem;">
+          <label for="manualSsid">Network Name (SSID)</label>
+          <input type="text" id="manualSsid" placeholder="Enter WiFi network name">
+        </div>
+        <div class="form-group">
+          <label for="manualPassword">Password</label>
+          <input type="password" id="manualPassword" placeholder="Leave empty for open network">
+        </div>
+        <button id="manualConnectBtn" class="btn-primary" style="margin-top: 0.25rem;">
+          Connect
+        </button>
+      </div>
+    </div>
+
+    <!-- Updates -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Updates
+      </div>
+      <div class="btn-row">
+        <button id="updateSoundsBtn" class="btn-sm">Update Sounds</button>
+        <button id="updateWifiBtn" class="btn-sm">Update Wi-Fi</button>
+      </div>
+    </div>
+
+    <!-- Volume Control -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+        Volume
+        <span id="volumeValue" style="margin-left: auto; font-size: 0.85rem; font-weight: 500; color: #718096;">--</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.8rem; color: #a0aec0;">Mute</span>
+        <input type="range" id="volumeSlider" min="0" max="3" step="1" value="0" disabled
+          style="flex: 1; accent-color: #667eea; cursor: pointer;">
+        <span style="font-size: 0.8rem; color: #a0aec0;">Max</span>
+      </div>
+    </div>
+
+    <!-- Theme -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="13.5" cy="6.5" r="2.5"/>
+          <path d="M17.5 10.5a5 5 0 0 0-8 0"/>
+          <path d="M3 19.5a9 9 0 0 1 18 0"/>
+        </svg>
+        Theme
+        <span id="themeValue" style="margin-left: auto; font-size: 0.85rem; font-weight: 500; color: #718096;">--</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <select id="themeSelect" disabled style="flex: 1; padding: 0.5rem 0.65rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; background: white; cursor: pointer;">
+          <option value="255">Default (No Theme)</option>
+          <option value="0">Aura</option>
+          <option value="1">Bordeaux</option>
+          <option value="2">Bubblegum</option>
+          <option value="3">Grape</option>
+          <option value="4">Jade</option>
+          <option value="5">Lilac</option>
+          <option value="6">Midnight</option>
+          <option value="7">Tangerine</option>
+          <option value="8">Teal</option>
+        </select>
+        <button id="setThemeBtn" class="btn-sm btn-primary" disabled>Set</button>
+      </div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="8" r="7"/>
+          <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+        </svg>
+        Achievements
+      </div>
+      <ul class="achievement-list" id="achievementList">
+        <div class="empty-state">No data yet. Connect and sync to see achievements.</div>
+      </ul>
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem;">
+        <select id="achievementSelect" disabled style="flex: 1; padding: 0.5rem 0.65rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; background: white; cursor: pointer;">
+          <option value="0">100 Dab Club</option>
+          <option value="1">500 Dab Master</option>
+          <option value="2">1000 Dab Legend</option>
+          <option value="3">2000 Dab Warrior</option>
+          <option value="4">3000 Dab Elite</option>
+          <option value="5">Weekly Active User</option>
+          <option value="6">Monthly Active User</option>
+        </select>
+        <button id="requestAchievementBtn" class="btn-sm btn-primary" disabled>Request</button>
+      </div>
+    </div>
+
+    <!-- Streaks -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        Streaks
+      </div>
+      <div id="streakContent">
+        <div class="empty-state">No data yet. Connect and sync to see streak status.</div>
+      </div>
+    </div>
+
+    <!-- Device Name -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M4 4h16v16H4z"/>
+          <line x1="4" y1="9" x2="20" y2="9"/>
+        </svg>
+        Device Name
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="text" id="deviceNameInput" maxlength="29" placeholder="New BLE name (max 29 chars)" disabled
+          style="flex: 1; padding: 0.5rem 0.65rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; background: white;">
+        <button id="setDeviceNameBtn" class="btn-sm btn-primary" disabled>Set</button>
+      </div>
+    </div>
+
+    <!-- ASCII Command -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22,2 15,22 11,13 2,9"/>
+        </svg>
+        ASCII Command
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="text" id="asciiInput" placeholder="Enter command" disabled
+          style="flex: 1; padding: 0.5rem 0.65rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; font-family: inherit; background: white;">
+        <button id="sendAsciiBtn" class="btn-sm btn-primary" disabled>Send</button>
+      </div>
+      <div class="btn-row" style="margin-top: 0.5rem;">
+        <button class="btn-sm ascii-prefill" data-cmd="server_start">server_start</button>
+        <button class="btn-sm ascii-prefill" data-cmd="server_end">server_end</button>
+        <button class="btn-sm ascii-prefill" data-cmd="usb_format_on">usb_format_on</button>
+      </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="section">
+      <div class="section-title">
+        <svg class="icon" viewBox="0 0 24 24">
+          <polyline points="4 17 10 11 4 5"/>
+          <line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+        Event Log
+        <button id="clearLogBtn" class="btn-sm" style="margin-left: auto;">Clear</button>
+      </div>
+      <div class="event-log" id="eventLog">
+        <div class="empty-state">No events yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let characteristicToWrite = null;
+    let selectedApIndex = -1;
+    let scanning = false;
+
+    const WIFI_SSID_HEADER = 0x56;
+    const WIFI_SCAN_HEADER = 0x57;
+    const WIFI_STATUS_HEADER = 0x58;
+    const WIFI_SW_REV_HEADER = 0x59;
+    const VOLUME_CMD_HEADER = 0xB2;
+    const VOLUME_RSP_HEADER = 0xB3;
+    const THEME_CMD_HEADER = 0xD3;
+    const THEME_RSP_HEADER = 0xD4;
+    const ACHIEVEMENT_REQ_HEADER = 0x90;
+    const ACHIEVEMENT_STATUS_HEADER = 0x91;
+    const STREAK_STATUS_HEADER = 0x92;
+
+    const THEME_NAMES = {
+      0: 'Aura', 1: 'Bordeaux', 2: 'Bubblegum', 3: 'Grape',
+      4: 'Jade', 5: 'Lilac', 6: 'Midnight', 7: 'Tangerine', 8: 'Teal',
+      255: 'Default',
+    };
+
+    const WIFI_EVT_NAMES = {
+      0x01: 'Connected',
+      0x02: 'Disconnected',
+      0x03: 'No credentials',
+      0x04: 'Wrong password',
+      0x05: 'Connection timeout',
+      0x06: 'WiFi enabled',
+      0x07: 'WiFi disabled',
+    };
+
+    const AUTH_MODE_NAMES = {
+      0: 'Open', 1: 'WEP', 2: 'WPA', 3: 'WPA2',
+      4: 'WPA/WPA2', 5: 'WPA2-Ent', 6: 'WPA3', 7: 'WPA2/WPA3',
+    };
+
+    const ACHIEVEMENT_NAMES = [
+      '100 Dab Club',
+      '500 Dab Master',
+      '1000 Dab Legend',
+      '2000 Dab Warrior',
+      '3000 Dab Elite',
+      'Weekly Active User',
+      'Monthly Active User',
+    ];
+
+    const ACHIEVEMENT_COUNT = ACHIEVEMENT_NAMES.length;
+    let achievementStatuses = new Array(ACHIEVEMENT_COUNT).fill(null); // null = unknown, { unlocked, progress }
+
+    function renderAchievements() {
+      const list = document.getElementById('achievementList');
+      const anyData = achievementStatuses.some(s => s !== null);
+      if (!anyData) {
+        list.innerHTML = '<div class="empty-state">No data yet. Connect and sync to see achievements.</div>';
+        return;
+      }
+      let html = '';
+      for (let i = 0; i < ACHIEVEMENT_COUNT; i++) {
+        const s = achievementStatuses[i];
+        const unlocked = s && s.unlocked;
+        const stateClass = unlocked ? 'unlocked' : 'locked';
+        const badgeText = unlocked ? '\u2713' : i;
+        const statusText = s ? (unlocked ? `Unlocked (${s.progress}%)` : `Locked (${s.progress}%)`) : 'Unknown';
+        html += `<li class="achievement-item ${stateClass}">
+          <div class="achievement-badge ${stateClass}">${badgeText}</div>
+          <div class="achievement-info">
+            <div class="achievement-name">${ACHIEVEMENT_NAMES[i]}</div>
+            <div class="achievement-status">${statusText}</div>
+          </div>
+        </li>`;
+      }
+      list.innerHTML = html;
+    }
+
+    let streakData = null; // { startDate, currentDate, count }
+
+    function formatDate(year, month, day) {
+      if (year === 0 && month === 0 && day === 0) return '--';
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function renderStreak() {
+      const el = document.getElementById('streakContent');
+      if (!streakData) {
+        el.innerHTML = '<div class="empty-state">No data yet. Connect and sync to see streak status.</div>';
+        return;
+      }
+      el.innerHTML = `<div class="streak-grid">
+        <div class="streak-card">
+          <div class="label">Start</div>
+          <div class="value">${formatDate(streakData.startYear, streakData.startMonth, streakData.startDay)}</div>
+        </div>
+        <div class="streak-card">
+          <div class="label">Current</div>
+          <div class="value">${formatDate(streakData.currentYear, streakData.currentMonth, streakData.currentDay)}</div>
+        </div>
+        <div class="streak-card">
+          <div class="label">Days</div>
+          <div class="value">${streakData.count}</div>
+        </div>
+      </div>`;
+    }
+
+    let scanResults = [];
+    let connectedSsid = '';  // confirmed connected SSID from 0x56 notification
+    let connSsidBuffer = '';     // accumulator for multi-packet 0x56 SSID chunks
+    let connSsidTotalLen = 0;
+    let connSsidReceived = 0;
+    let connectingSsid = ''; // SSID we're currently trying to connect to
+    let connectingTimeout = null;
+    const CONNECTING_TIMEOUT_MS = 30000;
+
+    // --- Helpers ---
+
+    function showAlert(message, type = 'info') {
+      const c = document.getElementById('alertContainer');
+      const el = document.createElement('div');
+      el.className = `alert alert-${type}`;
+      el.textContent = message;
+      c.appendChild(el);
+      el.style.display = 'block';
+      setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 5000);
+    }
+
+    function updateBleStatus(connected) {
+      const el = document.getElementById('bleStatus');
+      const text = document.getElementById('bleStatusText');
+      el.className = 'status-indicator ' + (connected ? 'status-connected' : 'status-disconnected');
+      text.textContent = connected ? 'BLE Connected' : 'BLE Disconnected';
+    }
+
+    function updateWifiStatus(eventCode) {
+      const el = document.getElementById('wifiStatus');
+      const text = document.getElementById('wifiStatusText');
+      const name = WIFI_EVT_NAMES[eventCode] || 'Unknown';
+      if (eventCode === 0x01) {
+        el.className = 'status-indicator status-connected';
+      } else if (eventCode === 0x06) {
+        el.className = 'status-indicator status-warning';
+      } else if (eventCode === 0x07) {
+        el.className = 'status-indicator status-unknown';
+      } else {
+        el.className = 'status-indicator status-disconnected';
+      }
+      text.textContent = name;
+
+      // Clear connecting state on any definitive result
+      if (eventCode === 0x01 || eventCode === 0x04 || eventCode === 0x05 || eventCode === 0x03) {
+        clearConnecting();
+      }
+
+      // Show inline error on the selected network for auth failures
+      const isAuthError = (eventCode === 0x04 || eventCode === 0x05);
+      if (isAuthError) {
+        // Re-select the network we were connecting to so the error shows inline
+        if (connectingSsid || selectedApIndex < 0) {
+          const idx = scanResults.findIndex(ap => ap.ssid === (connectingSsid || ''));
+          if (idx >= 0) selectedApIndex = idx;
+        }
+      }
+      showNetworkError(isAuthError ? eventCode : null);
+
+      // On disconnect/disable/error, clear connected SSID
+      if (eventCode !== 0x01 && eventCode !== 0x06) {
+        connectedSsid = '';
+      }
+
+      // On success, clear selection
+      if (eventCode === 0x01) {
+        selectedApIndex = -1;
+      }
+
+      renderNetworks();
+    }
+
+    function showNetworkError(eventCode) {
+      // Clear any previous error state
+      document.querySelectorAll('.network-item.error').forEach(el => el.classList.remove('error'));
+      const oldHint = document.querySelector('.error-hint');
+      if (oldHint) oldHint.remove();
+      const oldInput = document.querySelector('.password-row input.input-error');
+      if (oldInput) oldInput.classList.remove('input-error');
+
+      if (!eventCode) return;
+
+      // Find the selected network item and mark it
+      const selectedItem = document.querySelector(`.network-item[data-index="${selectedApIndex}"]`);
+      if (selectedItem) {
+        selectedItem.classList.add('error');
+      }
+
+      // Mark the password input
+      const pwInput = document.getElementById('networkPassword');
+      if (pwInput) {
+        pwInput.classList.add('input-error');
+        pwInput.select();
+      }
+
+      // Add hint text below password row
+      const promptEl = document.getElementById('inlinePassword');
+      if (promptEl) {
+        const hint = document.createElement('div');
+        hint.className = 'error-hint';
+        hint.textContent = eventCode === 0x04 ? 'Incorrect password. Try again.' : 'Connection timed out. Try again.';
+        promptEl.appendChild(hint);
+      }
+    }
+
+    function setConnecting(ssid) {
+      clearConnecting();
+      connectingSsid = ssid;
+      // Update status pill
+      const wifiEl = document.getElementById('wifiStatus');
+      const wifiText = document.getElementById('wifiStatusText');
+      wifiEl.className = 'status-indicator status-warning';
+      wifiText.textContent = `Connecting: ${ssid}`;
+      renderNetworks();
+      connectingTimeout = setTimeout(() => {
+        showAlert(`Connection to "${connectingSsid}" timed out`, 'error');
+        clearConnecting();
+        const el2 = document.getElementById('wifiStatus');
+        const text2 = document.getElementById('wifiStatusText');
+        el2.className = 'status-indicator status-disconnected';
+        text2.textContent = 'Connection timeout';
+        renderNetworks();
+      }, CONNECTING_TIMEOUT_MS);
+    }
+
+    function clearConnecting() {
+      connectingSsid = '';
+      if (connectingTimeout) {
+        clearTimeout(connectingTimeout);
+        connectingTimeout = null;
+      }
+    }
+
+    function logEvent(message, type = 'decoded') {
+      const log = document.getElementById('eventLog');
+      const empty = log.querySelector('.empty-state');
+      if (empty) empty.remove();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      entry.innerHTML = `<span class="log-time">${time}</span><span class="log-${type}">${message}</span>`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function hexStr(bytes) {
+      return Array.from(bytes).map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+    }
+
+    function signalBars(rssi) {
+      // 4 bars: thresholds at -80, -67, -55
+      let active = 1;
+      if (rssi >= -80) active = 2;
+      if (rssi >= -67) active = 3;
+      if (rssi >= -55) active = 4;
+      const heights = [4, 7, 11, 16];
+      return heights.map((h, i) =>
+        `<div class="signal-bar${i < active ? ' active' : ''}" style="height: ${h}px;"></div>`
+      ).join('');
+    }
+
+    function isSecured(authmode) {
+      return authmode > 0;
+    }
+
+    function lockIcon() {
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>`;
+    }
+
+    // --- Render network list ---
+
+    function renderNetworks() {
+      const list = document.getElementById('networkList');
+      const actions = document.getElementById('networkActions');
+      const spinner = document.getElementById('scanningIndicator');
+
+      spinner.style.display = 'none';
+
+      if (scanResults.length === 0) {
+        list.style.display = 'none';
+        actions.style.display = 'none';
+        return;
+      }
+
+      list.style.display = 'block';
+      actions.style.display = 'flex';
+
+      let html = '';
+      for (let i = 0; i < scanResults.length; i++) {
+        const ap = scanResults[i];
+        if (!ap.complete) continue;
+        const isConnected = connectedSsid && ap.ssid === connectedSsid;
+        const isConnecting = connectingSsid && ap.ssid === connectingSsid;
+        const sel = i === selectedApIndex ? ' selected' : '';
+        const stateClass = isConnected ? ' connected' : isConnecting ? ' connecting' : '';
+        const secured = isSecured(ap.authmode);
+        const detail = isConnected
+          ? 'Connected'
+          : isConnecting
+            ? 'Connecting...'
+            : `${AUTH_MODE_NAMES[ap.authmode] || 'Unknown'} &middot; ${ap.rssi} dBm`;
+        const trailingIcon = isConnecting
+          ? '<div class="connecting-spinner"></div>'
+          : secured ? `<div class="network-lock">${lockIcon()}</div>` : '';
+        html += `<li class="network-item${sel}${stateClass}" data-index="${i}">
+          <div class="network-signal">${signalBars(ap.rssi)}</div>
+          <div class="network-info">
+            <div class="network-name">${ap.ssid || '(Hidden network)'}</div>
+            <div class="network-detail">${detail}</div>
+          </div>
+          ${trailingIcon}
+        </li>`;
+        // Show password prompt only for selected, non-connected, non-connecting networks
+        if (i === selectedApIndex && !isConnected && !isConnecting) {
+          html += `<div class="password-prompt visible" id="inlinePassword">
+            <div class="password-row">
+              ${secured
+                ? `<input type="password" id="networkPassword" placeholder="Password" autofocus>`
+                : `<span style="font-size:0.85rem; color:#718096;">Open network</span>`}
+              <button class="btn-primary btn-sm" id="inlineConnectBtn">
+                ${secured ? 'Join' : 'Connect'}
+              </button>
+            </div>
+          </div>`;
+        }
+      }
+      list.innerHTML = html;
+
+      // Attach click handlers
+      list.querySelectorAll('.network-item').forEach(item => {
+        item.addEventListener('click', () => {
+          if (connectingSsid) return;  // block interaction while connecting
+          const idx = parseInt(item.dataset.index);
+          selectedApIndex = (selectedApIndex === idx) ? -1 : idx;
+          renderNetworks();
+          // Focus password field if opened
+          setTimeout(() => {
+            const pwInput = document.getElementById('networkPassword');
+            if (pwInput) pwInput.focus();
+          }, 50);
+        });
+      });
+
+      // Inline connect button
+      const inlineBtn = document.getElementById('inlineConnectBtn');
+      if (inlineBtn) {
+        inlineBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          connectToSelected();
+        });
+      }
+
+      // Enter key in password field
+      const pwInput = document.getElementById('networkPassword');
+      if (pwInput) {
+        pwInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') connectToSelected();
+        });
+        pwInput.addEventListener('click', (e) => e.stopPropagation());
+        pwInput.addEventListener('input', () => showNetworkError(null));
+      }
+    }
+
+    async function connectToSelected() {
+      if (selectedApIndex < 0 || selectedApIndex >= scanResults.length) return;
+      const ap = scanResults[selectedApIndex];
+      const pwInput = document.getElementById('networkPassword');
+      const password = pwInput ? pwInput.value : '';
+      await sendCredentials(ap.ssid, password);
+    }
+
+    async function sendCredentials(ssid, password) {
+      if (!ssid) {
+        showAlert('No network selected', 'error');
+        return;
+      }
+      if (connectingSsid) {
+        showAlert('Already connecting...', 'info');
+        return;
+      }
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      try {
+        const cmd = password ? `wifi_${ssid}\x1F${password}` : `wifi_${ssid}`;
+        await sendCommand(cmd);
+        setConnecting(ssid);
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    }
+
+    async function sendCommand(cmd) {
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      const data = new TextEncoder().encode(cmd);
+      await characteristicToWrite.writeValue(data);
+      logEvent(`TX: "${cmd}"`, 'hex');
+    }
+
+    async function startScan() {
+      scanResults = [];
+      selectedApIndex = -1;
+      scanning = true;
+      document.getElementById('networkList').style.display = 'none';
+      document.getElementById('networkActions').style.display = 'none';
+      document.getElementById('scanningIndicator').style.display = 'block';
+      try {
+        await sendCommand('wifi_scan');
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+        scanning = false;
+        document.getElementById('scanningIndicator').style.display = 'none';
+      }
+    }
+
+    // --- Notification handler ---
+
+    function handleNotification(data) {
+      const d = new Uint8Array(data);
+      if (d.length === 0) return;
+
+      logEvent(`RX: ${hexStr(d)}`, 'hex');
+
+      // WiFi Connected SSID (0x56): [0x56, Len, SSID_Total_Len, SSID_Chunk..., 0x56]
+      if (d[0] === WIFI_SSID_HEADER && d.length >= 4 && d[d.length - 1] === WIFI_SSID_HEADER) {
+        const totalLen = d[2];
+        const chunk = new TextDecoder().decode(d.slice(3, d.length - 1));
+
+        // First chunk resets the buffer
+        if (connSsidReceived === 0 || totalLen !== connSsidTotalLen) {
+          connSsidBuffer = '';
+          connSsidTotalLen = totalLen;
+          connSsidReceived = 0;
+        }
+
+        connSsidBuffer += chunk;
+        connSsidReceived += chunk.length;
+        logEvent(`SSID chunk (${connSsidReceived}/${connSsidTotalLen}): "${chunk}"`, 'scan');
+
+        if (connSsidReceived >= connSsidTotalLen) {
+          clearConnecting();
+          connectedSsid = connSsidBuffer;
+          connSsidBuffer = '';
+          connSsidReceived = 0;
+          connSsidTotalLen = 0;
+          logEvent(`Connected SSID: "${connectedSsid}"`, 'decoded');
+          const wifiText = document.getElementById('wifiStatusText');
+          wifiText.textContent = `Connected: ${connectedSsid}`;
+          selectedApIndex = -1;
+          renderNetworks();
+        }
+        return;
+      }
+
+      // WiFi Software Revision (0x59): [0x59, Len, RevString..., 0x59]
+      if (d[0] === WIFI_SW_REV_HEADER && d.length >= 3 && d[d.length - 1] === WIFI_SW_REV_HEADER) {
+        const rev = new TextDecoder().decode(d.slice(2, d.length - 1));
+        logEvent(`WiFi SW Rev: ${rev}`, 'decoded');
+        const revEl = document.getElementById('wifiSwRev');
+        if (revEl) revEl.textContent = `WiFi FW: ${rev}`;
+        return;
+      }
+
+      // WiFi status: 0x58 LEN EVT 0x58
+      if (d[0] === WIFI_STATUS_HEADER && d.length === 4 && d[3] === WIFI_STATUS_HEADER) {
+        const evtCode = d[2];
+        const evtName = WIFI_EVT_NAMES[evtCode] || `0x${evtCode.toString(16)}`;
+        logEvent(`Status: ${evtName}`, 'decoded');
+        updateWifiStatus(evtCode);
+        return;
+      }
+
+      // Scan result: 0x57 ...
+      if (d[0] === WIFI_SCAN_HEADER && d.length >= 8 && d[d.length - 1] === WIFI_SCAN_HEADER) {
+        scanning = false;
+        const payloadLen = d[1];
+        const apIndex = d[2];
+        const totalCount = d[3];
+        const ssidTotalLen = d[4];
+        const ssidChunkLen = payloadLen - 8;
+        const ssidChunk = new TextDecoder().decode(d.slice(5, 5 + ssidChunkLen));
+        const rssi = d[5 + ssidChunkLen] > 127 ? d[5 + ssidChunkLen] - 256 : d[5 + ssidChunkLen];
+        const authmode = d[6 + ssidChunkLen];
+
+        if (apIndex === 0 && scanResults.length > 0 && scanResults[0].complete) {
+          scanResults = [];
+          selectedApIndex = -1;
+        }
+
+        while (scanResults.length <= apIndex) {
+          scanResults.push({ ssid: '', rssi: 0, authmode: 0, ssidTotalLen: 0, ssidReceived: 0, complete: false });
+        }
+
+        const ap = scanResults[apIndex];
+        ap.ssid += ssidChunk;
+        ap.ssidReceived += ssidChunkLen;
+        ap.ssidTotalLen = ssidTotalLen;
+        ap.rssi = rssi;
+        ap.authmode = authmode;
+        if (ap.ssidReceived >= ap.ssidTotalLen) ap.complete = true;
+
+        logEvent(`AP${apIndex}/${totalCount}: "${ap.ssid}" ${rssi}dBm ${AUTH_MODE_NAMES[authmode] || authmode}`, 'scan');
+        renderNetworks();
+        return;
+      }
+
+      // Volume Level Response (0xB3): [0xB3, 0x04, Level, 0xB3]
+      if (d[0] === VOLUME_RSP_HEADER && d.length === 4 && d[3] === VOLUME_RSP_HEADER) {
+        const level = d[2];
+        const labels = ['Mute', 'Low', 'Medium', 'High'];
+        logEvent(`Volume: ${labels[level] || level} (${level})`, 'decoded');
+        const slider = document.getElementById('volumeSlider');
+        const display = document.getElementById('volumeValue');
+        slider.value = level;
+        slider.disabled = false;
+        display.textContent = labels[level] || `${level}`;
+        return;
+      }
+
+      // Theme State Response (0xD4): [0xD4, 0x04, Idx, 0xD4]
+      if (d[0] === THEME_RSP_HEADER && d.length === 4 && d[3] === THEME_RSP_HEADER) {
+        const idx = d[2];
+        const name = THEME_NAMES[idx] || `Theme ${idx}`;
+        logEvent(`Theme: ${name} (idx ${idx})`, 'decoded');
+        const select = document.getElementById('themeSelect');
+        const display = document.getElementById('themeValue');
+        select.value = idx;
+        select.disabled = false;
+        document.getElementById('setThemeBtn').disabled = false;
+        display.textContent = name;
+        return;
+      }
+
+      // Achievement Status (0x91): [0x91, 0x06, ID, Status, Progress, 0x91]
+      if (d[0] === ACHIEVEMENT_STATUS_HEADER && d.length === 6 && d[5] === ACHIEVEMENT_STATUS_HEADER) {
+        const id = d[2];
+        const unlocked = d[3] !== 0;
+        const progress = d[4];
+        const name = ACHIEVEMENT_NAMES[id] || `Achievement ${id}`;
+        logEvent(`Achievement: ${name} - ${unlocked ? 'Unlocked' : 'Locked'} (${progress}%)`, 'decoded');
+        if (id < ACHIEVEMENT_COUNT) {
+          achievementStatuses[id] = { unlocked, progress };
+          renderAchievements();
+        }
+        return;
+      }
+
+      // Streak Status (0x92): [0x92, 0x0D, startYrH, startYrL, startMo, startDay, curYrH, curYrL, curMo, curDay, cntH, cntL, 0x92]
+      if (d[0] === STREAK_STATUS_HEADER && d.length === 13 && d[12] === STREAK_STATUS_HEADER) {
+        const startYear = (d[2] << 8) | d[3];
+        const startMonth = d[4];
+        const startDay = d[5];
+        const currentYear = (d[6] << 8) | d[7];
+        const currentMonth = d[8];
+        const currentDay = d[9];
+        const count = (d[10] << 8) | d[11];
+        streakData = { startYear, startMonth, startDay, currentYear, currentMonth, currentDay, count };
+        renderStreak();
+        logEvent(`Streak: ${count} day${count !== 1 ? 's' : ''} (${formatDate(startYear, startMonth, startDay)} to ${formatDate(currentYear, currentMonth, currentDay)})`, 'decoded');
+        return;
+      }
+
+      logEvent(`Unknown (${d.length}B)`, 'error');
+    }
+
+    // --- BLE Connect ---
+
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('connectBtn');
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['1011123e-8535-b5a0-7140-a304d2495cb7']
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('1011123e-8535-b5a0-7140-a304d2495cb7');
+        const characteristics = await service.getCharacteristics();
+
+        for (const char of characteristics) {
+          if (char.properties.notify) {
+            await char.startNotifications();
+            char.addEventListener('characteristicvaluechanged', event => {
+              handleNotification(event.target.value.buffer);
+            });
+          }
+          if (char.properties.write || char.properties.writeWithoutResponse) {
+            characteristicToWrite = char;
+          }
+        }
+
+        device.addEventListener('gattserverdisconnected', () => {
+          updateBleStatus(false);
+          characteristicToWrite = null;
+          document.getElementById('clockSyncBtn').disabled = true;
+          document.getElementById('volumeSlider').disabled = true;
+          document.getElementById('volumeValue').textContent = '--';
+          document.getElementById('themeSelect').disabled = true;
+          document.getElementById('setThemeBtn').disabled = true;
+          document.getElementById('themeValue').textContent = '--';
+          document.getElementById('achievementSelect').disabled = true;
+          document.getElementById('requestAchievementBtn').disabled = true;
+          document.getElementById('deviceNameInput').disabled = true;
+          document.getElementById('setDeviceNameBtn').disabled = true;
+          document.getElementById('asciiInput').disabled = true;
+          document.getElementById('sendAsciiBtn').disabled = true;
+          achievementStatuses = new Array(ACHIEVEMENT_COUNT).fill(null);
+          renderAchievements();
+          streakData = null;
+          renderStreak();
+          logEvent('BLE disconnected', 'error');
+        });
+
+        updateBleStatus(true);
+        document.getElementById('clockSyncBtn').disabled = false;
+        document.getElementById('achievementSelect').disabled = false;
+        document.getElementById('requestAchievementBtn').disabled = false;
+        document.getElementById('deviceNameInput').disabled = false;
+        document.getElementById('setDeviceNameBtn').disabled = false;
+        document.getElementById('asciiInput').disabled = false;
+        document.getElementById('sendAsciiBtn').disabled = false;
+        logEvent('BLE connected', 'decoded');
+        showAlert('Connected!', 'success');
+
+      } catch (e) {
+        showAlert('Connection failed: ' + e.message, 'error');
+        updateBleStatus(false);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M12 2L2 7L12 12L22 7L12 2Z"/><path d="M2 17L12 22L22 17"/><path d="M2 12L12 17L22 12"/></svg>Connect to Device';
+      }
+    });
+
+    // --- Button handlers ---
+
+    document.getElementById('scanBtn').addEventListener('click', () => startScan());
+
+    document.getElementById('enableBtn').addEventListener('click', async () => {
+      try { await sendCommand('wifi_enable'); } catch (e) { showAlert('Failed: ' + e.message, 'error'); }
+    });
+
+    document.getElementById('disableBtn').addEventListener('click', async () => {
+      try { await sendCommand('wifi_disable'); } catch (e) { showAlert('Failed: ' + e.message, 'error'); }
+    });
+
+    document.getElementById('updateSoundsBtn').addEventListener('click', async () => {
+      try { await sendCommand('usb_start'); } catch (e) { showAlert('Failed: ' + e.message, 'error'); }
+    });
+
+    document.getElementById('updateWifiBtn').addEventListener('click', async () => {
+      try { await sendCommand('url_'); } catch (e) { showAlert('Failed: ' + e.message, 'error'); }
+    });
+
+    document.getElementById('disconnectBtn').addEventListener('click', async () => {
+      try { await sendCommand('wifi_disconnect'); } catch (e) { showAlert('Failed: ' + e.message, 'error'); }
+    });
+
+    // Manual entry toggle
+    document.getElementById('manualToggleBtn').addEventListener('click', () => {
+      const el = document.getElementById('manualEntry');
+      const btn = document.getElementById('manualToggleBtn');
+      if (el.classList.contains('visible')) {
+        el.classList.remove('visible');
+        btn.textContent = 'Enter network manually';
+      } else {
+        el.classList.add('visible');
+        btn.textContent = 'Hide manual entry';
+        document.getElementById('manualSsid').focus();
+      }
+    });
+
+    document.getElementById('manualConnectBtn').addEventListener('click', async () => {
+      const ssid = document.getElementById('manualSsid').value.trim();
+      const password = document.getElementById('manualPassword').value;
+      await sendCredentials(ssid, password);
+    });
+
+    document.getElementById('manualPassword').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') document.getElementById('manualConnectBtn').click();
+    });
+
+    document.getElementById('clockSyncBtn').addEventListener('click', async () => {
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const packet = new Uint8Array([
+          0xDD, 0x09,
+          (year >> 8) & 0xFF, year & 0xFF,
+          now.getMonth() + 1,
+          now.getDate(),
+          now.getHours(),
+          now.getMinutes(),
+          0xDD
+        ]);
+        await characteristicToWrite.writeValue(packet);
+        logEvent(`TX: ${hexStr(packet)} (Clock Sync)`, 'hex');
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('volumeSlider').addEventListener('input', async () => {
+      const level = parseInt(document.getElementById('volumeSlider').value);
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      try {
+        const packet = new Uint8Array([VOLUME_CMD_HEADER, 0x04, level, VOLUME_CMD_HEADER]);
+        await characteristicToWrite.writeValue(packet);
+        logEvent(`TX: ${hexStr(packet)} (Set Volume ${level})`, 'hex');
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('setThemeBtn').addEventListener('click', async () => {
+      const idx = parseInt(document.getElementById('themeSelect').value);
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      try {
+        const packet = new Uint8Array([THEME_CMD_HEADER, 0x04, idx, THEME_CMD_HEADER]);
+        await characteristicToWrite.writeValue(packet);
+        logEvent(`TX: ${hexStr(packet)} (Set Theme ${THEME_NAMES[idx] || idx})`, 'hex');
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('requestAchievementBtn').addEventListener('click', async () => {
+      const id = parseInt(document.getElementById('achievementSelect').value);
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      try {
+        const packet = new Uint8Array([ACHIEVEMENT_REQ_HEADER, 0x04, id, ACHIEVEMENT_REQ_HEADER]);
+        await characteristicToWrite.writeValue(packet);
+        logEvent(`TX: ${hexStr(packet)} (Request Achievement: ${ACHIEVEMENT_NAMES[id] || id})`, 'hex');
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('setDeviceNameBtn').addEventListener('click', async () => {
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      const name = document.getElementById('deviceNameInput').value;
+      if (name.length === 0) {
+        showAlert('Enter a device name', 'error');
+        return;
+      }
+      const bytes = new TextEncoder().encode(name);
+      if (bytes.length > 29) {
+        showAlert('Name must be 29 bytes or fewer (UTF-8)', 'error');
+        return;
+      }
+      try {
+        // Firmware splits the name across two BLE adv-data slots:
+        //   0xAC fills tbl_buf_advData[2..18]  -> first up to 17 bytes
+        //   0xAF fills tbl_buf_advData[19..30] -> remaining up to 12 bytes, then commits
+        // We must ALWAYS send 0xAF (even with zero payload) — it is the call that
+        // invokes bls_ll_setAdvData() in user_bll.c.
+        const part1Len = Math.min(bytes.length, 17);
+        const part2Len = Math.max(0, bytes.length - 17);
+
+        const pkt1 = new Uint8Array(part1Len + 3);
+        pkt1[0] = 0xAC;
+        pkt1[1] = part1Len + 3;
+        for (let i = 0; i < part1Len; i++) pkt1[2 + i] = bytes[i];
+        pkt1[part1Len + 2] = 0xAC;
+        await characteristicToWrite.writeValue(pkt1);
+        logEvent(`TX: ${hexStr(pkt1)} (Device Name 1/2)`, 'hex');
+
+        const pkt2 = new Uint8Array(part2Len + 3);
+        pkt2[0] = 0xAF;
+        pkt2[1] = part2Len + 3;
+        for (let i = 0; i < part2Len; i++) pkt2[2 + i] = bytes[17 + i];
+        pkt2[part2Len + 2] = 0xAF;
+        await characteristicToWrite.writeValue(pkt2);
+        logEvent(`TX: ${hexStr(pkt2)} (Device Name 2/2 — commit "${name}")`, 'hex');
+
+        showAlert(`Device name set to "${name}"`, 'success');
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('deviceNameInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') document.getElementById('setDeviceNameBtn').click();
+    });
+
+    document.getElementById('sendAsciiBtn').addEventListener('click', async () => {
+      if (!characteristicToWrite) {
+        showAlert('Connect to device via BLE first', 'error');
+        return;
+      }
+      const asciiStr = document.getElementById('asciiInput').value.trim();
+      if (!asciiStr) {
+        showAlert('Enter a command', 'error');
+        return;
+      }
+      try {
+        const data = new TextEncoder().encode(asciiStr);
+        await characteristicToWrite.writeValue(data);
+        logEvent(`TX: "${asciiStr}" (ASCII)`, 'hex');
+        showAlert(`Command "${asciiStr}" sent`, 'success');
+        document.getElementById('asciiInput').value = '';
+      } catch (e) {
+        showAlert('Failed: ' + e.message, 'error');
+      }
+    });
+
+    document.getElementById('asciiInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') document.getElementById('sendAsciiBtn').click();
+    });
+
+    document.querySelectorAll('.ascii-prefill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById('asciiInput').value = btn.dataset.cmd;
+        document.getElementById('asciiInput').focus();
+      });
+    });
+
+    document.getElementById('clearLogBtn').addEventListener('click', () => {
+      document.getElementById('eventLog').innerHTML = '<div class="empty-state">Log cleared.</div>';
+    });
+  </script>
+</body>
+</html>
