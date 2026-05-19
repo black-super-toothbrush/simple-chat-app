@@ -136,8 +136,8 @@
 <body>
     <div id="ribbons-container"></div>
     
-    <!-- Authentication Interface -->
-    <div id="auth-container" class="auth-container">
+    <!-- Authentication Interface (Disabled) -->
+    <div id="auth-container" class="auth-container" style="display: none;">
         <div class="auth-card">
             <h1>Device Control System</h1>
             <p style="text-align: center; color: #666; margin-bottom: 30px;">Please login or register to use device control features</p>
@@ -166,11 +166,11 @@
         </div>
     </div>
 
-    <div class="container" id="main-app" style="display: none;">
-        <!-- User Info Bar -->
-        <div class="user-info-bar fade-in">
+    <div class="container" id="main-app" style="display: block;">
+        <!-- User Info Bar (Hidden) -->
+        <div class="user-info-bar fade-in" style="display: none;">
             <div class="user-info-content">
-                <span>Welcome, <span id="display-user-email"></span></span>
+                <span>Welcome, <span id="display-user-email">Guest</span></span>
                 <div style="display: flex; gap: 10px;">
                     <button class="btn btn-primary" id="subscribe-btn">Subscribe</button>
                     <button class="btn btn-outline" id="logout-btn">Logout</button>
@@ -267,6 +267,66 @@
             </div>
         </div>
 
+        <!-- OTA Upgrade and Log -->
+        <div class="grid">
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i>
+                    <h3>OTA Upgrade</h3>
+                </div>
+                <div class="controls">
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="startOtaBtn" class="btn btn-success tooltip inner-content" onclick="startOTA()" disabled data-tooltip="Start firmware upload to device">
+                            <i class="fas fa-rocket"></i>
+                            Start Upgrade
+                        </button>
+                    </div>
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="stopOtaBtn" class="btn btn-danger tooltip inner-content" onclick="stopOTA()" disabled data-tooltip="Cancel ongoing firmware upgrade">
+                            <i class="fas fa-stop"></i>
+                            Stop Upgrade
+                        </button>
+                    </div>
+                    <div class="star-border-container" style="--star-speed: 4s;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button id="otaTestBtn" class="btn btn-secondary tooltip inner-content" onclick="otaFlashTest()" disabled data-tooltip="Erase SPI flash sector 255, write 'flash_info', verify readback">
+                            <i class="fas fa-flask"></i>
+                            Flash Test
+                        </button>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar"></div>
+                    </div>
+                    <div id="progressText" style="text-align: center; margin-top: 8px; font-size: 0.875rem; color: var(--muted-foreground);">
+                        Waiting to start...
+                    </div>
+                </div>
+            </div>
+
+            <div class="card fade-in">
+                <div class="card-header">
+                    <i class="fas fa-terminal"></i>
+                    <h3>System Log</h3>
+                    <div class="star-border-container" style="--star-speed: 4s; margin-left: auto;">
+                        <div class="border-gradient-bottom"></div>
+                        <div class="border-gradient-top"></div>
+                        <button class="btn btn-secondary inner-content" onclick="clearLog()" style="padding: 6px 12px; font-size: 0.8rem;">
+                            <i class="fas fa-trash"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div id="logOutput" class="log"></div>
+            </div>
+        </div>
+
         <!-- Device Information Display -->
         <div class="card fade-in">
             <div class="card-header">
@@ -274,7 +334,8 @@
                 <h3>Device Information</h3>
             </div>
             
-            <div id="deviceInfoDisplay" style="display: none;">
+            <!-- <div id="deviceInfoDisplay" style="display: none;"> -->
+            <div id="deviceInfoDisplay" style="display: block;">
                 <div class="status-grid">
                     <div class="status-group">
                         <h4><i class="fas fa-microchip"></i> Device Details</h4>
@@ -307,6 +368,74 @@
                             <span id="manufacturer">--</span>
                         </div>
                     </div>
+
+                    <div class="status-group">
+                        <h4><i class="fas fa-cogs"></i> Device Usage</h4>
+                        <table class="table">
+                            <tr>
+                                <td><strong>Favorite Temperature:</strong></td>
+                                <td><span id="favoriteTemp">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total Heating Cycles:</strong></td>
+                                <td><span id="totalHeatingCycles">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Most Cycles in Day:</strong></td>
+                                <td><span id="mostCyclesInDay">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Charge Cycles:</strong></td>
+                                <td><span id="chargeCycles">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Profile:</strong></td>
+                                <td><span id="profile">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Light Mode:</strong></td>
+                                <td><span id="lightMode">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Device Resets:</strong></td>
+                                <td><span id="deviceResets">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Favorite Heating Time:</strong></td>
+                                <td><span id="favoriteHeatingTime">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Session Total Time:</strong></td>
+                                <td><span id="sessionTotalTime">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>DeviceOn Time:</strong></td>
+                                <td><span id="DeviceOnTime">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Preset 1 Cycles:</strong></td>
+                                <td><span id="presetCycles1">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Preset 2 Cycles:</strong></td>
+                                <td><span id="presetCycles2">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Preset 3 Cycles:</strong></td>
+                                <td><span id="presetCycles3">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Preset 4 Cycles:</strong></td>
+                                <td><span id="presetCycles4">--</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Preset 5 Cycles:</strong></td>
+                                <td><span id="presetCycles5">--</span></td>
+                            </tr>
+
+                        </table>
+                    </div>
+
                 </div>
                 
                 <!-- 原始设备信息数据 -->
@@ -404,6 +533,16 @@
                                     Press to Heat
                                 </button>
                             </div>
+
+                            <div class="star-border-container" style="--star-speed: 4s;">
+                                <div class="border-gradient-bottom"></div>
+                                <div class="border-gradient-top"></div>
+                                <button id="cleaningAssistBtn" class="btn btn-success inner-content" onclick="toggleCleaningAssist()" disabled style="min-width: 150px;">
+                                    <i class="fas fa-play"></i>
+                                    Cleaning Assisit
+                                </button>
+                            </div>
+
                             <!-- Session Data Collection Status -->
                             <div id="sessionDataStatus" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted-foreground); display: none;">
                                 <i class="fas fa-database"></i>
@@ -460,6 +599,13 @@
                                     <option value="0x0F">Strawberry Cough</option>
                                     <option value="0x10">Florida Groves</option>
                                     <option value="0x11">Lime Light</option>
+
+
+                                    <option value="0x18">Blue Cheese</option>
+                                    <option value="0x19">Golden Goat</option>
+                                    <option value="0x1A">Grape Ape</option>
+                                    <option value="0x1B">Miami Vice</option>
+                                    <option value="0x1C">Purple Urkle</option>
                                 </select>
                                 <div class="led-preview" id="ledPreview"></div>
                             </div>
@@ -473,14 +619,24 @@
                             <button id="hapticFeedback" class="toggle-btn" onclick="toggleHaptic()">--</button>
                         </div>
                         <div class="status-item">
-                            <strong>Boost:</strong> 
-                            <span id="sessionBoost">--</span>
+                            <strong>Boost:</strong>
+                            <button id="boostBtn" class="btn btn-secondary tooltip" onclick="toggleBoost()" disabled
+                                    style="min-width: 80px; padding: 6px 12px; font-size: 0.8rem;"
+                                    data-tooltip="Click to send incremental boost value (+1 each click)">
+                                Boost
+                            </button>
                         </div>
                     </div>
                 </div>
                  <!-- 实时温度曲线 -->
                  <div style="margin-top: 32px;">
-                    <h4 style="margin-bottom: 8px; color: var(--foreground); font-size: 1rem;">Current Temperature Curve</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h4 style="color: var(--foreground); font-size: 1rem;">Current Temperature Curve</h4>
+                        <button id="tempDisplayToggleBtn" class="btn btn-primary" onclick="toggleTempDisplay()"
+                                style="padding: 6px 12px; font-size: 0.8rem;" disabled>
+                            <i class="fas fa-thermometer-half"></i> Show ideal
+                        </button>
+                    </div>
                     <canvas id="currentTempChart" height="80"></canvas>
                 </div>               
                 <!-- 温度预设 -->
@@ -734,28 +890,28 @@
                             <input type="number" class="custom-time" min="0" max="90" step="1" value="60" style="width: 50px;">
                             <span>s</span>
                         </div>
-                        <div class="custom-config-row">
+                        <div class="custom-config-row", style="display: none;">
                             <label>point7：</label>
                             <input type="number" class="custom-temp" min="250" max="650" step="1" value="460" style="width: 70px;">
                             <span>°</span>
                             <input type="number" class="custom-time" min="0" max="90" step="1" value="70" style="width: 50px;">
                             <span>s</span>
                         </div>
-                        <div class="custom-config-row">
+                        <div class="custom-config-row", style="display: none;">
                             <label>point8：</label>
                             <input type="number" class="custom-temp" min="250" max="650" step="1" value="470" style="width: 70px;">
                             <span>°</span>
                             <input type="number" class="custom-time" min="0" max="90" step="1" value="80" style="width: 50px;">
                             <span>s</span>
                         </div>
-                        <div class="custom-config-row">
+                        <div class="custom-config-row", style="display: none;">
                             <label>point9：</label>
                             <input type="number" class="custom-temp" min="250" max="650" step="1" value="480" style="width: 70px;">
                             <span>°</span>
                             <input type="number" class="custom-time" min="0" max="90" step="1" value="90" style="width: 50px;">
                             <span>s</span>
                         </div>
-                        <div class="custom-config-row">
+                        <div class="custom-config-row", style="display: none;">
                             <label>point10：</label>
                             <input type="number" class="custom-temp" min="250" max="650" step="1" value="490" style="width: 70px;">
                             <span>°</span>
@@ -773,57 +929,6 @@
 
 
 
-        <!-- OTA Upgrade and Log -->
-        <div class="grid">
-            <div class="card fade-in">
-                <div class="card-header">
-                    <i class="fas fa-upload"></i>
-                    <h3>OTA Upgrade</h3>
-                </div>
-                <div class="controls">
-                    <div class="star-border-container" style="--star-speed: 4s;">
-                        <div class="border-gradient-bottom"></div>
-                        <div class="border-gradient-top"></div>
-                        <button id="startOtaBtn" class="btn btn-success tooltip inner-content" onclick="startOTA()" disabled data-tooltip="Start firmware upload to device">
-                            <i class="fas fa-rocket"></i>
-                            Start Upgrade
-                        </button>
-                    </div>
-                    <div class="star-border-container" style="--star-speed: 4s;">
-                        <div class="border-gradient-bottom"></div>
-                        <div class="border-gradient-top"></div>
-                        <button id="stopOtaBtn" class="btn btn-danger tooltip inner-content" onclick="stopOTA()" disabled data-tooltip="Cancel ongoing firmware upgrade">
-                            <i class="fas fa-stop"></i>
-                            Stop Upgrade
-                        </button>
-                    </div>
-                </div>
-                <div class="progress-container">
-                    <div class="progress">
-                        <div id="progressBar" class="progress-bar"></div>
-                    </div>
-                    <div id="progressText" style="text-align: center; margin-top: 8px; font-size: 0.875rem; color: var(--muted-foreground);">
-                        Waiting to start...
-                    </div>
-                </div>
-            </div>
-
-            <div class="card fade-in">
-                <div class="card-header">
-                    <i class="fas fa-terminal"></i>
-                    <h3>System Log</h3>
-                    <div class="star-border-container" style="--star-speed: 4s; margin-left: auto;">
-                        <div class="border-gradient-bottom"></div>
-                        <div class="border-gradient-top"></div>
-                        <button class="btn btn-secondary inner-content" onclick="clearLog()" style="padding: 6px 12px; font-size: 0.8rem;">
-                            <i class="fas fa-trash"></i>
-                            Clear
-                        </button>
-                    </div>
-                </div>
-                <div id="logOutput" class="log"></div>
-            </div>
-        </div>
     </div>
 
     <!-- Notification Component -->
@@ -866,223 +971,78 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Firebase Authentication Script -->
-    <script type="module">
-        // Firebase configuration and authentication
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js';
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js';
-
-        // Firebase configuration info
-        const firebaseConfig = {
-            apiKey: "AIzaSyAD7ZoXaGWaGj8Mm6cWQnSHnCDICWffJeg",
-            authDomain: "my-user-system.firebaseapp.com",
-            projectId: "my-user-system",
-            storageBucket: "my-user-system.firebasestorage.app",
-            messagingSenderId: "8686556726",
-            appId: "1:8686556726:web:86934b38afca467947aa97",
-            measurementId: "G-3S7Z52L589"
+    <!-- Auth Bypass Script -->
+    <script>
+        // Set dummy user for compatibility
+        window.currentUser = {
+            uid: 'guest',
+            email: 'guest@local'
         };
+        window.firebaseDb = null; // Disable Firebase DB
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // Global variables for other scripts
-        window.firebaseAuth = auth;
-        window.firebaseDb = db;
-        window.currentUser = null;
-
-        // Show authentication message
-        function showAuthMessage(text, type = 'success') {
-            const messageDiv = document.getElementById('auth-message');
-            messageDiv.innerHTML = `<div class="auth-message ${type}">${text}</div>`;
-            setTimeout(() => {
-                messageDiv.innerHTML = '';
-            }, 5000);
-        }
-
-        // Registration function
-        async function register() {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            
-            if (!email || !password) {
-                showAuthMessage('Please enter email and password', 'error');
-                return;
-            }
-            
-            if (password.length < 6) {
-                showAuthMessage('Password must be at least 6 characters', 'error');
-                return;
-            }
-            
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-                
-                // Save user info in Firestore
-                await setDoc(doc(db, 'users', user.uid), {
-                    email: email,
-                    createdAt: new Date().toISOString(),
-                    lastLogin: new Date().toISOString()
-                });
-                
-                showAuthMessage('Registration successful! Logging in...', 'success');
-            } catch (error) {
-                let errorMessage = 'Registration failed: ';
-                switch (error.code) {
-                    case 'auth/email-already-in-use':
-                        errorMessage += 'Email already in use';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMessage += 'Invalid email format';
-                        break;
-                    case 'auth/weak-password':
-                        errorMessage += 'Password too weak';
-                        break;
-                    default:
-                        errorMessage += error.message;
-                }
-                showAuthMessage(errorMessage, 'error');
-            }
-        }
-
-        // Login function
-        async function login() {
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-            
-            if (!email || !password) {
-                showAuthMessage('Please enter email and password', 'error');
-                return;
-            }
-            
-            try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-                
-                // Update last login time
-                await setDoc(doc(db, 'users', user.uid), {
-                    lastLogin: new Date().toISOString()
-                }, { merge: true });
-                
-                showAuthMessage('Login successful!', 'success');
-            } catch (error) {
-                let errorMessage = 'Login failed: ';
-                switch (error.code) {
-                    case 'auth/user-not-found':
-                        errorMessage += 'User does not exist';
-                        break;
-                    case 'auth/wrong-password':
-                        errorMessage += 'Wrong password';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMessage += 'Invalid email format';
-                        break;
-                    default:
-                        errorMessage += error.message;
-                }
-                showAuthMessage(errorMessage, 'error');
-            }
-        }
-
-        // Logout
-        async function logout() {
-            try {
-                await signOut(auth);
-                showAuthMessage('Logged out successfully', 'success');
-            } catch (error) {
-                console.error('Logout failed:', error.message);
-            }
-        }
-
-        // Listen for login state changes
-        onAuthStateChanged(auth, async (user) => {
-            const authContainer = document.getElementById('auth-container');
-            const mainApp = document.getElementById('main-app');
-            
-            if (user) {
-                // User is logged in
-                window.currentUser = user;
-                authContainer.style.display = 'none';
-                mainApp.style.display = 'block';
-                
-                // Display user info
-                document.getElementById('display-user-email').textContent = user.email;
-                
-                // Clear input fields
-                document.getElementById('auth-email').value = '';
-                document.getElementById('auth-password').value = '';
-                
-                console.log('User logged in:', user.email);
-            } else {
-                // User not logged in
-                window.currentUser = null;
-                authContainer.style.display = 'flex';
-                mainApp.style.display = 'none';
-                
-                console.log('User not logged in');
-            }
-        });
-
-        // Bind events after page load
+        // Mock auth functions
+        window.checkAuthentication = function() { return true; };
+        
+        // Subscription modal functionality (Simplified)
         document.addEventListener('DOMContentLoaded', function() {
-            // Bind authentication button events
-            document.getElementById('auth-login-btn').addEventListener('click', login);
-            document.getElementById('auth-register-btn').addEventListener('click', register);
-            document.getElementById('logout-btn').addEventListener('click', logout);
-            
-            // Subscription modal functionality
             const subscriptionModal = document.getElementById('subscriptionModal');
             const subscribeBtn = document.getElementById('subscribe-btn');
             const closeModal = document.getElementById('closeModal');
             const cancelSubscription = document.getElementById('cancelSubscription');
-            const confirmPayment = document.getElementById('confirmPayment');
             
-            // Open modal
-            subscribeBtn.addEventListener('click', function() {
-                subscriptionModal.style.display = 'flex';
-            });
-            
-            // Close modal
-            function closeSubscriptionModal() {
-                subscriptionModal.style.display = 'none';
+            if(subscribeBtn) {
+                subscribeBtn.addEventListener('click', function() {
+                    if(subscriptionModal) subscriptionModal.style.display = 'flex';
+                });
             }
             
-            closeModal.addEventListener('click', closeSubscriptionModal);
-            cancelSubscription.addEventListener('click', closeSubscriptionModal);
+            function closeSubscriptionModal() {
+                if(subscriptionModal) subscriptionModal.style.display = 'none';
+            }
             
-            // Close modal when clicking outside
-            subscriptionModal.addEventListener('click', function(event) {
-                if (event.target === subscriptionModal) {
-                    closeSubscriptionModal();
-                }
-            });
+            if(closeModal) closeModal.addEventListener('click', closeSubscriptionModal);
+            if(cancelSubscription) cancelSubscription.addEventListener('click', closeSubscriptionModal);
             
-            // Confirm payment
-            confirmPayment.addEventListener('click', function() {
-                // Show success message
-                showAuthMessage('Payment confirmed! Thank you for subscribing to premium features.', 'success');
-                closeSubscriptionModal();
-                
-                // You can add additional logic here to handle the subscription
-                // For example: update user status, enable premium features, etc.
-            });
-            
-            // Enter key login
-            document.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter') {
-                    const authContainer = document.getElementById('auth-container');
-                    if (authContainer.style.display !== 'none') {
-                        login();
+            if(subscriptionModal) {
+                subscriptionModal.addEventListener('click', function(event) {
+                    if (event.target === subscriptionModal) {
+                        closeSubscriptionModal();
                     }
-                }
-            });
+                });
+            }
         });
+
+    async function otaFlashTest() {
+        if (typeof characteristic === 'undefined' || !characteristic) {
+            showNotification('Device not connected', 'error');
+            return;
+        }
+        const btn = document.getElementById('otaTestBtn');
+        btn.disabled = true;
+        log('[Flash Test] Sending "hello" to device...');
+        try {
+            const cmd = new TextEncoder().encode('hello');
+            await characteristic.writeValue(cmd);
+            log('[Flash Test] Waiting for device response...');
+            const response = await waitForResponse(10000);
+            const responseText = Array.from(response).map(b => String.fromCharCode(b)).join('').replace(/\0/g, '');
+            log(`[Flash Test] Received: "${responseText}"`);
+            if (responseText === 'flash_info') {
+                showNotification('Flash Test PASSED', 'success');
+                log('[Flash Test] PASS: data matches "flash_info"');
+            } else {
+                showNotification(`Flash Test FAILED: got "${responseText}"`, 'error');
+                log(`[Flash Test] FAIL: expected "flash_info", got "${responseText}"`);
+            }
+        } catch (e) {
+            showNotification(`Flash Test error: ${e.message}`, 'error');
+            log(`[Flash Test] Error: ${e.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
     </script>
-    
+
     <script src="script.js?v=1.1"></script>
 </body>
 </html>

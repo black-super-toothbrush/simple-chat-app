@@ -13,7 +13,7 @@ let isSessionDataCollection = false;
 let currentSessionData = null;
 let sessionStartTime = null;
 let sessionDataPoints = [];
-
+let cleaningAssistEnabled = false; // 清洁助手状态
 
 // 存储5套custom setting数据 (扩展到10个点)
 let customSettings = {
@@ -25,206 +25,25 @@ let customSettings = {
 };
 
 
-// 认证检查函数
+// 认证检查函数 (Bypassed)
 function checkAuthentication() {
-    if (!window.currentUser) {
-        showNotification('请先登录才能使用设备功能', 'warning');
-        return false;
-    }
     return true;
 }
 
-// Firestore连接和权限检查函数
+// Firestore连接和权限检查函数 (Disabled)
 async function checkFirestoreConnection() {
-    try {
-        if (!window.firebaseDb) {
-            throw new Error('Firebase数据库未初始化');
-        }
-        
-        if (!window.currentUser) {
-            throw new Error('用户未登录');
-        }
-
-        // 使用动态导入
-        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
-        
-        // 尝试读取用户文档以测试连接和权限
-        const userDocRef = doc(window.firebaseDb, 'users', window.currentUser.uid);
-        await getDoc(userDocRef);
-        
-        log('✓ Firestore connection and permissions verified');
-        return true;
-        
-    } catch (error) {
-        log(`✗ Firestore connection check failed: ${error.message}`);
-        if (error.code) {
-            log(`  Error code: ${error.code}`);
-        }
-        return false;
-    }
+    return false;
 }
 
-// 温度预设数据收集和上传功能
+// 温度预设数据收集和上传功能 (Disabled)
 async function collectAndUploadTemperaturePresets() {
-    // 检查用户是否已登录
-    if (!checkAuthentication()) {
-        return;
-    }
-    
-    // 检查Firestore连接
-    const connectionOk = await checkFirestoreConnection();
-    if (!connectionOk) {
-        showNotification('Firebase连接检查失败，请检查网络和权限设置', 'error');
-        return;
-    }
-
-    try {
-        // 收集当前温度预设数据
-        const temperaturePresets = [];
-        for (let i = 1; i <= 5; i++) {
-            const tempInput = document.getElementById(`tempF${i}`);
-            const temperature = tempInput ? parseInt(tempInput.value) || 0 : 0;
-            temperaturePresets.push(temperature);
-        }
-
-        // 收集设备信息（如果有连接的设备）
-        const deviceInfo = {
-            deviceName: document.getElementById('deviceName')?.textContent || '',
-            serialNumber: document.getElementById('serialNumber')?.textContent || '',
-            modelName: document.getElementById('modelName')?.textContent || '',
-            hardwareVersion: document.getElementById('hardwareVersion')?.textContent || '',
-            softwareVersion: document.getElementById('softwareVersion')?.textContent || '',
-            manufacturer: document.getElementById('manufacturer')?.textContent || '',
-            isConnected: bluetoothDevice && bluetoothDevice.gatt && bluetoothDevice.gatt.connected,
-            connectionTimestamp: bluetoothDevice ? new Date().toISOString() : null
-        };
-
-        // 收集各预设的holdTime数据
-        const holdTimePresets = [];
-        for (let i = 1; i <= 5; i++) {
-            const holdTimeInput = document.getElementById(`holdTime${i}`);
-            const holdTimeValue = holdTimeInput ? parseInt(holdTimeInput.value) || 0 : 0;
-            holdTimePresets.push(holdTimeValue);
-        }
-
-        // 收集各预设的profile数据
-        const profilePresets = [];
-        for (let i = 1; i <= 5; i++) {
-            const profileSelect = document.getElementById(`profile${i}`);
-            const profileValue = profileSelect ? parseInt(profileSelect.value) || 0xa1 : 0xa1;
-            profilePresets.push(profileValue);
-        }
-
-        // 收集会话数据
-        const sessionData = {
-            currentPreset: currentPreset,
-            ledPreset: document.getElementById('ledPresetSelect')?.value || '',
-            brightness: parseInt(document.getElementById('brightness')?.value) || 0,
-            autoShutTime: parseInt(document.getElementById('autoShutTime')?.value) || 0,
-            holdTime: holdTimePresets, // 现在是数组
-            profile: profilePresets, // 各预设的profile数据
-            globalTempF: [...globalTempF],
-            globalTempC: [...globalTempC],
-            b9State: {...currentB9State}
-        };
-
-        // 构建上传数据
-        const uploadData = {
-            userId: window.currentUser.uid,
-            userEmail: window.currentUser.email,
-            deviceInfo,
-            temperaturePresets,
-            timestamp: new Date().toISOString(),
-            sessionData
-        };
-
-        // 显示上传中状态
-        showNotification('正在上传温度预设数据到Firebase...', 'info', 1000);
-        updateUploadStatus('uploading', new Date().toISOString(), temperaturePresets);
-        
-        // 检查Firebase数据库是否可用
-        if (!window.firebaseDb) {
-            throw new Error('Firebase数据库未初始化');
-        }
-
-        // 上传到Firebase Firestore
-        // 使用动态导入来访问Firestore函数
-        const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
-        
-        // 准备Firebase数据（避免使用serverTimestamp，使用客户端时间戳）
-        const currentTimestamp = new Date().toISOString();
-        const firestoreData = {
-            ...uploadData,
-            uploadedAt: currentTimestamp,
-            clientTimestamp: currentTimestamp
-        };
-
-        log('准备上传数据到Firestore...');
-        log(`  集合: temperaturePresets`);
-        log(`  用户: ${window.currentUser.email}`);
-        log(`  预设: [${temperaturePresets.join(', ')}]°F`);
-
-        // 添加到Firestore集合
-        const docRef = await addDoc(collection(window.firebaseDb, 'temperaturePresets'), firestoreData);
-
-        log(`✓ Temperature presets uploaded to Firebase successfully`);
-        log(`  Document ID: ${docRef.id}`);
-        log(`  Presets: [${temperaturePresets.join(', ')}]°F`);
-        log(`  User: ${window.currentUser.email}`);
-        showNotification('温度预设数据已上传到Firebase！', 'success');
-        
-        // 更新上传状态显示
-        updateUploadStatus('success', new Date().toISOString(), temperaturePresets);
-
-    } catch (error) {
-        log(`✗ Failed to upload temperature presets: ${error.message}`);
-        
-        // 详细错误诊断
-        if (error.code) {
-            log(`  Error code: ${error.code}`);
-        }
-        if (error.customData) {
-            log(`  Custom data: ${JSON.stringify(error.customData)}`);
-        }
-        
-        // 常见错误原因和解决建议
-        let errorSuggestion = '';
-        if (error.code === 'permission-denied') {
-            errorSuggestion = ' - 可能是Firestore安全规则限制，请检查数据库规则配置';
-        } else if (error.code === 'unauthenticated') {
-            errorSuggestion = ' - 用户认证失败，请重新登录';
-        } else if (error.code === 'network-request-failed') {
-            errorSuggestion = ' - 网络连接问题，请检查网络连接';
-        } else if (error.message.includes('Failed to get document')) {
-            errorSuggestion = ' - Firestore数据库连接问题';
-        }
-        
-        log(`  Suggestion: ${errorSuggestion}`);
-        showNotification(`上传失败: ${error.message}${errorSuggestion}`, 'error', 8000);
-        updateUploadStatus('error', new Date().toISOString(), null);
-    }
+    log('Data upload is disabled.');
+    return;
 }
 
-// 自动上传温度预设数据（当用户修改预设时）
+// 自动上传温度预设数据（当用户修改预设时） (Disabled)
 async function autoUploadOnPresetChange(presetIndex, newTemp) {
-    // 只有在用户登录且设备连接时才自动上传
-    if (!window.currentUser || !bluetoothDevice || !bluetoothDevice.gatt.connected) {
-        return;
-    }
-
-    // 防抖：延迟上传，避免频繁操作
-    if (window.autoUploadTimeout) {
-        clearTimeout(window.autoUploadTimeout);
-    }
-
-    window.autoUploadTimeout = setTimeout(async () => {
-        try {
-            log(`Auto-uploading temperature presets after preset ${presetIndex} changed to ${newTemp}°F`);
-            await collectAndUploadTemperaturePresets();
-        } catch (error) {
-            log(`Auto-upload failed: ${error.message}`);
-        }
-    }, 2000); // 2秒延迟
+    return;
 }
 
 // 更新上传状态显示
@@ -248,129 +67,16 @@ function updateUploadStatus(status, timestamp, presets) {
     }
 }
 
-// 查看用户的温度预设上传历史
+// 查看用户的温度预设上传历史 (Disabled)
 async function viewUploadHistory() {
-    // 检查用户是否已登录
-    if (!checkAuthentication()) {
-        return;
-    }
-
-    try {
-        if (!window.firebaseDb) {
-            throw new Error('Firebase数据库未初始化');
-        }
-
-        showNotification('正在加载上传历史...', 'info', 1000);
-
-        // 使用动态导入
-        const { collection, query, where, orderBy, getDocs, limit } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
-
-        // 查询当前用户的温度预设记录
-        const q = query(
-            collection(window.firebaseDb, 'temperaturePresets'),
-            where('userId', '==', window.currentUser.uid),
-            orderBy('timestamp', 'desc'),
-            limit(10)
-        );
-
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-            showNotification('暂无上传历史记录', 'info');
-            log('No upload history found for current user');
-            return;
-        }
-
-        log(`Found ${querySnapshot.size} upload records:`);
-        
-        querySnapshot.forEach((doc, index) => {
-            const data = doc.data();
-            const uploadTime = new Date(data.timestamp).toLocaleString('zh-CN');
-            log(`${index + 1}. ${uploadTime} - Presets: [${data.temperaturePresets.join(', ')}]°F`);
-        });
-
-        showNotification(`已加载 ${querySnapshot.size} 条上传记录，请查看日志`, 'success');
-
-    } catch (error) {
-        log(`✗ Failed to load upload history: ${error.message}`);
-        showNotification(`加载历史失败: ${error.message}`, 'error');
-    }
+    log('Upload history is disabled.');
+    showNotification('History disabled', 'info');
 }
 
-// 获取所有用户的温度预设统计（管理员功能）
+// 获取所有用户的温度预设统计（管理员功能） (Disabled)
 async function getGlobalTemperatureStats() {
-    try {
-        if (!window.firebaseDb) {
-            throw new Error('Firebase数据库未初始化');
-        }
-
-        showNotification('正在加载全局统计...', 'info', 1000);
-
-        // 使用动态导入
-        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
-
-        const querySnapshot = await getDocs(collection(window.firebaseDb, 'temperaturePresets'));
-        
-        if (querySnapshot.empty) {
-            showNotification('暂无数据记录', 'info');
-            return;
-        }
-
-        const records = [];
-        const userStats = new Map();
-        
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            records.push(data);
-            
-            if (!userStats.has(data.userEmail)) {
-                userStats.set(data.userEmail, 0);
-            }
-            userStats.set(data.userEmail, userStats.get(data.userEmail) + 1);
-        });
-
-        // 计算温度预设统计
-        const tempStats = {
-            preset1: [],
-            preset2: [],
-            preset3: [],
-            preset4: [],
-            preset5: []
-        };
-
-        records.forEach(record => {
-            if (record.temperaturePresets && record.temperaturePresets.length === 5) {
-                tempStats.preset1.push(record.temperaturePresets[0]);
-                tempStats.preset2.push(record.temperaturePresets[1]);
-                tempStats.preset3.push(record.temperaturePresets[2]);
-                tempStats.preset4.push(record.temperaturePresets[3]);
-                tempStats.preset5.push(record.temperaturePresets[4]);
-            }
-        });
-
-        // 计算平均值
-        const avgTemps = Object.keys(tempStats).map(preset => {
-            const temps = tempStats[preset];
-            const avg = temps.length > 0 ? Math.round(temps.reduce((a, b) => a + b, 0) / temps.length) : 0;
-            return avg;
-        });
-
-        log(`📊 Global Temperature Statistics:`);
-        log(`  Total records: ${records.length}`);
-        log(`  Unique users: ${userStats.size}`);
-        log(`  Average presets: [${avgTemps.join(', ')}]°F`);
-        log(`  Users upload counts:`);
-        
-        Array.from(userStats.entries()).forEach(([email, count]) => {
-            log(`    ${email}: ${count} uploads`);
-        });
-
-        showNotification(`全局统计：${records.length}条记录，${userStats.size}个用户`, 'success');
-
-    } catch (error) {
-        log(`✗ Failed to load global stats: ${error.message}`);
-        showNotification(`加载统计失败: ${error.message}`, 'error');
-    }
+    log('Global stats disabled.');
+    showNotification('Stats disabled', 'info');
 }
 
 // 显示Firestore安全规则配置建议
@@ -542,60 +248,10 @@ function updateSessionDataCollectionUI(isCollecting) {
     log(`📊 Session status: ${statusText}`);
 }
 
-// Upload session data to Firebase
+// Upload session data to Firebase (Disabled)
 async function uploadSessionData(sessionData) {
-    if (!checkAuthentication()) {
-        log('❌ Cannot upload session data: User not authenticated');
-        return;
-    }
-    
-    if (!sessionData || !sessionData.temperatureData || sessionData.temperatureData.length === 0) {
-        log('❌ No session data to upload');
-        return;
-    }
-    
-    try {
-        // Check Firestore connection
-        const connectionOk = await checkFirestoreConnection();
-        if (!connectionOk) {
-            showNotification('Firebase connection check failed for session upload', 'error');
-            return;
-        }
-        
-        log(`📤 Uploading session data to Firebase...`);
-        showNotification('Uploading session data...', 'info');
-        
-        // Dynamic import of Firestore functions
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js');
-        
-        // Prepare upload data with server timestamp
-        const uploadData = {
-            ...sessionData,
-            uploadedAt: new Date().toISOString(),
-            serverTimestamp: serverTimestamp()
-        };
-        
-        // Add document to sessionHeatingData collection
-        const docRef = await addDoc(collection(window.firebaseDb, 'sessionHeatingData'), uploadData);
-        
-        log(`✅ Session data uploaded successfully! Document ID: ${docRef.id}`);
-        log(`📊 Session summary: ${sessionData.duration}s duration, ${sessionData.temperatureData.length} data points`);
-        log(`🌡️  Temperature: ${sessionData.sessionStats.minTemp}°F - ${sessionData.sessionStats.maxTemp}°F (avg: ${sessionData.sessionStats.avgTemp}°F)`);
-        log(`🔋 Battery: ${sessionData.sessionStats.batteryStart}% → ${sessionData.sessionStats.batteryEnd}%`);
-        
-        showNotification(`Session data uploaded! Duration: ${sessionData.duration}s, ${sessionData.temperatureData.length} data points`, 'success', 8000);
-        
-        // Update upload status UI
-        updateSessionUploadStatus('success', new Date().toLocaleString(), sessionData.sessionId);
-        
-    } catch (error) {
-        log(`❌ Failed to upload session data: ${error.message}`);
-        console.error('Session upload error:', error);
-        showNotification(`Session upload failed: ${error.message}`, 'error', 10000);
-        
-        // Update upload status UI
-        updateSessionUploadStatus('error', 'Failed', null);
-    }
+    log('Session data upload is disabled.');
+    return;
 }
 
 // Update session upload status in UI
@@ -663,8 +319,9 @@ let currentB9State = {
     byte8: 0x02,   // Auto Shut Time (0-30分钟)
     byte10: 0x00,  // Session状态
     byte11: 0x00,  // Haptic反馈 (0/1)
+    byte12: 0x00,  // Session Boost
     byte13: 25,    // Brightness (0-100)
-    // 后续可以继续添加更多字节：byte12, byte14 等等
+    byte18: 0x00,  // Temperature Display Mode (0=Ideal, 1=Real)
 };
 
 // LED颜色映射
@@ -686,7 +343,12 @@ const LED_COLORS = {
     0x0E: 'Blue Dream',
     0x0F: 'Strawberry Cough',
     0x10: 'Florida Groves',
-    0x11: 'Lime Light'
+    0x11: 'Lime Light',
+    0x18: 'Blue Cheese',
+    0x19: 'Golden Goat',
+    0x1A: 'Grape Ape',
+    0x1B: 'Miami Vice',
+    0x1C: 'Purple Urkle'
 };
 
 // OTA协议常量 - 匹配固件代码格式
@@ -845,6 +507,8 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         disconnectBtn.disabled = false;
         startOtaBtn.disabled = !firmwareData;
         syncTimeBtn.disabled = false;
+        const otaTestBtn = document.getElementById('otaTestBtn');
+        if (otaTestBtn) otaTestBtn.disabled = false;
         
         // 启用设备控制相关的控件
         const sessionControlBtn = document.getElementById('sessionControlBtn');
@@ -854,7 +518,12 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         const brightnessInput = document.getElementById('brightness');
 
         const ledPresetSelect = document.getElementById('ledPresetSelect');
-        
+        const cleaningAssistBtn = document.getElementById('cleaningAssistBtn');
+        if (cleaningAssistBtn) cleaningAssistBtn.disabled = false;
+
+        const boostBtn = document.getElementById('boostBtn');
+        if (boostBtn) boostBtn.disabled = false;
+
         if (sessionControlBtn) sessionControlBtn.disabled = false;
         if (presetBtn) presetBtn.disabled = false;
         if (autoShutTimeInput) autoShutTimeInput.disabled = false;
@@ -862,6 +531,8 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         if (brightnessInput) brightnessInput.disabled = false;
 
         if (ledPresetSelect) ledPresetSelect.disabled = false;
+        const tempDisplayToggleBtn = document.getElementById('tempDisplayToggleBtn');
+        if (tempDisplayToggleBtn) tempDisplayToggleBtn.disabled = false;
         const bleNameInput = document.getElementById('bleNameInput');
         const setBleNameBtn = document.getElementById('setBleNameBtn');
         if (bleNameInput) bleNameInput.disabled = false;
@@ -910,7 +581,8 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         const brightnessInput = document.getElementById('brightness');
 
         const ledPresetSelect = document.getElementById('ledPresetSelect');
-        
+        const boostBtn = document.getElementById('boostBtn');
+
         if (sessionControlBtn) sessionControlBtn.disabled = true;
         if (presetBtn) presetBtn.disabled = true;
         if (autoShutTimeInput) autoShutTimeInput.disabled = true;
@@ -922,6 +594,17 @@ function updateConnectionStatusWithAnimation(connected, connecting = false) {
         }
 
         if (ledPresetSelect) ledPresetSelect.disabled = true;
+        if (boostBtn) {
+            boostBtn.disabled = true;
+            updateBoostButton(0); // 重置为默认状态
+        }
+        const cleaningAssistBtnDisconnect = document.getElementById('cleaningAssistBtn');
+        if (cleaningAssistBtnDisconnect) cleaningAssistBtnDisconnect.disabled = true;
+        const tempDisplayToggleBtnDisconnect = document.getElementById('tempDisplayToggleBtn');
+        if (tempDisplayToggleBtnDisconnect) {
+            tempDisplayToggleBtnDisconnect.disabled = true;
+            updateTempDisplayButton(0); // 重置为默认状态
+        }
         const bleNameInput = document.getElementById('bleNameInput');
         const setBleNameBtn = document.getElementById('setBleNameBtn');
         if (bleNameInput) { bleNameInput.disabled = true; bleNameInput.value = ''; }
@@ -1033,7 +716,13 @@ function handleResponse(event) {
         handleNotifyData(data);
         return;
     }
-    
+
+    if (data.length >= 5 && data[0] === 0xA2) {
+        handleDeviceStatsData(data);
+        return;
+    }
+
+
     // 检查是否是温度设定数据包 (8字节，包头包尾都是0xA3)
     if (data.length === 8 && data[0] === 0xA3 && data[7] === 0xA3) {
         handleTempSettingData(data);
@@ -1045,14 +734,13 @@ function handleResponse(event) {
         return;
     }
 
-    if (data.length === 6 && data[0] === 0xA5 && data[5] === 0xA5) {
+    if (data.length === 5 && data[0] === 0xA5 && data[4] === 0xA5) {
         handleProfileData(data);
         return;
     }
 
-    if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 16) ||
-        (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 16) ||
-        (data[0] === 0xac && data[data.length-1] === 0xac && data.length === 16)) {
+    if ((data[0] === 0xaa && data[data.length-1] === 0xaa && data.length === 19) ||
+        (data[0] === 0xab && data[data.length-1] === 0xab && data.length === 19)) {
         log(`Received response: length=${data.length} bytes, content=${Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
         handleCustomProfileData(data);
         return;
@@ -1216,12 +904,12 @@ function handleTempTimeData(data) {
 
 // 处理Profile数据 (A8命令)
 function handleProfileData(data) {
-    if (data[1] !== 6) {
+    if (data[1] !== 5) {
         log(`Invalid profile packet length field: ${data[1]}`);
         return;
     }    
     const preset = data[2]; // 挡位值
-    const profileValue = data[4]; // profile值
+    const profileValue = data[3]; // profile值
     
     // 更新profile数组
     profile[preset] = profileValue;
@@ -1309,63 +997,50 @@ function updateCustomUI() {
              const currentPresetData = customSettings[currentPreset] || { temps: [400, 410, 420, 430, 440, 450, 460, 470, 480, 490], times: [0, 20, 30, 40, 50, 60, 70, 80, 90, 100] };
              
              // 组包并发送三包（ba/bb/bc头尾），包含preset信息，支持10个点
-             for (let index = 0; index < 3; index++) {
-                 let ble_tx_buff = new Uint8Array(16); // 增加一个字节用于preset
-                 let ble_tx_len = 16;
+             for (let index = 0; index < 2; index++) {
+                 let ble_tx_buff = new Uint8Array(19); // 增加一个字节用于preset
+                 let ble_tx_len = 19;
                  if (index === 0) {
                      ble_tx_buff[0] = 0xba;
                      ble_tx_buff[1] = ble_tx_len;
                      ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
                      ble_tx_buff[3] = currentPresetData.temps[0] >> 8;
                      ble_tx_buff[4] = currentPresetData.temps[0] & 0xff;
-                     ble_tx_buff[5] = currentPresetData.times[0];
-                     ble_tx_buff[6] = currentPresetData.temps[1] >> 8;
-                     ble_tx_buff[7] = currentPresetData.temps[1] & 0xff;
-                     ble_tx_buff[8] = currentPresetData.times[1];
-                     ble_tx_buff[9] = currentPresetData.temps[2] >> 8;
-                     ble_tx_buff[10] = currentPresetData.temps[2] & 0xff;
-                     ble_tx_buff[11] = currentPresetData.times[2];
-                     ble_tx_buff[12] = currentPresetData.temps[3] >> 8;
-                     ble_tx_buff[13] = currentPresetData.temps[3] & 0xff;
-                     ble_tx_buff[14] = currentPresetData.times[3];
-                     ble_tx_buff[15] = 0xba;
+                     ble_tx_buff[5] = 0;
+                     ble_tx_buff[6] = 0;
+                     ble_tx_buff[7] = currentPresetData.times[0];
+                     ble_tx_buff[8] = currentPresetData.temps[1] >> 8;
+                     ble_tx_buff[9] = currentPresetData.temps[1] & 0xff;
+                     ble_tx_buff[10] = 0;
+                     ble_tx_buff[11] = 0;                    
+                     ble_tx_buff[12] = currentPresetData.times[1];
+                     ble_tx_buff[13] = currentPresetData.temps[2] >> 8;
+                     ble_tx_buff[14] = currentPresetData.temps[2] & 0xff;
+                     ble_tx_buff[15] = 0;
+                     ble_tx_buff[16] = 0;
+                     ble_tx_buff[17] = currentPresetData.times[2];
+                     ble_tx_buff[18] = 0xba;
                  } else if (index === 1) {
                      ble_tx_buff[0] = 0xbb;
                      ble_tx_buff[1] = ble_tx_len;
                      ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
-                     ble_tx_buff[3] = currentPresetData.temps[4] >> 8;
-                     ble_tx_buff[4] = currentPresetData.temps[4] & 0xff;
-                     ble_tx_buff[5] = currentPresetData.times[4];
-                     ble_tx_buff[6] = currentPresetData.temps[5] >> 8;
-                     ble_tx_buff[7] = currentPresetData.temps[5] & 0xff;
-                     ble_tx_buff[8] = currentPresetData.times[5];
-                     ble_tx_buff[9] = currentPresetData.temps[6] >> 8;
-                     ble_tx_buff[10] = currentPresetData.temps[6] & 0xff;
-                     ble_tx_buff[11] = currentPresetData.times[6];
-                     ble_tx_buff[12] = currentPresetData.temps[7] >> 8;
-                     ble_tx_buff[13] = currentPresetData.temps[7] & 0xff;
-                     ble_tx_buff[14] = currentPresetData.times[7];
-                     ble_tx_buff[15] = 0xbb;
-                 } else {
-                     // 第三个包 (0xbc) - point9和point10
-                     ble_tx_buff[0] = 0xbc;
-                     ble_tx_buff[1] = ble_tx_len;
-                     ble_tx_buff[2] = currentPreset; // 使用Temperature Presets的preset值
-                     ble_tx_buff[3] = currentPresetData.temps[8] >> 8;
-                     ble_tx_buff[4] = currentPresetData.temps[8] & 0xff;
-                     ble_tx_buff[5] = currentPresetData.times[8];
-                     ble_tx_buff[6] = currentPresetData.temps[9] >> 8;
-                     ble_tx_buff[7] = currentPresetData.temps[9] & 0xff;
-                     ble_tx_buff[8] = currentPresetData.times[9];
-                     // 剩余字节填充0或保留
-                     ble_tx_buff[9] = 0x00;
-                     ble_tx_buff[10] = 0x00;
-                     ble_tx_buff[11] = 0x00;
-                     ble_tx_buff[12] = 0x00;
-                     ble_tx_buff[13] = 0x00;
-                     ble_tx_buff[14] = 0x00;
-                     ble_tx_buff[15] = 0xbc;
-                 }
+                     ble_tx_buff[3] = currentPresetData.temps[3] >> 8;
+                     ble_tx_buff[4] = currentPresetData.temps[3] & 0xff;
+                     ble_tx_buff[5] = 0;
+                     ble_tx_buff[6] = 0;
+                     ble_tx_buff[7] = currentPresetData.times[3];
+                     ble_tx_buff[8] = currentPresetData.temps[4] >> 8;
+                     ble_tx_buff[9] = currentPresetData.temps[4] & 0xff;
+                     ble_tx_buff[10] = 0;
+                     ble_tx_buff[11] = 0;                    
+                     ble_tx_buff[12] = currentPresetData.times[4];
+                     ble_tx_buff[13] = currentPresetData.temps[5] >> 8;
+                     ble_tx_buff[14] = currentPresetData.temps[5] & 0xff;
+                     ble_tx_buff[15] = 0;
+                     ble_tx_buff[16] = 0;
+                     ble_tx_buff[17] = currentPresetData.times[5];
+                     ble_tx_buff[18] = 0xbb;
+                 } 
                  try {
                      // 如果不是第一个包，添加延迟避免GATT操作冲突
                      if (index > 0) {
@@ -1425,9 +1100,7 @@ function handleCustomProfileData(data) {
         group = 0;
     } else if (data[0] === 0xab) {
         group = 1;
-    } else if (data[0] === 0xac) {
-        group = 2;
-    } else {
+    }  else {
         log(`Unknown custom profile group: 0x${data[0].toString(16).toUpperCase()}`);
         return;
     }
@@ -1435,34 +1108,31 @@ function handleCustomProfileData(data) {
         let preset = data[2]; // 新增：读取preset信息
         let temps = [];
         let times = [];
-        if (group === 2) {
-            // 第三包只有2个点的数据
-            for(let i=0; i<2; i++) {
-                let temp = (data[3+i*3] << 8) | data[4+i*3];
-                let time = data[5+i*3];
-                temps.push(temp);
-                times.push(time);
-            }
-        } else {
-            // 其他包有4个点的数据
-            for(let i=0; i<4; i++) {
-                let temp = (data[3+i*3] << 8) | data[4+i*3];
-                let time = data[5+i*3];
-                temps.push(temp);
-                times.push(time);
-            }
-        }
 
+            // 其他包有4个点的数据
+                    let temp = (data[3] << 8) | data[4];
+                    let time = data[7];
+                    temps.push(temp);
+                    times.push(time);       
+                    temp = (data[8] << 8) | data[9];
+                    time = data[12];
+                    temps.push(temp);
+                    times.push(time);               
+                    temp = (data[13] << 8) | data[14];
+                    time = data[17];
+                    temps.push(temp);
+                    times.push(time); 
+ 
         // 验证preset范围
         if (preset >= 1 && preset <= 5) {
             if (!customSettings[preset]) {
                 customSettings[preset] = { temps: [], times: [] };
             }            
             // 更新存储的数据
-            const pointCount = group === 2 ? 2 : 4;
+            const pointCount = 3;
             for(let i=0; i<pointCount; i++) {
-                let idx = group*4 + i;
-                if (idx < 10) { // 扩展到10个点
+                let idx = group*3 + i;
+                if (idx < 6) { 
                     customSettings[preset].temps[idx] = temps[i];
                     customSettings[preset].times[idx] = times[i];
                 }
@@ -1603,6 +1273,163 @@ function handleDeviceInfoCommand(data) {
     }
 }
 
+function updateDeviceStatsDisplay(stats) {
+    document.getElementById('favoriteTemp').textContent = `${stats.favoriteTempF}°F (${stats.favoriteTempC}°C)`;
+    document.getElementById('totalHeatingCycles').textContent = stats.totalHeatingCycles;
+    document.getElementById('mostCyclesInDay').textContent = stats.mostCyclesInDay;
+    document.getElementById('chargeCycles').textContent = stats.chargeCycles;
+    
+    // Profile: 显示数字对应的模式文字 (根据MODE_TYPES映射)
+    const PROFILE_MODE_MAP = {
+        0xA1: 'Steady',
+        0xB1: 'Ascent', 
+        0xC1: 'Descent',
+        0xD1: 'Valley',
+        0xE1: 'Hill',
+        0xF1: 'Custom'
+    };
+    const profileText = PROFILE_MODE_MAP[stats.profile] || `Unknown (${stats.profile})`;
+    document.getElementById('profile').textContent = profileText;
+    
+    // Light Mode: 显示灯光对应模式文字
+    const lightModeText = LED_COLORS[stats.lightMode] || `Unknown (${stats.lightMode})`;
+    document.getElementById('lightMode').textContent = lightModeText;
+    
+    document.getElementById('deviceResets').textContent = stats.deviceResets;
+    document.getElementById('favoriteHeatingTime').textContent = `${stats.favoriteHeatingTime}s`;
+}
+function updateSessionTotalTimeDisplay(totalTimeSeconds,deviceTimeSeconds) {
+    // 将秒数转换为更易读的格式
+    const hours = Math.floor(totalTimeSeconds / 3600);
+    const minutes = Math.floor((totalTimeSeconds % 3600) / 60);
+    const seconds = totalTimeSeconds % 60;
+
+    const hours2 = Math.floor(deviceTimeSeconds / 3600);
+    const minutes2 = Math.floor((deviceTimeSeconds % 3600) / 60);
+    const seconds2 = deviceTimeSeconds % 60;
+
+
+    let timeStr = '';
+    if (hours > 0) {
+        timeStr = `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+        timeStr = `${minutes}m ${seconds}s`;
+    } else {
+        timeStr = `${seconds}s`;
+    }
+
+    let timeStr2 = '';
+    if (hours2 > 0) {
+        timeStr2 = `${hours2}h ${minutes2}m ${seconds2}s`;
+    } else if (minutes2 > 0) {
+        timeStr2 = `${minutes2}m ${seconds2}s`;
+    } else {
+        timeStr2 = `${seconds2}s`;
+    }
+
+
+    document.getElementById('sessionTotalTime').textContent = timeStr;
+    document.getElementById('DeviceOnTime').textContent = timeStr2;
+}
+function handleDeviceStatsData(data) {
+    // 显示原始数据
+    const rawDataHex = Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+    log(`Received device statistics data (${data.length} bytes):`);
+    log(`  Raw data: ${rawDataHex}`);    
+            // 验证A2数据包格式：至少3字节（0xA2 + 长度 + 0xA2）
+            if (data.length < 3) {
+                log(`✗ A2 packet too short: ${data.length} bytes`);
+                return;
+            }
+            
+            // 验证包头和包尾
+            if (data[0] !== 0xA2 || data[data.length - 1] !== 0xA2) {
+                log(`✗ Invalid A2 packet format - missing header/footer`);
+                return;
+            }
+            // 验证长度字段
+            const declaredLength = data[1];
+            if (declaredLength !== data.length) {
+                log(`✗ A2 packet length mismatch - declared: ${declaredLength}, actual: ${data.length}`);
+                return;
+            }
+            // 解析不同类型的A2数据包
+            if (data.length === 19) {
+                // 19字节的统计信息数据包
+                try {
+                    // 从数据包中提取统计信息（根据新的A2 13数据结构）
+                    const stats = {
+                        favoriteTempF: (data[2] << 8) | data[3],       // 喜爱温度华氏度
+                        favoriteTempC: (data[4] << 8) | data[5],       // 喜爱温度摄氏度
+                        totalHeatingCycles: (data[6] << 8) | data[7],  // 总加热次数
+                        mostCyclesInDay: (data[8] << 8) | data[9],     // 单日最多加热次数
+                        chargeCycles: (data[10] << 8) | data[11],      // 充电循环次数
+                        profile: data[12],                             // 配置文件
+                        lightMode: data[13],                           // 灯光模式
+                        deviceResets: (data[14] << 8) | data[15],      // 设备重置总次数
+                        favoriteHeatingTime: (data[16] << 8) | data[17] // 喜爱加热时间
+                    };
+                    
+                    // 更新显示
+                    updateDeviceStatsDisplay(stats);
+                    
+                    log(`✓ Device statistics parsed successfully:`);
+                    log(`  Favorite Temperature: ${stats.favoriteTempF}°F (${stats.favoriteTempC}°C)`);
+                    log(`  Total Heating Cycles: ${stats.totalHeatingCycles}`);
+                    log(`  Most Cycles in Day: ${stats.mostCyclesInDay}`);
+                    log(`  Charge Cycles: ${stats.chargeCycles}`);
+                    log(`  Profile: ${stats.profile}`);
+                    log(`  Light Mode: ${stats.lightMode}`);
+                    log(`  Device Resets: ${stats.deviceResets}`);
+                    log(`  Favorite Heating Time: ${stats.favoriteHeatingTime}s`);
+                    
+                    showNotification('设备统计信息获取成功！', 'success', 2000);
+                    
+                } catch (error) {
+                    log(`✗ Failed to parse 19-byte A2 statistics: ${error.message}`);
+                    showNotification('统计信息解析失败', 'error');
+                }
+            } 
+            else if (data.length === 0x0B) {
+                // 7字节的A2数据包 - Session Total Time
+                try {
+
+                    // 解析Session Total Time (4字节，大端序)
+                    const sessionTotalTime = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
+                    const deviceOnTime = (data[6] << 24) | data[7] << 16 | data[8] << 8 | data[9];
+
+                    log(`✓ Session Total Time received: ${sessionTotalTime} seconds, Device On Time: ${deviceOnTime} seconds`);
+                    log(`  Raw time data: ${Array.from(data.slice(2, -1)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+
+
+                    // 更新Session Total Time显示
+                    updateSessionTotalTimeDisplay(sessionTotalTime, deviceOnTime);
+                    
+
+                    
+                } catch (error) {
+                    log(`✗ Failed to parse 7-byte A2 session time: ${error.message}`);
+                }
+            } 
+            else if (data.length === 0x0D) {
+                const presetCycles_1 = (data[2] << 8) | data[3];   
+                const presetCycles_2 = (data[4] << 8) | data[5];   
+                const presetCycles_3 = (data[6] << 8) | data[7];
+                const presetCycles_4 = (data[8] << 8) | data[9];
+                const presetCycles_5 = (data[10] << 8) | data[11];
+                document.getElementById('presetCycles1').textContent = `${presetCycles_1}`; 
+                document.getElementById('presetCycles2').textContent = `${presetCycles_2}`;
+                document.getElementById('presetCycles3').textContent = `${presetCycles_3}`;
+                document.getElementById('presetCycles4').textContent = `${presetCycles_4}`;
+                document.getElementById('presetCycles5').textContent = `${presetCycles_5}`;  
+            }
+            else {
+                // 其他长度的A2数据包
+                log(`✓ Received A2 packet (${data.length} bytes) - data: ${Array.from(data.slice(2, -1)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+            }
+
+}
+
 // 处理温度设定数据包 - 格式: 0xA3 + 长度(8) + 预设索引 + 华氏温度(2字节) + 摄氏温度(2字节) + 0xA3
 function handleTempSettingData(data) {
     // 验证数据包格式
@@ -1677,8 +1504,12 @@ function updateDeviceStatus(status) {
     hapticButton.textContent = hapticState;
     hapticButton.className = status.hapticFeedback ? 'toggle-btn active' : 'toggle-btn';
     // 同步到currentB9State
-    currentB9State.byte11 = status.hapticFeedback ? 0x01 : 0x00;
-    document.getElementById('sessionBoost').textContent = status.sessionBoost ? 'Enabled' : 'Disabled';
+    currentB9State.byte11 = status.hapticFeedback ? 0xAA : 0x00;
+
+    // 更新Boost按钮显示
+    currentB9State.byte12 = status.sessionBoost || 0;
+    updateBoostButton(status.sessionBoost);
+
     document.getElementById('batteryLevel').textContent = status.batteryLevel + '%';
     
     // 充电状态显示
@@ -1745,7 +1576,7 @@ async function connectDevice() {
         log('Service obtained successfully');
         
         characteristic = await service.getCharacteristic(TX_CHARACTERISTIC_UUID);
-        log('TX characteristic obtained successfully');
+        log(`TX characteristic obtained: writeWithoutResponse=${characteristic.properties.writeWithoutResponse}, write=${characteristic.properties.write}`);
         
         // Get RX characteristic for listening to responses
         rxCharacteristic = await service.getCharacteristic(RX_CHARACTERISTIC_UUID);
@@ -1960,28 +1791,24 @@ async function sendPacket(packet, description, waitForAck = false, retryCount = 
     if (!characteristic) {
         throw new Error('Bluetooth characteristic not connected');
     }
-    
+
     for (let i = 0; i < retryCount; i++) {
         try {
-          //  log(`Send ${description}: ${Array.from(packet.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}...`);
-            
-            // 发送数据包
             await characteristic.writeValue(packet);
-            
+
             if (waitForAck) {
-                // 等待设备响应
                 const response = await waitForResponse(RESPONSE_TIMEOUT);
                 log(`${description} acknowledged`);
                 return response;
             } else {
                 return null;
             }
-            
+
         } catch (error) {
-            if (error.message.includes('timeout') || 
+            if (error.message.includes('timeout') ||
                 error.message.includes('GATT operation already in progress')) {
                 log(`${description} failed, retry ${i + 1}/${retryCount}: ${error.message}`);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 continue;
             } else {
                 log(`Critical error for ${description}: ${error.message}`);
@@ -1990,6 +1817,26 @@ async function sendPacket(packet, description, waitForAck = false, retryCount = 
         }
     }
     throw new Error(`${description} retry attempts exhausted`);
+}
+
+// 普通数据包：writeValueWithoutResponse，不等BLE协议层ACK
+async function sendPacketNoAck(packet, description) {
+    for (let i = 0; i < 8; i++) {
+        try {
+            await characteristic.writeValueWithoutResponse(packet);
+            return;
+        } catch (error) {
+            if (error.message.includes('GATT operation already in progress') ||
+                error.name === 'NetworkError') {
+                // BLE队列满，短暂等待后重试（自然背压）
+                await new Promise(resolve => setTimeout(resolve, 20));
+                continue;
+            }
+            log(`sendPacketNoAck error: ${error.message}`);
+            throw error;
+        }
+    }
+    throw new Error(`${description} no-ack retry exhausted`);
 }
 
 function updateProgress(current, total) {
@@ -2030,7 +1877,9 @@ async function startOTA() {
         // 2. 发送开始命令
         const startCommand = createStartCommand(firmwareData.length, fileCRC);
         await sendPacket(startCommand, 'START command', false);
-        
+        await new Promise(resolve => setTimeout(resolve, 50));  // 延时 50ms
+
+
         // 3. 发送数据包
         let offset = 0;
         let chunkIndex = 0;
@@ -2056,24 +1905,24 @@ async function startOTA() {
             // 检查是否需要等待2048字节块的确认
             const isBlockEnd = ((offset + chunkSize) % BLOCK_SIZE === 0) || (offset + chunkSize >= firmwareData.length);
 
-            if (chunkIndex % 128 === 0 || chunkIndex < 10) { // Log every 32 packets or first 10
-                log(`Send data packet ${chunkIndex}/${totalChunks}, offset: ${offset}, size: ${chunkSize}, block_end: ${isBlockEnd}`);
+            if (chunkIndex % 128 === 0 || chunkIndex < 10) {
+                log(`Send data packet ${chunkIndex}/${totalChunks}, offset: ${offset}, block_end: ${isBlockEnd}`);
             }
 
-            await sendPacket(dataPacket, `data packet ${chunkIndex}`, isBlockEnd);
+            if (isBlockEnd) {
+                // 块最后一包：writeValue + 等待固件 "OK"
+                await sendPacket(dataPacket, `block-end packet ${chunkIndex}`, true);
+                await new Promise(resolve => setTimeout(resolve, 10));
+            } else {
+                // 普通包：writeValueWithoutResponse，不等BLE ACK，不加延时
+                await sendPacketNoAck(dataPacket, `data packet ${chunkIndex}`);
+            }
 
             offset += chunkSize;
             chunkIndex++;
             sentPackets++;
 
             updateProgress(sentPackets, totalPackets);
-
-            // 每个数据包之间的延时，块结束时等待更长时间
-            if (isBlockEnd) {
-                await new Promise(resolve => setTimeout(resolve, 50)); // 块结束等待50ms
-            } else {
-                await new Promise(resolve => setTimeout(resolve, 5)); // 普通包等待5ms
-            }
         }
         
         if (!isOtaInProgress) {
@@ -2491,7 +2340,7 @@ async function syncTime() {
           command[6] = currentB9State.byte6 || 0x00;   // LED值
           command[7] = 0x00;
           command[8] = currentB9State.byte8 || 0x00;   // Auto Shut Time (0-30分钟)
-          command[9] = 0x00;
+          command[9] = 0x0F;
           command[10] = currentB9State.byte10 || 0x00; // Session状态
           command[11] = currentB9State.byte11 || 0x00; // 未来扩展
           command[12] = currentB9State.byte12 || 0x00; // 未来扩展
@@ -2500,7 +2349,7 @@ async function syncTime() {
           command[15] = currentB9State.byte15 || 0x00; // 未来扩展
           command[16] = currentB9State.byte16 || 0x00; // 未来扩展
           command[17] = currentB9State.byte17 || 0x00; // 未来扩展
-          command[18] = currentB9State.byte18 || 0x00; // 未来扩展
+          command[18] = currentB9State.byte18 || 0x00; // Temperature Display Mode (0=Ideal, 1=Real)
           command[19] = 0xB9;       // 结束标识
 
           // 发送命令
@@ -2614,7 +2463,10 @@ async function syncTime() {
           sessionBtn.textContent = 'Press to Heat';
           sessionBtn.style.backgroundColor = '#28a745'; // 绿色
           sessionBtn.style.color = 'white';
-          
+          updateCleaningAssistButton(false);
+
+
+
           // 只有在设备连接时才启用其他控制项
           const isConnected = !sessionBtn.disabled; // 如果session按钮没被禁用，说明设备已连接
           
@@ -2680,11 +2532,21 @@ async function syncTime() {
                   await uploadSessionData(sessionData);
               }, 1000); // Delay to ensure UI updates complete
           }
+
+          // 停止加热时清零 boost 值
+          currentB9State.byte12 = 0;
+          updateBoostButton(0);
+          log('✓ Boost value reset to 0');
       }
-      
-      // 调用通用B9命令函数，只更新Session状态（第10字节）
+
+      // 调用通用B9命令函数，更新Session状态和Boost值
+      const updates = { byte10: newSessionState };
+      if (action === 'stop') {
+          updates.byte12 = 0; // 停止时同时发送清零的boost值
+      }
+
       await sendB9Command(
-          { byte10: newSessionState },
+          updates,
           `Session ${action} command sent`
       );
   }
@@ -2759,12 +2621,12 @@ async function syncTime() {
       }
 
       // 验证时间范围
-      const holdTime = parseInt(seconds);
-      if (holdTime < 10 || holdTime > 90) {
-          log(`Error: Hold Time ${holdTime} is out of range (10-90 seconds)`);
+      const holdTimeValue = parseInt(seconds);
+      if (holdTimeValue < 10 || holdTimeValue > 90) {
+          log(`Error: Hold Time ${holdTimeValue} is out of range (10-90 seconds)`);
           // 恢复之前的值
           const elementId = preset === 0 ? 'holdTime' : `holdTime${preset}`;
-          document.getElementById(elementId).value = window.holdTime[preset] || 30;
+          document.getElementById(elementId).value = holdTime[preset] || 30;
           return;
       }
 
@@ -2774,20 +2636,20 @@ async function syncTime() {
           holdTimeCommand[0] = 0xB7;                      // 起始标识
           holdTimeCommand[1] = 0x06;                      // 数据长度
           holdTimeCommand[2] = preset;                    // 当前挡位
-          holdTimeCommand[3] = (holdTime >> 8) & 0xFF;    // holdTime高字节
-          holdTimeCommand[4] = holdTime & 0xFF;           // holdTime低字节
+          holdTimeCommand[3] = (holdTimeValue >> 8) & 0xFF;    // holdTime高字节
+          holdTimeCommand[4] = holdTimeValue & 0xFF;           // holdTime低字节
           holdTimeCommand[5] = 0xB7;                      // 结束标识
 
           // 发送Hold Time设置命令
           await characteristic.writeValue(holdTimeCommand);
-          
+
           const packetHex = Array.from(holdTimeCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
-          
-          log(`✓ Hold Time for Preset ${preset} set to ${holdTime} seconds`);
+
+          log(`✓ Hold Time for Preset ${preset} set to ${holdTimeValue} seconds`);
           log(`  Packet data: ${packetHex}`);
-          
+
           // 更新holdTime数组
-          window.holdTime[preset] = holdTime;
+          holdTime[preset] = holdTimeValue;
           
       } catch (error) {
           log(`✗ Failed to set Hold Time: ${error.message}`);
@@ -2811,13 +2673,12 @@ async function syncTime() {
           const profileHex = parseInt(profileValue, 16);
           
           // 构造B8命令数据包：B8 06 preset 0 profile B8
-          const profileCommand = new Uint8Array(6);
+          const profileCommand = new Uint8Array(5);
           profileCommand[0] = 0xB5;                      // 起始标识
-          profileCommand[1] = 0x06;                      // 数据长度
+          profileCommand[1] = 0x05;                      // 数据长度
           profileCommand[2] = preset;                    // 当前挡位
-          profileCommand[3] = 0x00;                      // 固定为0
-          profileCommand[4] = profileHex;                // profile模式值
-          profileCommand[5] = 0xB5;                      // 结束标识
+          profileCommand[3] = profileHex;                // profile模式值
+          profileCommand[4] = 0xB5;                      // 结束标识
 
           // 发送Profile设置命令
           await characteristic.writeValue(profileCommand);
@@ -2886,24 +2747,148 @@ async function syncTime() {
       if (!checkAuthentication()) {
           return;
       }
-      
+
       try {
           // 切换状态：0变1，1变0
-          const newHapticState = currentB9State.byte11 === 0x01 ? 0x00 : 0x01;
-          
+          const newHapticState = currentB9State.byte11 === 0xAA ? 0x00 : 0xAA;
+
           // 调用通用B9命令函数，只更新Haptic状态（第11字节）
           await sendB9Command(
               { byte11: newHapticState },
-              `Haptic ${newHapticState === 0x01 ? 'enabled' : 'disabled'}`
+              `Haptic ${newHapticState === 0xAA ? 'enabled' : 'disabled'}`
           );
-          
-          log(`✓ Haptic feedback ${newHapticState === 0x01 ? 'enabled' : 'disabled'}`);
+
+          log(`✓ Haptic feedback ${newHapticState === 0xAA ? 'enabled' : 'disabled'}`);
       } catch (error) {
           log(`✗ Failed to toggle Haptic: ${error.message}`);
       }
   }
 
+  // Session Boost - 点击式操作：每次点击发送递增的数值
+  async function toggleBoost() {
+      // 检查用户是否已登录
+      if (!checkAuthentication()) {
+          return;
+      }
 
+      try {
+          // 每次点击递增byte12的值
+          currentB9State.byte12 = (currentB9State.byte12 || 0) + 1;
+
+          // 发送递增的值
+          await sendB9Command(
+              { byte12: currentB9State.byte12 },
+              `Session boost value: ${currentB9State.byte12}`
+          );
+
+          // 更新按钮显示当前值
+          updateBoostButton(currentB9State.byte12);
+          showNotification(`Boost value: ${currentB9State.byte12}`, 'warning', 1500);
+
+      } catch (error) {
+          log(`✗ Failed to send boost value: ${error.message}`);
+          showNotification('Boost send failed', 'error');
+      }
+  }
+
+  // 更新Boost按钮显示
+  function updateBoostButton(value) {
+      const boostBtn = document.getElementById('boostBtn');
+      if (boostBtn) {
+          if (typeof value === 'number' && value > 0) {
+              boostBtn.textContent = `Boost(${value})`;
+              boostBtn.className = 'btn btn-warning tooltip';
+              boostBtn.style.minWidth = '80px';
+              boostBtn.style.padding = '6px 12px';
+              boostBtn.style.fontSize = '0.8rem';
+          } else {
+              boostBtn.textContent = 'Boost';
+              boostBtn.className = 'btn btn-secondary tooltip';
+              boostBtn.style.minWidth = '80px';
+              boostBtn.style.padding = '6px 12px';
+              boostBtn.style.fontSize = '0.8rem';
+          }
+      }
+  }
+
+
+    async function toggleCleaningAssist() {
+
+        try {
+            // 切换状态
+            cleaningAssistEnabled = !cleaningAssistEnabled;
+            const commandValue = cleaningAssistEnabled ? 0xAA : 0x00;
+            
+            // 构造C6命令数据包：C6 04 AA/00 C6
+            const cleaningCommand = new Uint8Array(4);
+            cleaningCommand[0] = 0xC6;        // 起始标识
+            cleaningCommand[1] = 0x04;        // 数据长度
+            cleaningCommand[2] = commandValue; // AA=开启, 00=关闭
+            cleaningCommand[3] = 0xC6;        // 结束标识
+
+            // 发送清洁助手命令
+            await characteristic.writeValue(cleaningCommand);
+            
+            const packetHex = Array.from(cleaningCommand).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+            const action = cleaningAssistEnabled ? 'enabled' : 'disabled';
+            
+            log(`✓ Cleaning Assist ${action}`);
+            log(`  Packet data: ${packetHex}`);
+            
+            // 更新按钮显示
+            updateCleaningAssistButton(cleaningAssistEnabled);
+            
+            showNotification(`清洁助手已${cleaningAssistEnabled ? '开启' : '关闭'}`, 'success', 2000);
+            
+        } catch (error) {
+            // 发送失败时恢复状态
+            cleaningAssistEnabled = !cleaningAssistEnabled;
+            log(`✗ Failed to toggle Cleaning Assist: ${error.message}`);
+            showNotification(`清洁助手操作失败: ${error.message}`, 'error');
+        }
+    }
+          function updateCleaningAssistButton(isEnabled) {
+              const cleaningBtn = document.getElementById('cleaningAssistBtn');
+              if (isEnabled) {
+                  cleaningBtn.textContent = 'Stop Cleaning';
+              } else {
+                  cleaningBtn.textContent = 'Cleaning Assist';
+              }
+          }
+  // 切换温度显示模式 (0=Ideal, 1=Real)
+  async function toggleTempDisplay() {
+      try {
+          // 切换byte18的值: 0 -> 1 或 1 -> 0
+          const newValue = currentB9State.byte18 === 0 ? 1 : 0;
+
+          await sendB9Command(
+              { byte18: newValue },
+              `Temperature display mode: ${newValue === 0 ? 'Ideal' : 'Real'}`
+          );
+
+          // 更新按钮显示
+          updateTempDisplayButton(newValue);
+          showNotification(`温度显示模式: ${newValue === 0 ? 'Ideal' : 'Real'}`, 'success');
+
+      } catch (error) {
+          log(`✗ Failed to toggle temperature display mode: ${error.message}`);
+          showNotification('切换温度显示模式失败', 'error');
+      }
+  }
+
+  // 更新温度显示模式按钮 (0=Ideal, 1=Real)
+  function updateTempDisplayButton(mode) {
+      const btn = document.getElementById('tempDisplayToggleBtn');
+      if (btn) {
+          if (mode === 1) {
+              // 当前是Real模式，按钮显示切换到Ideal
+              btn.innerHTML = '<i class="fas fa-thermometer-half"></i> Show real';
+          } else {
+              // 当前是Ideal模式（默认），按钮显示切换到Real
+              btn.innerHTML = '<i class="fas fa-thermometer-half"></i> Show ideal';
+          }
+      }
+  }
 
   let currentTempChart;
   let currentTempData = [];
