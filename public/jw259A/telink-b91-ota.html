@@ -263,6 +263,14 @@
   const hasProp = (ch, name, iosDefault) =>
     (ch && ch.properties) ? !!ch.properties[name] : iosDefault;
 
+  // iOS Web-Bluetooth (Bluefy/WebBLE): CoreBluetooth does NOT reject
+  // over-MTU writes locally the way Chrome does, so the size probe "passes"
+  // at any size and oversized packets get mangled on air (the device then
+  // sees bad/lost packets and terminates the link). iPhones negotiate ATT
+  // MTU 185 -> 182-byte max single write -> PDU 160 (164-byte packet) is the
+  // biggest safe size. Writes are also paced with a tighter read barrier.
+  const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
   async function writeChunk(buf) {
     if (!otaChar) throw new Error('OTA characteristic not ready');
     if (hasProp(otaChar, 'writeWithoutResponse', true)) {
@@ -528,7 +536,7 @@
       // side-effect free on the OTA characteristic - when it returns, every
       // packet before it has actually been delivered. (Same trick as the
       // official tool's "read interval (packet)" setting.)
-      if (adrIndex % 64 === 0 && hasProp(otaChar, 'read', true)) {
+      if (adrIndex % (IS_IOS ? 16 : 64) === 0 && hasProp(otaChar, 'read', true)) {
         await otaChar.readValue().catch(() => {});
       }
       setProgress(Math.round((offset / firmware.length) * 100));
@@ -639,10 +647,13 @@
     }
 
     setState("Detecting…");
-    const pdu = await probeMaxPdu(240);
+    const pdu = await probeMaxPdu(IS_IOS ? 160 : 240);
     setProgress(1);
 
-    if (pdu >= 224) {
+    // On iOS the probe passes at the capped 160 (any size "passes" there, so
+    // it cannot discriminate old firmware either - old devices are out of
+    // scope on iOS); on desktop Chrome >=224 still marks new firmware.
+    if (pdu >= 224 || (IS_IOS && pdu >= 160)) {
       log(`New firmware link: Extend protocol, PDU ${pdu}.`);
       log(`Sending CMD_OTA_START_EXT (pduLen=${pdu})…`);
       await writeChunk(buildStartExt(pdu, 0));
@@ -688,6 +699,10 @@
       if (wantPdu % 16 !== 0) {
         wantPdu = Math.floor(wantPdu / 16) * 16;
         log(`Adjusted PDU length to ${wantPdu} (must be 16-byte aligned).`);
+      }
+      if (IS_IOS && wantPdu > 160) {
+        wantPdu = 160;
+        log("iOS browser: capping Extend PDU at 160 (iPhone ATT MTU is 185; bigger writes get mangled on air).");
       }
 
       let mode = $("mode").value;
