@@ -39,19 +39,12 @@
     <div class="card">
       <div class="grid">
         <div>
-          <label>Firmware binary (.bin)</label>
-          <input id="file" type="file" accept=".bin,application/octet-stream" />
+          <label>App firmware</label>
+          <span class="pill">B91_module.bin</span>
         </div>
         <div>
-          <label>Bootloader .bin (only for one-click Migrate)</label>
-          <input id="blfile" type="file" accept=".bin,application/octet-stream" />
-        </div>
-        <div>
-          <label>Update target</label>
-          <select id="target">
-            <option value="app" selected>App firmware (B91_module)</option>
-            <option value="bootloader">Bootloader (advanced)</option>
-          </select>
+          <label>Bootloader</label>
+          <span class="pill">B91_bootloader.bin</span>
         </div>
         <div>
           <label>Device mode</label>
@@ -92,8 +85,8 @@
       </div>
       <div class="row" style="margin-top:12px">
         <button id="btnConnect" class="primary">Connect</button>
-        <button id="btnFlash" class="success">Flash OTA</button>
-        <button id="btnMigrate" class="warn">Migrate BL+App (old device, one-time)</button>
+        <button id="btnFlash" class="success">Flash main</button>
+        <button id="btnFlashBl" class="warn">Flash bootloader</button>
         <button id="btnAbort" class="warn" disabled>Abort</button>
       </div>
       <div class="row" style="margin-top:12px">
@@ -145,6 +138,22 @@
     4: 'WRITE_FLASH_ERR', 5: 'DATA_UNCOMPLETE', 6: 'FLOW_ERR', 7: 'FW_CHECK_ERR',
     8: 'VERSION_COMPARE_ERR', 9: 'PDU_LEN_ERR', 10: 'FIRMWARE_MARK_ERR', 11: 'FW_SIZE_ERR'
   };
+
+  // Fixed firmware images served next to this page.
+  const FIRMWARE_FILES = {
+    app:  "B91_module.bin",
+    bldr: "B91_bootloader.bin",
+  };
+
+  async function fetchFirmware(key, name) {
+    const url = FIRMWARE_FILES[key];
+    log(`Fetching ${name}: ${url} …`);
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`failed to fetch ${url} (HTTP ${r.status})`);
+    const data = new Uint8Array(await r.arrayBuffer());
+    log(`Loaded ${url}: ${data.length} bytes (${(data.length/1024).toFixed(1)} KB)`);
+    return data;
+  }
 
   let device, server, otaChar;
   let aborting = false;
@@ -600,7 +609,7 @@
   // (the bootloader is not the code that is running).
   // OLD firmware is rejected below: its success handler verifies before the
   // OTA lib writes the boot mark, so it restores the SD backup every time -
-  // the update silently reverts. Update the app first (Migrate does this).
+  // the update silently reverts. Update the app first (Flash main), then retry.
   // A DFU/bootloader connection has no SPP service, so step 1 rejects it -
   // never stream a bootloader image over a DFU link (it would be flashed
   // into the APP region).
@@ -641,7 +650,7 @@
       // bootloader every single time. Unfixable from this side - the app
       // must be updated first (its fixed handler completes the mark before
       // verifying).
-      throw new Error("Old firmware detected: its bootloader-OTA handler silently reverts every update (verify-before-boot-mark bug). Update the App firmware first (or use Migrate, which does app-then-bootloader), then flash the bootloader.");
+      throw new Error("Old firmware detected: its bootloader-OTA handler silently reverts every update (verify-before-boot-mark bug). Update the App firmware first (Flash main), then flash the bootloader.");
     }
 
     log("On success the device verifies the new bootloader and reboots itself (flag 0x5C keeps the app awake for reconnection).");
@@ -653,15 +662,8 @@
     $("btnAbort").disabled = false;
 
     try {
-      const file = $("file").files[0];
-      if (!file) { log("Choose a firmware .bin first."); return; }
-      const data = new Uint8Array(await file.arrayBuffer());
+      const data = await fetchFirmware("app", "App firmware");
       const algorithm = $("crcAlg").value;
-
-      if ($("target").value === 'bootloader') {
-        await flashBootloader(data, algorithm);
-        return;
-      }
 
       // Make sure the firmware targets the APP region - a previously failed
       // bootloader OTA can leave ota_type=1 behind. Best-effort: a DFU /
@@ -719,89 +721,29 @@
     }
   }
 
-  // One-time migration for OLD devices, in one click. ORDER MATTERS:
-  //   phase 1: flash the NEW APP through the old DFU bootloader (bare START
-  //            reboots the old app into DFU; Legacy 16 on the old
-  //            bootloader). The bootloader CANNOT go first: the old app's
-  //            ota_type=1 handler verifies before the OTA lib has written
-  //            the image's boot mark, so it "restores" the SD backup every
-  //            time - the update reports success but silently reverts.
-  //   phase 2: reconnect to the NEW app (charger keeps it awake across the
-  //            reboot!) and flash the NEW bootloader through its FIXED
-  //            ota_type=1 path (Extend 240, no reboot during transfer).
-  // Devices already on the new firmware never need this again: app updates
-  // go over the SD-staging path and bootloader updates via Update target.
-  async function migrate() {
+  // "Flash bootloader" button: standalone bootloader update over the current
+  // connection. Requires the RUNNING (new) app firmware - flashBootloader()
+  // rejects DFU links and old firmware. On success the device verifies the
+  // new bootloader and reboots itself (flag 0x5C keeps the app awake and
+  // advertising afterwards so the update can be confirmed).
+  async function flashBl() {
     if (!otaChar) { log("Not connected."); return; }
     aborting = false;
     $("btnAbort").disabled = false;
     try {
-      const appFile = $("file").files[0];
-      const blFile  = $("blfile").files[0];
-      if (!blFile)  { log("Choose the BOOTLOADER .bin (second file input) first."); return; }
-      if (!appFile) { log("Choose the new APP firmware .bin (first file input) first."); return; }
-      const blData  = new Uint8Array(await blFile.arrayBuffer());
-      const appData = new Uint8Array(await appFile.arrayBuffer());
+      const data = await fetchFirmware("bldr", "Bootloader");
       const algorithm = $("crcAlg").value;
-      if (blData.length > BOOTLOADER_MAX_SIZE) throw new Error("Bootloader file exceeds 124 KB - are the two files swapped?");
-      if (appData.length <= BOOTLOADER_MAX_SIZE) log("Warning: the app image is under 124 KB - double-check the files are not swapped.");
-
-      // Migration must start from the running app firmware (SPP present);
-      // flashBootloader() would reject a DFU link anyway, fail early here.
-      try { await server.getPrimaryService(SPP_SERVICE_UUID); }
-      catch (_) { throw new Error("No SPP service - connect to the RUNNING firmware (not the DFU bootloader) to start the migration."); }
-
-      log("IMPORTANT: keep the device ON THE CHARGER for the whole migration. After phase 1 the freshly flashed app boots asleep within a second unless it is charging, and phase 2 needs to reconnect to it.");
-
-      log("=== Migration phase 1/2: app firmware (via the old DFU bootloader) ===");
-      lastOtaResult = null;
-      log("Sending CMD_OTA_START to reboot into the DFU bootloader…");
-      try { await writeChunk(buildCmd(OPC.CMD_OTA_START)); } catch (_) { /* races the reboot */ }
-      const dropped = await waitForDisconnect(8000);
-      if (!dropped) throw new Error("Device did not reboot into DFU - it may already run the new firmware; use the normal per-target updates instead of Migrate.");
-      await sleep(1500);
-      if (!(await reconnectGatt(40000))) throw new Error("Could not reconnect to the DFU bootloader - power-cycle and retry the migration.");
-
-      const pdu = await probeMaxPdu(240);
-      setProgress(1);
-      if (pdu >= 64) {
-        log(`DFU link accepts PDU ${pdu} - Extend protocol.`);
-        await writeChunk(buildStartExt(pdu, 0));
-        await sleep(100);
-        await streamData(pdu, appData, algorithm);
-      } else {
-        log("Small-MTU DFU link - Legacy protocol, PDU 16 (slow but works).");
-        await writeChunk(buildCmd(OPC.CMD_OTA_START));
-        await streamData(16, appData, algorithm);
-      }
-      let ev = await waitForResultOrReboot(30000);
-      if (ev.type === 'result' && ev.result !== 0) {
-        throw new Error(`App OTA failed (result ${ev.result}). The device is still in DFU - just run Migrate again.`);
-      }
-      if (ev.type === 'timeout') throw new Error("No OTA result after the app transfer - aborting; the device is still in DFU, run Migrate again.");
-      if (ev.type === 'result') {
-        log("App accepted - waiting for the device to reboot into it…");
-        await waitForDisconnect(15000);
-      } else {
-        log("Device rebooted right after the transfer - app accepted.");
-      }
-
-      log("=== Migration phase 2/2: bootloader (via the new app) ===");
-      log("Reconnecting to the new app - if this stalls, the device fell asleep: plug in the charger / press a button…");
-      await sleep(2500); // boot + advertising start
-      if (!(await reconnectGatt(60000))) throw new Error("Reconnect after the app update failed - wake the device (charger/button), reconnect and flash the Bootloader target to finish.");
-      try { await server.getPrimaryService(SPP_SERVICE_UUID); }
-      catch (_) { throw new Error("Reconnected to a DFU link instead of the app - power-cycle, then flash the App target and retry."); }
 
       lastOtaResult = null;
-      await flashBootloader(blData, algorithm);
-      ev = await waitForResultOrReboot(30000);
+      await flashBootloader(data, algorithm);
+      const ev = await waitForResultOrReboot(30000);
       if (ev.type === 'result' && ev.result !== 0) {
-        throw new Error(`Bootloader OTA failed (result ${ev.result}). DO NOT power the device off - flash the Bootloader target again now.`);
+        throw new Error(`Bootloader OTA failed (result ${ev.result}). DO NOT power the device off - flash the bootloader again now.`);
       }
-      if (ev.type === 'timeout') throw new Error("No OTA result after the bootloader transfer. DO NOT power off - flash the Bootloader target again now.");
-      log("=== Migration complete - the device reboots into the new firmware. ===");
-      setState("Migrated");
+      if (ev.type === 'timeout') throw new Error("No OTA result after the bootloader transfer. DO NOT power off - flash the bootloader again now.");
+      if (ev.type === 'disconnect') log("Device rebooted right after the transfer - bootloader accepted.");
+      log("=== Bootloader update complete - the device reboots into the new bootloader. ===");
+      setState("Bootloader OK");
       setProgress(100);
     } finally {
       $("btnAbort").disabled = true;
@@ -810,7 +752,7 @@
 
   $("btnConnect").addEventListener('click', connect);
   $("btnFlash").addEventListener('click', () => flash().catch(e => { log("Flash error: " + e.message); setState("Error"); }));
-  $("btnMigrate").addEventListener('click', () => migrate().catch(e => { log("Migrate error: " + e.message); setState("Error"); }));
+  $("btnFlashBl").addEventListener('click', () => flashBl().catch(e => { log("Bootloader flash error: " + e.message); setState("Error"); }));
   const btnAbort = $("btnAbort");
   if (btnAbort) btnAbort.addEventListener('click', () => { aborting = true; setState("Aborting…"); });
 })();
