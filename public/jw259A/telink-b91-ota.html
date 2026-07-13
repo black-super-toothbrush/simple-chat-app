@@ -255,9 +255,17 @@
     return out;
   }
 
+  // iOS Web-Bluetooth browsers (Bluefy/WebBLE) do NOT populate
+  // characteristic.properties (it is undefined), so every properties access
+  // must go through this: trust real properties when present, otherwise fall
+  // back to what this device's firmware actually supports (OTA char:
+  // read/write/writeWithoutResponse/notify; SPP RX: writeWithoutResponse).
+  const hasProp = (ch, name, iosDefault) =>
+    (ch && ch.properties) ? !!ch.properties[name] : iosDefault;
+
   async function writeChunk(buf) {
     if (!otaChar) throw new Error('OTA characteristic not ready');
-    if (otaChar.properties.writeWithoutResponse) {
+    if (hasProp(otaChar, 'writeWithoutResponse', true)) {
       await otaChar.writeValueWithoutResponse(buf);
     } else {
       await otaChar.writeValue(buf);
@@ -284,14 +292,19 @@
 
     if (!otaChar) {
       const chars = await svc.getCharacteristics();
-      otaChar = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+      otaChar = chars.find(c => hasProp(c, 'writeWithoutResponse', true) || hasProp(c, 'write', true));
     }
 
     if (!otaChar) throw new Error("OTA characteristic not found. Provide the characteristic UUID and try again.");
     log("OTA characteristic: " + otaChar.uuid);
 
-    if (otaChar.properties.notify || otaChar.properties.indicate) {
-      await otaChar.startNotifications();
+    if (hasProp(otaChar, 'notify', true) || hasProp(otaChar, 'indicate', false)) {
+      try {
+        await otaChar.startNotifications();
+      } catch (e) {
+        // Non-fatal: without notifications we just miss OTA_RESULT codes.
+        log("Notifications unavailable (" + e.message + ") - OTA results won't be shown by the device.");
+      }
       otaChar.addEventListener('characteristicvaluechanged', (ev) => {
         const dv = ev.target.value;
         if (dv.byteLength < 2) return;
@@ -420,7 +433,7 @@
   //   old bootloader / DFU (MTU 23)     -> every probe fails     -> Legacy 16
   // ---------------------------------------------------------------------
   async function probeMaxPdu(wantPdu) {
-    if (!otaChar.properties.writeWithoutResponse) {
+    if (!hasProp(otaChar, 'writeWithoutResponse', true)) {
       log("Characteristic has no write-without-response; skipping probe, using Legacy 16.");
       return 0;
     }
@@ -489,7 +502,7 @@
 
       if (adrIndex < 3) log(`Packet ${adrIndex}: ${toHex(pkt.subarray(0, Math.min(24, pkt.length)))}${pkt.length > 24 ? ' …' : ''}`);
 
-      if (adrIndex === 0 && otaChar.properties.write) {
+      if (adrIndex === 0 && hasProp(otaChar, 'write', true)) {
         // FIRST packet as an ATT Write REQUEST: the response only comes back
         // once the device has actually processed it - i.e. after the
         // multi-second flash erase (bootloader region, or the whole app
@@ -515,14 +528,14 @@
       // side-effect free on the OTA characteristic - when it returns, every
       // packet before it has actually been delivered. (Same trick as the
       // official tool's "read interval (packet)" setting.)
-      if (adrIndex % 64 === 0 && otaChar.properties.read) {
+      if (adrIndex % 64 === 0 && hasProp(otaChar, 'read', true)) {
         await otaChar.readValue().catch(() => {});
       }
       setProgress(Math.round((offset / firmware.length) * 100));
     }
 
     // Drain the queue so the timing/throughput report below is honest.
-    if (otaChar.properties.read) await otaChar.readValue().catch(() => {});
+    if (hasProp(otaChar, 'read', true)) await otaChar.readValue().catch(() => {});
 
     const adrMax = Math.max(0, (adrIndex - 1)) & 0xFFFF;
     const xor = adrMax ^ 0xFFFF;
@@ -596,7 +609,7 @@
     const svc = await server.getPrimaryService(SPP_SERVICE_UUID);
     const ch = await svc.getCharacteristic(SPP_RX_CHAR_UUID);
     const pkt = new Uint8Array([0x78, 0x04, type & 0xFF, 0x78]);
-    if (ch.properties.writeWithoutResponse) await ch.writeValueWithoutResponse(pkt);
+    if (hasProp(ch, 'writeWithoutResponse', true)) await ch.writeValueWithoutResponse(pkt);
     else await ch.writeValue(pkt);
     log(`Sent OTA-type command 0x78 (type=${type}).`);
     await sleep(400);
