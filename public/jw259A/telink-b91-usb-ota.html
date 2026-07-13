@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telink B91 USB (CDC) Flasher</title>
+  <style>
+    :root { --bg:#0b1020; --card:#111831; --muted:#aab2d5; --acc:#6ee7ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,var(--bg),#090e1b);color:#e8edff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    header{padding:24px 16px;text-align:center}
+    h1{margin:0 0 8px;font-weight:800;letter-spacing:.5px}
+    .wrap{max-width:1100px;margin:0 auto;padding:0 16px 48px}
+    .card{background:var(--card);border:1px solid #1b2445;border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.3);margin:16px 0}
+    .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type="file"]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #213069;background:#0d1430;color:#e8edff}
+    button{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;background:#13224b;color:#e8edff;border:1px solid #203168;transition:transform .05s ease,background .2s}
+    button:hover{background:#182a5d}
+    button.primary{background:linear-gradient(180deg,#1a7bd6,#1557a6);border-color:#2268c7}
+    button.success{background:linear-gradient(180deg,#1e9e5a,#177a46);border-color:#1f9957}
+    button.warn{background:linear-gradient(180deg,#f59e0b,#b16c01);border-color:#b16c01}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .muted{color:var(--muted)}
+    .progress{height:12px;background:#0b1332;border-radius:999px;overflow:hidden;border:1px solid #203168}
+    .bar{height:100%;width:0;background:linear-gradient(90deg,#37b3ff,#6ef2ff);transition:width .2s}
+    .log{font-family:ui-monospace,Consolas,Menlo,monospace;background:#070b18;border:1px solid #1c274d;padding:12px;border-radius:12px;min-height:120px;white-space:pre-wrap;max-height:340px;overflow-y:auto;font-size:12px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #24376f;background:#0c1535;color:#cfe3ff;font-size:12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .logs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:800px){ .logs{grid-template-columns:1fr} }
+    h3{margin:4px 0 8px;font-size:13px;color:var(--muted);font-weight:600}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Telink B91 USB Flasher</h1>
+    <div class="muted">Web Serial port of cdc_ota_tool.py — app / ESP32 / bootloader updates over USB-CDC, plus one-click old-device migration</div>
+  </header>
+  <div class="wrap">
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>B91 app firmware</label>
+          <span class="pill">B91_module.bin</span>
+        </div>
+        <div>
+          <label>B91 bootloader</label>
+          <span class="pill">B91_bootloader.bin</span>
+        </div>
+        <div>
+          <label>ESP32 firmware</label>
+          <span class="pill">focus-v-firmware-wifi-esp-idf.bin</span>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnConnect" class="primary">Connect (USB)</button>
+        <button id="btnMonitor" disabled>Open monitor</button>
+        <button id="btnReset" disabled>Reset → DFU</button>
+        <button id="btnReboot" disabled>Reboot → App</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btnApp" class="success" disabled>Update B91 App (DFU)</button>
+        <button id="btnBl" class="success" disabled>Update Bootloader (via App)</button>
+        <button id="btnEsp" class="success" disabled>Update ESP32 (DFU)</button>
+        <button id="btnMigrate" class="warn" disabled>Migrate old device (BL → App)</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span class="pill" id="state">Idle</span>
+        <span class="pill" id="speed"></span>
+      </div>
+      <div style="margin-top:12px">
+        <div class="progress"><div class="bar" id="bar"></div></div>
+      </div>
+      <div class="logs" style="margin-top:12px">
+        <div><h3>PC log</h3><div class="log" id="log" aria-live="polite"></div></div>
+        <div><h3>Device log</h3><div class="log" id="dlog"></div></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const log  = (m) => { const el = $("log");  el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+  const dlog = (m) => { const el = $("dlog"); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+  const setState = (s) => { $("state").textContent = s; };
+  const setSpeed = (s) => { $("speed").textContent = s; };
+  const setProgress = (v) => { $("bar").style.width = Math.max(0, Math.min(100, v)) + "%"; };
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  // ---- constants mirrored from cdc_ota_tool.py / the firmware ----
+  const USB_VID = 0x248A, USB_PID = 0x8002;      // "Telink CDC"
+  const PAGE_SIZE = 4096;                         // must match CDC_OTA_PAGE_SIZE
+  const LIMITS = {                                // {min, max} bytes per target
+    b91:  { min: 500*1024, max: 1024*1024, magic: "OTA!", name: "B91 app (flash 0x20000, in DFU)" },
+    bldr: { min: 8*1024,   max: 124*1024,  magic: "BLDR", name: "B91 bootloader (flash 0x0000, via running app)" },
+    esp:  { min: 1024*1024,max: 1843*1024, magic: "ESP!", name: "ESP32-S2 (forwarded over B91 UART1, in DFU)" },
+  };
+
+  function adler32(data) {
+    // zlib.adler32 equivalent; MOD 65521, chunked to keep sums in range.
+    let a = 1, b = 0;
+    const MOD = 65521;
+    for (let i = 0; i < data.length;) {
+      const end = Math.min(i + 3800, data.length);
+      for (; i < end; i++) { a += data[i]; b += a; }
+      a %= MOD; b %= MOD;
+    }
+    return (((b << 16) >>> 0) | a) >>> 0;
+  }
+
+  const u32le = (v) => new Uint8Array([v & 0xFF, (v>>>8)&0xFF, (v>>>16)&0xFF, (v>>>24)&0xFF]);
+
+  // ------------------------- serial plumbing -------------------------
+  // One always-running read pump per open port: splits '\n' lines into a
+  // FIFO consumed by readLine(); every line is also echoed to the Device
+  // log when the monitor is on. The pump ends when the device reboots
+  // (read() fails/done) and flips the UI to disconnected.
+  let port = null, writer = null, readerAbort = null;
+  let lineFifo = [], lineWaiter = null;
+  let monitorOn = false;
+  let connected = false;
+  let busy = false;
+
+  function pushLine(line) {
+    if (monitorOn) dlog(line.startsWith("LOG ") ? line.slice(4) : line);
+    lineFifo.push(line);
+    if (lineWaiter) { const w = lineWaiter; lineWaiter = null; w(); }
+  }
+
+  async function readPump() {
+    let buf = "";
+    const reader = port.readable.getReader();
+    readerAbort = () => reader.cancel().catch(()=>{});
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          pushLine(buf.slice(0, nl).replace(/\r$/, ""));
+          buf = buf.slice(nl + 1);
+        }
+      }
+    } catch (_) { /* device rebooted / unplugged */ }
+    finally {
+      try { reader.releaseLock(); } catch (_) {}
+      markDisconnected("Port closed (device rebooted or unplugged).");
+    }
+  }
+
+  function markDisconnected(msg) {
+    if (!connected) return;
+    connected = false;
+    try { if (writer) writer.releaseLock(); } catch (_) {}
+    writer = null;
+    try { if (port) port.close().catch(()=>{}); } catch (_) {}
+    if (msg) log(msg);
+    setState("Disconnected");
+    updateButtons();
+  }
+
+  async function openPort(p) {
+    await p.open({ baudRate: 115200, bufferSize: 16384 });
+    try { await p.setSignals({ dataTerminalReady: true, requestToSend: true }); } catch (_) {}
+    port = p;
+    writer = p.writable.getWriter();
+    lineFifo = []; lineWaiter = null;
+    connected = true;
+    readPump(); // runs until the port dies
+    const info = p.getInfo();
+    log(`Opened Telink CDC port (VID 0x${(info.usbVendorId||0).toString(16)} PID 0x${(info.usbProductId||0).toString(16)}).`);
+    setState("Connected");
+    updateButtons();
+  }
+
+  async function connect() {
+    try {
+      const p = await navigator.serial.requestPort({
+        filters: [{ usbVendorId: USB_VID, usbProductId: USB_PID }]
+      });
+      await openPort(p);
+    } catch (e) {
+      log("Connect: " + e.message);
+    }
+  }
+
+  // After a device-initiated reboot the device re-enumerates. Chrome only
+  // auto-reopens ports the user has ALREADY granted, and the grant is keyed
+  // on VID+PID+USB serial string. On old firmware the app reports serial
+  // "CDC demo" but the bootloader "CDC demo " (trailing space), so the first
+  // trip through a reboot looks like a brand-new device and getPorts() never
+  // returns it. Phase 1 polls getPorts(); phase 2 falls back to a one-time
+  // manual Connect click - Chrome remembers that grant, so every later
+  // reboot in either direction reconnects automatically.
+  async function reconnect(maxMs = 12000) {
+    setState("Reconnecting…");
+    let t0 = Date.now();
+    while (Date.now() - t0 < maxMs) {
+      if (connected) return true;   // user beat us to it via [Connect]
+      const ports = await navigator.serial.getPorts();
+      for (const p of ports) {
+        const i = p.getInfo();
+        if (i.usbVendorId === USB_VID && i.usbProductId === USB_PID) {
+          try { await openPort(p); return true; } catch (_) { /* not up yet */ }
+        }
+      }
+      await sleep(400);
+    }
+    log("Auto-reconnect found no authorized port. Chrome hasn't been granted THIS mode's USB identity yet (old firmware: app and bootloader use different USB serial strings).");
+    log(">>> Click [Connect] and pick the 'Telink CDC' port to continue. One time per device - Chrome remembers the grant afterwards.");
+    setState("Click Connect to continue…");
+    t0 = Date.now();
+    while (Date.now() - t0 < 120000) {
+      if (connected) { log("Port granted - continuing."); return true; }
+      await sleep(300);
+    }
+    return false;
+  }
+
+  async function write(bytes) {
+    if (!writer) throw new Error("not connected");
+    await writer.write(bytes instanceof Uint8Array ? bytes : enc.encode(bytes));
+  }
+
+  function readLine(timeoutMs) {
+    return new Promise((resolve) => {
+      if (lineFifo.length) return resolve(lineFifo.shift());
+      let t = setTimeout(() => { lineWaiter = null; resolve(null); }, timeoutMs);
+      lineWaiter = () => { clearTimeout(t); resolve(lineFifo.shift()); };
+    });
+  }
+
+  // Read until a protocol response: "OK" -> true, "ERR"/"FAIL" -> throw,
+  // "LOG ..." -> device log, anything else -> device chatter.
+  async function readResponse(timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error("timed out waiting for device response");
+      const line = await readLine(remaining);
+      if (line === null) throw new Error("timed out waiting for device response");
+      if (line === "") continue;
+      if (line.startsWith("LOG ")) { dlog(line.slice(4)); continue; }
+      if (line === "OK") return true;
+      if (line.startsWith("ERR") || line.startsWith("FAIL")) throw new Error("device reported: " + line);
+      dlog(line);
+    }
+  }
+
+  // ------------------------- protocol actions -------------------------
+
+  async function heartbeatCheck() {
+    log("Listening for device heartbeat (1.5s)…");
+    let seen = false;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 1500) {
+      const line = await readLine(1500 - (Date.now() - t0));
+      if (line === null) break;
+      if (line) { dlog(line.startsWith("LOG ") ? line.slice(4) : line); seen = true; }
+    }
+    log(seen ? "Device heartbeat detected - link OK."
+             : "WARNING: no heartbeat. Is the device in the bootloader (DFU) with CDC-OTA? Trying anyway…");
+  }
+
+  // START / DATA / VERIFY - the exact cdc_ota_tool.py sequence.
+  async function flashFirmware(target, data) {
+    const cfg = LIMITS[target];
+    const size = data.length;
+    if (size === 0) throw new Error("file is empty");
+    if (size < cfg.min || size > cfg.max)
+      throw new Error(`${cfg.name}: size ${Math.round(size/1024)}KB outside ${cfg.min/1024}..${cfg.max/1024}KB - wrong .bin?`);
+
+    const checksum = adler32(data);
+    log(`File size : ${size} bytes (${(size/1024).toFixed(1)} KB)`);
+    log(`Dest      : ${cfg.name}`);
+    if (target !== "esp") log(`Adler32   : 0x${checksum.toString(16).padStart(8, "0")}`);
+
+    lineFifo = [];
+    await heartbeatCheck();
+
+    // ---- START ----
+    // The magic and the size MUST go out in ONE write/USB transfer: the
+    // app's CDC dispatcher routes a packet to the BLDR handler only if the
+    // packet STARTS with the magic - a size-only follow-up packet would be
+    // dropped as an unknown text command and the 8-byte frame never
+    // completes (and its 4 leftover magic bytes then corrupt the NEXT
+    // attempt's size field -> "ERR bad size").
+    log("-> START" + (target === "esp" ? " (ESP32 erases an OTA partition first, may take ~15s)" : ""));
+    const startFrame = new Uint8Array(8);
+    startFrame.set(enc.encode(cfg.magic), 0);
+    startFrame.set(u32le(size), 4);
+    await write(startFrame);
+    await readResponse(target === "esp" ? 20000 : 3000);
+    log("<- OK (device ready)");
+
+    // ---- DATA ----
+    const t0 = performance.now();
+    let offset = 0, blockNo = 0;
+    const totalBlocks = Math.ceil(size / PAGE_SIZE);
+    const report = () => {
+      const dt = (performance.now() - t0) / 1000;
+      const spd = dt > 0 ? (offset / 1024) / dt : 0;
+      const eta = spd > 0 ? ((size - offset) / 1024) / spd : 0;
+      setProgress(Math.round(offset * 100 / size));
+      setSpeed(`${spd.toFixed(1)} KB/s  ETA ${eta.toFixed(0)}s`);
+      return spd;
+    };
+
+    if (target === "esp") {
+      // Streaming, no per-block ACK: writer.write() only resolves when the
+      // OS accepted the bytes, and the B91 NAKs its OUT endpoint while it
+      // forwards to the ESP32 - natural flow control, same as the python
+      // tool's blocking serial writes.
+      while (offset < size) {
+        if (!connected) throw new Error("port dropped mid-transfer");
+        const n = Math.min(PAGE_SIZE, size - offset);
+        await write(data.subarray(offset, offset + n));
+        offset += n; blockNo++;
+        if (blockNo % 16 === 0 || offset >= size) {
+          const spd = report();
+          log(`   sent ${offset}/${size} bytes (${Math.floor(offset*100/size)}%)  ${spd.toFixed(1)} KB/s`);
+        }
+      }
+    } else {
+      // Per-4KB-block ACK: the device erases+programs one sector per block.
+      while (offset < size) {
+        if (!connected) throw new Error("port dropped mid-transfer");
+        const n = Math.min(PAGE_SIZE, size - offset);
+        await write(data.subarray(offset, offset + n));
+        await readResponse(5000);
+        offset += n; blockNo++;
+        report();
+        if (blockNo % 16 === 0 || offset >= size)
+          log(`   programmed ${offset}/${size} bytes (${Math.floor(offset*100/size)}%)  block ${blockNo}/${totalBlocks}`);
+      }
+    }
+    const dt = (performance.now() - t0) / 1000;
+    log(`All blocks ${target === "esp" ? "sent" : "programmed"} in ${dt.toFixed(1)}s (${(size/1024/dt).toFixed(1)} KB/s)`);
+
+    // ---- FINISH / VERIFY ----
+    // Both targets reboot the B91 on success, so a port drop right after
+    // (or instead of) the OK means the update PASSED.
+    log(target === "esp" ? "-> FINISH (ESP32 commits + reboots; B91 reboots out of DFU)"
+                         : "-> VERIFY (Adler-32 read-back on device, then reboot)");
+    try {
+      const crcFrame = new Uint8Array(8);   // single write, same reason as START
+      crcFrame.set(enc.encode("CRC?"), 0);
+      crcFrame.set(u32le(checksum), 4);
+      if (target === "esp") {
+        // Drain before the finish frame. writer.write() resolves when the
+        // bytes enter Chrome's outgoing buffer (bufferSize), NOT when they
+        // reach the device, and Chrome coalesces everything buffered into
+        // one OS write. Sent back-to-back with the image tail, the 8-byte
+        // CRC? frame lands mid-USB-packet right behind the last data bytes,
+        // and the device - which stops counting at `size` and drops the rest
+        // of that packet - never sees it, so FINISH times out. pyserial does
+        // one OS write per write() call (own USB transfer), which is why the
+        // python tool never hits this. ~16KB of buffer at ~33KB/s clears in
+        // <1s; 2s is a safe margin. (b91/bldr are immune: their per-block OK
+        // means the buffer is already empty when CRC? goes out.)
+        await sleep(2000);
+      }
+      await write(crcFrame);
+      try {
+        await readResponse(20000);
+      } catch (e) {
+        if (target === "esp" && connected) {
+          // Belt-and-suspenders: if the frame still got swallowed the device
+          // is parked in DONE waiting for a command - a clean resend works.
+          log("No FINISH response - resending the finish frame once…");
+          await write(crcFrame);
+          await readResponse(20000);
+        } else {
+          throw e;
+        }
+      }
+      log("*** " + (target === "esp" ? "ESP32 UPDATE OK" : "VERIFY OK") + " *** device is rebooting.");
+    } catch (e) {
+      if (!connected) {
+        log("Port dropped during verify - the device reboots on success, so this almost certainly PASSED.");
+      } else {
+        throw e;
+      }
+    }
+    setProgress(100);
+  }
+
+  // "reset\n" to the RUNNING APP -> RESET-ACK -> reboots into the DFU
+  // bootloader; then reopen the re-enumerated port.
+  async function resetToDfu() {
+    lineFifo = [];
+    log("-> 'reset' (app reboots into the DFU bootloader)…");
+    await write("reset\n");
+    const deadline = Date.now() + 1500;
+    let acked = false;
+    while (Date.now() < deadline) {
+      const line = await readLine(deadline - Date.now());
+      if (line === null) break;
+      if (line.includes("RESET-ACK")) { acked = true; break; }
+      if (line) dlog(line.startsWith("LOG ") ? line.slice(4) : line);
+    }
+    log(acked ? "<- RESET-ACK. Device is rebooting into the bootloader…"
+              : "WARNING: no RESET-ACK (is the running app's CDC alive?). Watching for re-enumeration anyway…");
+    markDisconnected(null);
+    await sleep(1200);
+    if (!(await reconnect(12000))) throw new Error("device did not re-enumerate after reset");
+    log("Reconnected to the bootloader CDC.");
+  }
+
+  // "reboot" to the BOOTLOADER -> clears the OTA flag, reboots to the app.
+  async function rebootToApp() {
+    log("-> 'reboot' (bootloader clears its OTA flag and restarts)…");
+    try { await write("reboot"); } catch (_) {}
+    markDisconnected(null);
+    await sleep(1200);
+    if (await reconnect(12000)) log("Device is back (running the app).");
+    else log("Device did not come back as a CDC port - it may be booting the app without CDC; check the device.");
+  }
+
+  // Make sure the RUNNING APP is on the port: "reboot" is ignored by the
+  // app (unknown text command) but kicks a DFU bootloader back into the
+  // app - so after this we are in the app either way.
+  async function ensureAppMode() {
+    log("Making sure the device is running the app…");
+    lineFifo = [];
+    try { await write("reboot"); } catch (_) {}
+    await sleep(2000);
+    if (!connected) {
+      log("Device was sitting in the DFU bootloader - it is rebooting into the app…");
+      if (!(await reconnect(12000))) throw new Error("device did not come back after 'reboot'");
+      await sleep(500);
+    }
+  }
+
+  // One-click OLD-DEVICE migration, entirely over USB, BOOTLOADER FIRST.
+  // A USB-powered device never auto-sleeps, so every reconnect is reliable:
+  //   1. ensure the app is running (BLDR is received by the app)
+  //   2. BLDR     : flash the NEW bootloader through the running app -
+  //                 Adler-32 verified on the device BEFORE it reboots, so a
+  //                 bad transfer leaves the old bootloader untouched and the
+  //                 app alive for a safe retry. On success the device
+  //                 reboots and the NEW bootloader jumps back into the app.
+  //   3. "reset"  : app -> DFU (already the NEW bootloader, so its USB
+  //                 identity matches the app's and reconnect is automatic)
+  //   4. OTA!     : flash the NEW app, device verifies + reboots into it.
+  async function migrate() {
+    const appData = await fetchFirmware("app",  "new B91 app firmware");
+    const blData  = await fetchFirmware("bldr", "new B91 bootloader");
+
+    log("=== USB migration 1/2: bootloader (via the running app) ===");
+    await ensureAppMode();
+    await flashFirmware("bldr", blData);
+
+    log("Waiting for the device to reboot (new bootloader -> app)…");
+    markDisconnected(null);
+    await sleep(1500);
+    if (!(await reconnect(15000))) throw new Error("device did not come back after the bootloader update - reconnect manually and use 'Update App firmware' to finish the migration.");
+
+    log("=== USB migration 2/2: app firmware (via DFU) ===");
+    await sleep(500);
+    await resetToDfu();
+    await flashFirmware("b91", appData);
+
+    log("Waiting for the device to reboot into the new app…");
+    markDisconnected(null);
+    await sleep(1500);
+    if (await reconnect(15000)) log("New app is up - migration verified.");
+    else log("Device did not reappear within 15s - power-cycle it and check; the flash itself verified OK.");
+    log("=== Migration complete: new bootloader + new app. ===");
+    setState("Migrated");
+  }
+
+  // ------------------------- UI glue -------------------------
+
+  // Fixed firmware images served next to this page.
+  const FIRMWARE_FILES = {
+    app:  "B91_module.bin",
+    bldr: "B91_bootloader.bin",
+    esp:  "focus-v-firmware-wifi-esp-idf.bin",
+  };
+
+  async function fetchFirmware(key, name) {
+    const url = FIRMWARE_FILES[key];
+    log(`Fetching ${name}: ${url} …`);
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`failed to fetch ${url} (HTTP ${r.status})`);
+    const data = new Uint8Array(await r.arrayBuffer());
+    log(`Loaded ${url}: ${data.length} bytes (${(data.length/1024).toFixed(1)} KB)`);
+    return data;
+  }
+
+  function updateButtons() {
+    const on = connected && !busy;
+    $("btnMonitor").disabled = !connected || busy;
+    $("btnReset").disabled = !on;
+    $("btnReboot").disabled = !on;
+    $("btnApp").disabled = !on;
+    $("btnBl").disabled = !on;
+    $("btnEsp").disabled = !on;
+    $("btnMigrate").disabled = !on;
+    $("btnConnect").disabled = connected;
+  }
+
+  function run(name, fn) {
+    return async () => {
+      if (busy) return;
+      busy = true; updateButtons();
+      setProgress(0); setSpeed("");
+      log("=".repeat(56));
+      try {
+        await fn();
+        setState("Done");
+        log("==== DONE ====");
+      } catch (e) {
+        log("ERROR: " + e.message);
+        setState("Error");
+        log("==== FAILED ====");
+      } finally {
+        busy = false; updateButtons();
+      }
+    };
+  }
+
+  $("btnConnect").addEventListener("click", async () => {
+    if (!("serial" in navigator)) { log("Web Serial not available - use Chrome/Edge on desktop over HTTPS or localhost."); return; }
+    await connect();
+  });
+
+  $("btnMonitor").addEventListener("click", () => {
+    monitorOn = !monitorOn;
+    $("btnMonitor").textContent = monitorOn ? "Close monitor" : "Open monitor";
+    log(monitorOn ? "Monitor ON - device lines stream to the Device log." : "Monitor OFF.");
+  });
+
+  $("btnReset").addEventListener("click", run("reset", resetToDfu));
+  $("btnReboot").addEventListener("click", run("reboot", rebootToApp));
+  $("btnApp").addEventListener("click", run("app", async () => {
+    const d = await fetchFirmware("app", "B91 app firmware");
+    await resetToDfu();
+    await sleep(1000);
+    setState("Flashing app…");
+    await flashFirmware("b91", d);
+  }));
+  $("btnBl").addEventListener("click", run("bldr", async () => {
+    const d = await fetchFirmware("bldr", "B91 bootloader");
+    setState("Flashing bootloader…");
+    await flashFirmware("bldr", d);
+  }));
+  $("btnEsp").addEventListener("click", run("esp", async () => {
+    const d = await fetchFirmware("esp", "ESP32 firmware");
+    await resetToDfu();
+    await sleep(1000);
+    setState("Flashing ESP32…");
+    await flashFirmware("esp", d);
+  }));
+  $("btnMigrate").addEventListener("click", run("migrate", migrate));
+
+  if ("serial" in navigator) {
+    navigator.serial.addEventListener("disconnect", () => markDisconnected("USB device disconnected."));
+    // Auto-reopen a previously granted port on page load for convenience.
+    (async () => {
+      const ports = await navigator.serial.getPorts();
+      for (const p of ports) {
+        const i = p.getInfo();
+        if (i.usbVendorId === USB_VID && i.usbProductId === USB_PID) {
+          try { await openPort(p); break; } catch (_) {}
+        }
+      }
+    })();
+  } else {
+    log("Web Serial not available - use Chrome/Edge on desktop (HTTPS or localhost).");
+  }
+})();
+</script>
+</body>
+</html>

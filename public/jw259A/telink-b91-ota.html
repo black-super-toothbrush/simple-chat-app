@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telink B91 OTA Web Flasher</title>
+  <style>
+    :root { --bg:#0b1020; --card:#111831; --muted:#aab2d5; --acc:#6ee7ff; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; }
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,var(--bg),#090e1b);color:#e8edff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial} a{color:var(--acc)}
+    header{padding:24px 16px;text-align:center}
+    h1{margin:0 0 8px;font-weight:800;letter-spacing:.5px}
+    .wrap{max-width:980px;margin:0 auto;padding:0 16px 48px}
+    .card{background:var(--card);border:1px solid #1b2445;border-radius:18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.3);margin:16px 0}
+    .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+    .row > *{flex:1 1 220px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type="file"],select,input[type="number"],input[type="text"]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #213069;background:#0d1430;color:#e8edff}
+    button{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;background:#13224b;color:#e8edff;border:1px solid #203168;transition:transform .05s ease,background .2s}
+    button:hover{background:#182a5d}
+    button.primary{background:linear-gradient(180deg,#1a7bd6,#1557a6);border-color:#2268c7}
+    button.success{background:linear-gradient(180deg,#1e9e5a,#177a46);border-color:#1f9957}
+    button.warn{background:linear-gradient(180deg,#f59e0b,#b16c01);border-color:#b16c01}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .muted{color:var(--muted)}
+    .progress{height:12px;background:#0b1332;border-radius:999px;overflow:hidden;border:1px solid #203168}
+    .bar{height:100%;width:0;background:linear-gradient(90deg,#37b3ff,#6ef2ff);transition:width .2s}
+    .log{font-family:ui-monospace,Consolas,Menlo,monospace;background:#070b18;border:1px solid #1c274d;padding:12px;border-radius:12px;min-height:100px;white-space:pre-wrap;max-height:300px;overflow-y:auto}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #24376f;background:#0c1535;color:#cfe3ff;font-size:12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .hex{font-family:ui-monospace,Consolas,Menlo,monospace;color:#6ef2ff;font-size:11px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Telink B91 OTA</h1>
+    <div class="muted">Version 0.1.0 — auto-detects old (Legacy PDU 16) and new (Extend big PDU) devices</div>
+  </header>
+  <div class="wrap">
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>Firmware binary (.bin)</label>
+          <input id="file" type="file" accept=".bin,application/octet-stream" />
+        </div>
+        <div>
+          <label>Bootloader .bin (only for one-click Migrate)</label>
+          <input id="blfile" type="file" accept=".bin,application/octet-stream" />
+        </div>
+        <div>
+          <label>Update target</label>
+          <select id="target">
+            <option value="app" selected>App firmware (B91_module)</option>
+            <option value="bootloader">Bootloader (advanced)</option>
+          </select>
+        </div>
+        <div>
+          <label>Device mode</label>
+          <select id="mode">
+            <option value="auto" selected>Auto detect (recommended)</option>
+            <option value="new">New device — Extend, big PDU (same connection)</option>
+            <option value="old">Old device — Legacy, PDU 16 (reboot to bootloader)</option>
+          </select>
+        </div>
+        <div>
+          <label>Extend PDU length (16-byte aligned, max 240)</label>
+          <input id="pdu" type="number" min="16" max="240" step="16" value="224"/>
+        </div>
+        <div>
+          <label>Characteristic UUID (override, optional)</label>
+          <input id="uuid" type="text" placeholder="auto-detect Telink OTA characteristic"/>
+        </div>
+        <div>
+          <label>CRC Algorithm</label>
+          <select id="crcAlg">
+            <option value="telink-original" selected>Telink Original (from reverse engineering)</option>
+            <option value="ccitt-1021">CRC16-CCITT (0x1021) - Standard</option>
+            <option value="ccitt-8408">CRC16-CCITT (0x8408) - Reflected</option>
+            <option value="crc16-arc">CRC16-ARC (0x8005)</option>
+            <option value="crc16-modbus">CRC16-MODBUS (0x8005) Reflected</option>
+            <option value="xmodem">CRC16-XMODEM (0x1021) Init 0x0000</option>
+          </select>
+        </div>
+        <div>
+          <label>CRC Input Data</label>
+          <select id="crc">
+            <option value="data-ffff">data only, seed 0xFFFF</option>
+            <option value="data-0000">data only, seed 0x0000</option>
+            <option value="seqdata-ffff" selected>seq+data, seed 0xFFFF</option>
+            <option value="seqdata-0000">seq+data, seed 0x0000</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnConnect" class="primary">Connect</button>
+        <button id="btnFlash" class="success">Flash OTA</button>
+        <button id="btnMigrate" class="warn">Migrate BL+App (old device, one-time)</button>
+        <button id="btnAbort" class="warn" disabled>Abort</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span class="pill" id="state">Idle</span>
+      </div>
+      <div style="margin-top:12px">
+        <div class="progress"><div class="bar" id="bar"></div></div>
+      </div>
+      <div style="margin-top:12px" class="log" id="log" aria-live="polite"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const log = (m) => { const el = $("log"); el.textContent += m + "\n"; el.scrollTop = el.scrollHeight; };
+  const setState = (s) => { $("state").textContent = s; };
+  const setProgress = (v) => { $("bar").style.width = Math.max(0, Math.min(100, v)) + "%"; };
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  // Hex dump helper
+  const toHex = (arr) => Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join(' ');
+
+  // Telink OTA UUIDs
+  const OTA_SERVICE_UUID = '00010203-0405-0607-0809-0a0b0c0d1912';
+  const OTA_CHAR_UUID    = '00010203-0405-0607-0809-0a0b0c0d2b12';
+
+  // Device SPP (control) service - used to send the 0x78 "OTA type" command
+  // that switches the firmware between App (2) and Bootloader (1) OTA.
+  // (Byte-reversed from the little-endian arrays in app_att.c.)
+  const SPP_SERVICE_UUID = '1011123e-8535-b5a0-7140-a304d2495cb7';
+  const SPP_RX_CHAR_UUID = '1011123e-8535-b5a0-7140-a304d2495cb9';
+
+  const BOOTLOADER_MAX_SIZE = 0x1F000; // 124 KB region at flash 0x0000
+
+  // Telink OTA opcodes
+  const OPC = {
+    CMD_OTA_VERSION: 0xff00,
+    CMD_OTA_START:   0xff01,
+    CMD_OTA_END:     0xff02,
+    CMD_OTA_START_EXT: 0xff03,
+    CMD_OTA_FW_VERSION_REQ: 0xff04,
+    CMD_OTA_FW_VERSION_RSP: 0xff05,
+    CMD_OTA_RESULT:  0xff06,
+  };
+
+  const RESULT_NAMES = {
+    0: 'SUCCESS', 1: 'DATA_PACKET_SEQ_ERR', 2: 'PACKET_INVALID', 3: 'DATA_CRC_ERR',
+    4: 'WRITE_FLASH_ERR', 5: 'DATA_UNCOMPLETE', 6: 'FLOW_ERR', 7: 'FW_CHECK_ERR',
+    8: 'VERSION_COMPARE_ERR', 9: 'PDU_LEN_ERR', 10: 'FIRMWARE_MARK_ERR', 11: 'FW_SIZE_ERR'
+  };
+
+  let device, server, otaChar;
+  let aborting = false;
+  let otaResultHook = null;   // one-shot: called with the OTA_RESULT code
+  let lastOtaResult = null;   // {result, t} - last OTA_RESULT notification
+
+  // Multiple CRC implementations
+  function crc16_ccitt_1021(buf, seed = 0xFFFF) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= (buf[i] << 8);
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_ccitt_8408(buf, seed = 0xFFFF) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x0001) ? ((crc >> 1) ^ 0x8408) : (crc >> 1);
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_arc(buf, seed = 0x0000) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x0001) ? ((crc >> 1) ^ 0xA001) : (crc >> 1);
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_modbus(buf, seed = 0xFFFF) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x0001) ? ((crc >> 1) ^ 0xA001) : (crc >> 1);
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function crc16_xmodem(buf, seed = 0x0000) {
+    let crc = seed & 0xFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= (buf[i] << 8);
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  // Original Telink CRC-16 implementation from reverse engineering
+  function crc16_telink(data) {
+    const crcTable = [0, 40961];
+    let crc = 0xFFFF;
+
+    for (let i = 0; i < data.length; i++) {
+      let byte = data[i];
+      for (let bit = 0; bit < 8; bit++) {
+        crc = crcTable[(crc ^ byte) & 1] ^ (crc >> 1);
+        byte = byte >> 1;
+      }
+    }
+    return crc & 0xFFFF;
+  }
+
+  function getCRC(algorithm, buf, seed) {
+    switch (algorithm) {
+      case 'telink-original': return crc16_telink(buf);
+      case 'ccitt-1021': return crc16_ccitt_1021(buf, seed);
+      case 'ccitt-8408': return crc16_ccitt_8408(buf, seed);
+      case 'crc16-arc': return crc16_arc(buf, seed);
+      case 'crc16-modbus': return crc16_modbus(buf, seed);
+      case 'xmodem': return crc16_xmodem(buf, seed);
+      default: return crc16_telink(buf);
+    }
+  }
+
+  function padToMultiple(arr, blockSize) {
+    const rem = arr.length % blockSize;
+    if (rem === 0) return arr;
+    const pad = blockSize - rem;
+    const out = new Uint8Array(arr.length + pad);
+    out.set(arr, 0);
+    out.fill(0xFF, arr.length);
+    return out;
+  }
+
+  async function writeChunk(buf) {
+    if (!otaChar) throw new Error('OTA characteristic not ready');
+    if (otaChar.properties.writeWithoutResponse) {
+      await otaChar.writeValueWithoutResponse(buf);
+    } else {
+      await otaChar.writeValue(buf);
+    }
+  }
+
+  // (Re)discover the OTA service/characteristic and subscribe to the
+  // result notification. Called on connect AND after every reconnect
+  // (old GATT objects are invalid once the link drops).
+  async function setupChars() {
+    otaChar = null;
+    const svc = await server.getPrimaryService(OTA_SERVICE_UUID);
+
+    const uuidOverride = $("uuid").value.trim();
+    if (uuidOverride) {
+      try { otaChar = await svc.getCharacteristic(uuidOverride); }
+      catch (e) { log("Override UUID not found on service: " + e.message); }
+    }
+
+    if (!otaChar) {
+      try { otaChar = await svc.getCharacteristic(OTA_CHAR_UUID); }
+      catch (_) { /* fallback below */ }
+    }
+
+    if (!otaChar) {
+      const chars = await svc.getCharacteristics();
+      otaChar = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+    }
+
+    if (!otaChar) throw new Error("OTA characteristic not found. Provide the characteristic UUID and try again.");
+    log("OTA characteristic: " + otaChar.uuid);
+
+    if (otaChar.properties.notify || otaChar.properties.indicate) {
+      await otaChar.startNotifications();
+      otaChar.addEventListener('characteristicvaluechanged', (ev) => {
+        const dv = ev.target.value;
+        if (dv.byteLength < 2) return;
+        const opcode = dv.getUint16(0, true);
+        if (opcode === OPC.CMD_OTA_RESULT && dv.byteLength >= 3) {
+          const result = dv.getUint8(2);
+          const name = (result in RESULT_NAMES) ? RESULT_NAMES[result] : `0x${result.toString(16)}`;
+          log(`OTA_RESULT received: ${result} (${name})`);
+          setState(result === 0 ? "Success" : `Result: ${result}`);
+          lastOtaResult = { result, t: performance.now() };
+          if (otaResultHook) { const h = otaResultHook; otaResultHook = null; h(result); }
+        } else {
+          log(`Received notification: opcode=0x${opcode.toString(16).padStart(4, '0')}, data=${toHex(new Uint8Array(dv.buffer))}`);
+        }
+      });
+    }
+  }
+
+  async function connect() {
+    setState("Scanning…");
+    log("Requesting device…");
+    try {
+      device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [OTA_SERVICE_UUID, SPP_SERVICE_UUID]
+      });
+      device.addEventListener('gattserverdisconnected', () => setState('Disconnected'));
+
+      setState("Connecting…");
+      server = await device.gatt.connect();
+      log("Connected to " + (device.name || "Unnamed"));
+      await setupChars();
+      setState("Ready");
+    } catch (err) {
+      log("Connect error: " + err.message);
+      setState("Error");
+    }
+  }
+
+  // Reconnect to the SAME device (permission persists, no user gesture
+  // needed). Used after the old-device firmware reboots into the DFU
+  // bootloader: same MAC, so device.gatt.connect() finds it again.
+  async function reconnectGatt(maxMs = 30000) {
+    const t0 = Date.now();
+    let hinted = false;
+    while (Date.now() - t0 < maxMs) {
+      if (aborting) return false;
+      try {
+        setState("Reconnecting…");
+        server = await device.gatt.connect();
+        await setupChars();
+        log("Reconnected.");
+        return true;
+      } catch (e) {
+        // The app firmware deep-sleeps (BLE off) about a second after a
+        // plain reboot unless it is on the charger or was just flashed by
+        // the new bootloader. A button press wakes it back up.
+        if (!hinted && Date.now() - t0 > 8000) {
+          hinted = true;
+          log("Still reconnecting… if this stalls, WAKE THE DEVICE (press a button / plug in the charger).");
+        }
+        await sleep(1000);
+      }
+    }
+    return false;
+  }
+
+  // Resolve with {type:'result', result}, {type:'disconnect'} or
+  // {type:'timeout'} - whichever happens first. A result that arrived just
+  // before arming (device answered faster than we got here) counts too.
+  function waitForResultOrReboot(ms) {
+    return new Promise(res => {
+      if (lastOtaResult && (performance.now() - lastOtaResult.t) < 3000) {
+        const r = lastOtaResult.result; lastOtaResult = null;
+        return res({ type: 'result', result: r });
+      }
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; otaResultHook = null; res(v); } };
+      otaResultHook = (r) => finish({ type: 'result', result: r });
+      waitForDisconnect(ms).then(dropped => finish(dropped ? { type: 'disconnect' } : { type: 'timeout' }));
+    });
+  }
+
+  function waitForDisconnect(ms) {
+    return new Promise(res => {
+      if (!device || !device.gatt.connected) return res(true);
+      let t;
+      const on = () => { cleanup(); res(true); };
+      const cleanup = () => { clearTimeout(t); device.removeEventListener('gattserverdisconnected', on); };
+      t = setTimeout(() => { cleanup(); res(false); }, ms);
+      device.addEventListener('gattserverdisconnected', on);
+    });
+  }
+
+  function buildCmd(opcode, payloadBytes=[]) {
+    const buf = new Uint8Array(2 + payloadBytes.length);
+    const dv = new DataView(buf.buffer);
+    dv.setUint16(0, opcode, true);
+    buf.set(payloadBytes, 2);
+    return buf;
+  }
+
+  function buildStartExt(pduLen, versionCompare=0){
+    const payload = new Uint8Array(18);
+    payload[0] = pduLen & 0xFF;
+    payload[1] = versionCompare & 0xFF;
+    return buildCmd(OPC.CMD_OTA_START_EXT, payload);
+  }
+
+  // ---------------------------------------------------------------------
+  // Device capability probe.
+  //
+  // Web Bluetooth does not expose the negotiated ATT MTU, but an
+  // over-length writeWithoutResponse is rejected LOCALLY by the browser /
+  // OS stack (nothing reaches the device). So we try a harmless
+  // CMD_OTA_VERSION packet padded to each candidate data-packet size,
+  // largest first; the first size that the stack accepts tells us the
+  // usable PDU. Only that single accepted probe is actually transmitted,
+  // and CMD_OTA_VERSION is a legal pre-start no-op for the Telink OTA
+  // service.
+  //
+  //   new device (app fw, MTU 247)      -> 228-byte probe passes -> PDU 224
+  //   old device app fw (MTU 80)        -> 68-byte probe passes  -> PDU 64,
+  //     START_EXT then makes it reboot into the bootloader; the disconnect
+  //     is caught and we fall back to the legacy two-stage flow.
+  //   old bootloader / DFU (MTU 23)     -> every probe fails     -> Legacy 16
+  // ---------------------------------------------------------------------
+  async function probeMaxPdu(wantPdu) {
+    if (!otaChar.properties.writeWithoutResponse) {
+      log("Characteristic has no write-without-response; skipping probe, using Legacy 16.");
+      return 0;
+    }
+    const candidates = [240, 224, 192, 160, 128, 96, 64].filter(p => p <= wantPdu || p === 64);
+    for (const pdu of candidates) {
+      const pktLen = 2 + pdu + 2; // adr_index + data + crc16
+      const probe = new Uint8Array(pktLen);
+      new DataView(probe.buffer).setUint16(0, OPC.CMD_OTA_VERSION, true);
+      try {
+        await otaChar.writeValueWithoutResponse(probe);
+        log(`Probe: ${pktLen}-byte write accepted -> max PDU ${pdu}`);
+        return pdu;
+      } catch (e) {
+        // rejected locally (exceeds MTU-3): try the next smaller size
+      }
+    }
+    log("Probe: all big-PDU writes rejected -> small MTU link (old bootloader).");
+    return 0;
+  }
+
+  // Build one OTA data packet: adr_index(2) + data(n) + crc16(2).
+  // Same layout for Legacy (n=16) and Extend (n=pdu_length) - the Extend
+  // packets carry a CRC16 exactly like Legacy ones.
+  function buildDataPacket(adrIndex, payload, algorithm) {
+    const n = payload.length;
+    const pkt = new Uint8Array(2 + n + 2);
+    const dv = new DataView(pkt.buffer);
+    dv.setUint16(0, adrIndex, true);
+    pkt.set(payload, 2);
+
+    const mode = $("crc").value;
+    const seed = (mode.endsWith('0000')) ? 0x0000 : 0xFFFF;
+    let crcInput;
+    if (mode.startsWith('seqdata')) {
+      crcInput = new Uint8Array(2 + n);
+      new DataView(crcInput.buffer).setUint16(0, adrIndex, true);
+      crcInput.set(payload, 2);
+    } else {
+      crcInput = payload;
+    }
+    const crc = getCRC(algorithm, crcInput, seed);
+    dv.setUint16(2 + n, crc, true);
+    return pkt;
+  }
+
+  // Stream the firmware and send CMD_OTA_END. START/START_EXT must have
+  // been sent by the caller.
+  //
+  // Padding rule (Telink OTA v2): the image is padded to a 16-byte
+  // boundary only. The LAST data packet carries just the remaining bytes
+  // (a 16-multiple <= pdu_length) - padding it up to the full declared
+  // PDU makes the device reject it with result 9 (PDU_LEN_ERR), because
+  // it knows the exact image size from the header at offset 0x18.
+  async function streamData(dataLen, data, algorithm) {
+    const firmware = padToMultiple(data, 16);
+    const totalBlocks = Math.ceil(firmware.length / dataLen);
+    const t0 = performance.now();
+    let offset = 0, adrIndex = 0;
+
+    setState("Flashing…");
+    while (offset < firmware.length) {
+      if (aborting) throw new Error('Aborted');
+      const n = Math.min(dataLen, firmware.length - offset);
+      const payload = firmware.subarray(offset, offset + n);
+      const pkt = buildDataPacket(adrIndex, payload, algorithm);
+
+      if (adrIndex < 3) log(`Packet ${adrIndex}: ${toHex(pkt.subarray(0, Math.min(24, pkt.length)))}${pkt.length > 24 ? ' …' : ''}`);
+
+      if (adrIndex === 0 && otaChar.properties.write) {
+        // FIRST packet as an ATT Write REQUEST: the response only comes back
+        // once the device has actually processed it - i.e. after the
+        // multi-second flash erase (bootloader region, or the whole app
+        // region in DFU) that the START command kicks off synchronously.
+        // Write-without-response packets sent into that deaf window overflow
+        // the device's 8-deep LL RX FIFO and are silently dropped, which
+        // surfaces as DATA_PACKET_SEQ_ERR / FLOW_ERR. This self-paces
+        // exactly as long as the erase takes, no guessed delays.
+        setState("Waiting for device erase…");
+        await otaChar.writeValue(pkt);
+        setState("Flashing…");
+        log("Device finished erasing - streaming…");
+      } else {
+        await writeChunk(pkt);
+      }
+
+      offset += n;
+      adrIndex++;
+      // Flow-control barrier: writeValueWithoutResponse resolves when the
+      // packet is QUEUED in the OS stack, not when it is on the air, so the
+      // progress bar would otherwise sprint ahead of the real transfer. A
+      // read request is ordered after all preceding write commands and is
+      // side-effect free on the OTA characteristic - when it returns, every
+      // packet before it has actually been delivered. (Same trick as the
+      // official tool's "read interval (packet)" setting.)
+      if (adrIndex % 64 === 0 && otaChar.properties.read) {
+        await otaChar.readValue().catch(() => {});
+      }
+      setProgress(Math.round((offset / firmware.length) * 100));
+    }
+
+    // Drain the queue so the timing/throughput report below is honest.
+    if (otaChar.properties.read) await otaChar.readValue().catch(() => {});
+
+    const adrMax = Math.max(0, (adrIndex - 1)) & 0xFFFF;
+    const xor = adrMax ^ 0xFFFF;
+    const endPayload = new Uint8Array(4);
+    new DataView(endPayload.buffer).setUint16(0, adrMax, true);
+    new DataView(endPayload.buffer).setUint16(2, xor, true);
+
+    log(`Sending CMD_OTA_END (adr_max=${adrMax}, xor=0x${xor.toString(16)})…`);
+    await writeChunk(buildCmd(OPC.CMD_OTA_END, endPayload));
+
+    const dt = ((performance.now() - t0)/1000).toFixed(2);
+    const kbs = (firmware.length / 1024 / (dt || 1)).toFixed(1);
+    setState("Waiting for result…");
+    log(`Sent ${firmware.length} bytes in ${dt}s across ${totalBlocks} blocks (dataLen=${dataLen}) — ${kbs} KB/s.`);
+    log("Transfer delivered. The device now commits the image and reboots to flash it (~10-20s); a disconnect here is expected.");
+  }
+
+  // Old-device flow. CRITICAL TIMING: the DFU bootloader arms its OTA
+  // data-packet timeout (a few seconds) the moment CMD_OTA_START is
+  // written - idling after START expires the session and the following
+  // data packets die with DATA_PACKET_SEQ_ERR. So we must know WHERE we
+  // are BEFORE starting, not by watching what happens after: the app
+  // firmware (old and new) exposes the SPP control service, the DFU
+  // bootloader does not.
+  //  - app firmware: send a bare START to trigger the reboot into the
+  //    bootloader, wait out the supervision timeout, reconnect (same MAC).
+  //  - DFU bootloader: VERSION + START + data back-to-back, like the
+  //    official tool's legacy flow.
+  async function legacyTwoStage(data, algorithm) {
+    let inApp = true;
+    try { await server.getPrimaryService(SPP_SERVICE_UUID); }
+    catch (_) { inApp = false; }
+
+    if (inApp) {
+      setState("Legacy: entering DFU…");
+      log("App firmware detected (SPP service present) - sending CMD_OTA_START to reboot into the DFU bootloader…");
+      try { await writeChunk(buildCmd(OPC.CMD_OTA_START)); } catch (e) { /* may race the reboot */ }
+
+      // A rebooting device cannot send LL_TERMINATE, so the central only
+      // notices at the supervision timeout - allow a generous window.
+      const rebooted = await waitForDisconnect(6000);
+      if (rebooted) {
+        log("Link dropped -> device rebooted into bootloader. Reconnecting…");
+        await sleep(1500); // let the bootloader start advertising
+        if (!(await reconnectGatt(30000))) throw new Error("Could not reconnect to the DFU bootloader");
+      } else {
+        // New firmware stages app OTA to the SD card without rebooting; the
+        // session opened above idled out during the wait, so just start a
+        // fresh one below on this same connection.
+        log("Link stayed up (new firmware, SD staging) - restarting the OTA session on this connection…");
+      }
+    } else {
+      log("No SPP service -> connected to the DFU bootloader.");
+    }
+
+    // START, then data IMMEDIATELY - no idle gap (the DFU arms a short
+    // data-packet timeout at START), and no CMD_OTA_VERSION (this firmware
+    // generation's OTA lib mishandles it -> DATA_PACKET_SEQ_ERR).
+    setState("Legacy: starting…");
+    log("Sending CMD_OTA_START…");
+    await writeChunk(buildCmd(OPC.CMD_OTA_START));
+    await streamData(16, data, algorithm);
+  }
+
+  // Send the 0x78 "OTA type" command over the SPP control characteristic.
+  // Packet format (user_bll.c dispatch): [cmd, N, payload..., cmd] where the
+  // command byte is echoed at value[N-1]. For 0x78: [0x78, 0x04, type, 0x78],
+  // type 1 = Bootloader, 2 = App. Fire-and-forget (the firmware only logs it),
+  // so give the main loop a moment to process before starting the OTA.
+  async function sendOtaTypeCmd(type) {
+    const svc = await server.getPrimaryService(SPP_SERVICE_UUID);
+    const ch = await svc.getCharacteristic(SPP_RX_CHAR_UUID);
+    const pkt = new Uint8Array([0x78, 0x04, type & 0xFF, 0x78]);
+    if (ch.properties.writeWithoutResponse) await ch.writeValueWithoutResponse(pkt);
+    else await ch.writeValue(pkt);
+    log(`Sent OTA-type command 0x78 (type=${type}).`);
+    await sleep(400);
+  }
+
+  // Bootloader OTA (ota_type=1), NEW firmware only: the 0x78 command
+  // switches the OTA target to 0x0000, the firmware backs up the current
+  // bootloader to the SD card, erases the region and lets the OTA lib write
+  // the new image there directly - all on this same connection, no reboot
+  // (the bootloader is not the code that is running).
+  // OLD firmware is rejected below: its success handler verifies before the
+  // OTA lib writes the boot mark, so it restores the SD backup every time -
+  // the update silently reverts. Update the app first (Migrate does this).
+  // A DFU/bootloader connection has no SPP service, so step 1 rejects it -
+  // never stream a bootloader image over a DFU link (it would be flashed
+  // into the APP region).
+  async function flashBootloader(data, algorithm) {
+    if (data.length > BOOTLOADER_MAX_SIZE) {
+      throw new Error(`Image is ${data.length} bytes but the bootloader region is ${BOOTLOADER_MAX_SIZE} (124 KB) - wrong file?`);
+    }
+
+    log("Bootloader update: switching device to ota_type=1…");
+    try {
+      await sendOtaTypeCmd(1);
+    } catch (e) {
+      throw new Error("SPP control service not found - this looks like a DFU/bootloader connection, which cannot update the bootloader. Reconnect to the normal firmware and retry.");
+    }
+
+    setState("Detecting…");
+    const pdu = await probeMaxPdu(240);
+    setProgress(1);
+
+    if (pdu >= 224) {
+      log(`New firmware link: Extend protocol, PDU ${pdu}.`);
+      log(`Sending CMD_OTA_START_EXT (pduLen=${pdu})…`);
+      await writeChunk(buildStartExt(pdu, 0));
+      await sleep(300);
+      try {
+        await streamData(pdu, data, algorithm);
+      } catch (e) {
+        if (!aborting && device && !device.gatt.connected) {
+          throw new Error("Link dropped during bootloader OTA. Do NOT retry over a DFU connection - reconnect to the normal firmware first.");
+        }
+        throw e;
+      }
+    } else {
+      // OLD firmware detected. Its ota_type=1 success handler verifies the
+      // bootloader region BEFORE the OTA lib writes the image's boot mark,
+      // so the check always fails and it silently restores the SD backup:
+      // the transfer "succeeds" on the wire but the device keeps its old
+      // bootloader every single time. Unfixable from this side - the app
+      // must be updated first (its fixed handler completes the mark before
+      // verifying).
+      throw new Error("Old firmware detected: its bootloader-OTA handler silently reverts every update (verify-before-boot-mark bug). Update the App firmware first (or use Migrate, which does app-then-bootloader), then flash the bootloader.");
+    }
+
+    log("On success the device verifies the new bootloader and reboots itself (flag 0x5C keeps the app awake for reconnection).");
+  }
+
+  async function flash() {
+    if (!otaChar) { log("Not connected."); return; }
+    aborting = false;
+    $("btnAbort").disabled = false;
+
+    try {
+      const file = $("file").files[0];
+      if (!file) { log("Choose a firmware .bin first."); return; }
+      const data = new Uint8Array(await file.arrayBuffer());
+      const algorithm = $("crcAlg").value;
+
+      if ($("target").value === 'bootloader') {
+        await flashBootloader(data, algorithm);
+        return;
+      }
+
+      // Make sure the firmware targets the APP region - a previously failed
+      // bootloader OTA can leave ota_type=1 behind. Best-effort: a DFU /
+      // bootloader connection has no SPP service (throws), old firmware may
+      // simply ignore the command; neither is fatal.
+      try { await sendOtaTypeCmd(2); } catch (_) { /* not fatal */ }
+
+      let wantPdu = Math.max(16, Math.min(240, (parseInt($("pdu").value, 10) || 224)));
+      if (wantPdu % 16 !== 0) {
+        wantPdu = Math.floor(wantPdu / 16) * 16;
+        log(`Adjusted PDU length to ${wantPdu} (must be 16-byte aligned).`);
+      }
+
+      let mode = $("mode").value;
+      let pdu = 0;
+
+      if (mode === 'auto') {
+        setState("Detecting…");
+        pdu = await probeMaxPdu(wantPdu);
+        mode = (pdu > 0) ? 'new' : 'old';
+        log(`Auto-detect: ${mode === 'new' ? `Extend protocol, PDU ${pdu}` : 'Legacy protocol, PDU 16'}.`);
+      } else if (mode === 'new') {
+        pdu = wantPdu;
+      }
+
+      setProgress(1);
+
+      if (mode === 'new') {
+        log(`Sending CMD_OTA_START_EXT (pduLen=${pdu})…`);
+        await writeChunk(buildStartExt(pdu, 0));
+        // New firmware stages to the SD card on this same connection. An
+        // OLD app firmware (or a new one whose SD is unavailable) instead
+        // reboots into the DFU bootloader here - catch the dropped link
+        // and continue with the legacy flow.
+        await sleep(300);
+        try {
+          await streamData(pdu, data, algorithm);
+        } catch (e) {
+          if (aborting) throw e;
+          if (device && !device.gatt.connected) {
+            log("Link dropped after START_EXT -> device uses the reboot-to-bootloader flow. Falling back to Legacy…");
+            setProgress(1);
+            await sleep(1500);
+            if (!(await reconnectGatt(30000))) throw new Error("Could not reconnect to the DFU bootloader");
+            await legacyTwoStage(data, algorithm);
+          } else {
+            throw e;
+          }
+        }
+      } else {
+        await legacyTwoStage(data, algorithm);
+      }
+    } finally {
+      $("btnAbort").disabled = true;
+    }
+  }
+
+  // One-time migration for OLD devices, in one click. ORDER MATTERS:
+  //   phase 1: flash the NEW APP through the old DFU bootloader (bare START
+  //            reboots the old app into DFU; Legacy 16 on the old
+  //            bootloader). The bootloader CANNOT go first: the old app's
+  //            ota_type=1 handler verifies before the OTA lib has written
+  //            the image's boot mark, so it "restores" the SD backup every
+  //            time - the update reports success but silently reverts.
+  //   phase 2: reconnect to the NEW app (charger keeps it awake across the
+  //            reboot!) and flash the NEW bootloader through its FIXED
+  //            ota_type=1 path (Extend 240, no reboot during transfer).
+  // Devices already on the new firmware never need this again: app updates
+  // go over the SD-staging path and bootloader updates via Update target.
+  async function migrate() {
+    if (!otaChar) { log("Not connected."); return; }
+    aborting = false;
+    $("btnAbort").disabled = false;
+    try {
+      const appFile = $("file").files[0];
+      const blFile  = $("blfile").files[0];
+      if (!blFile)  { log("Choose the BOOTLOADER .bin (second file input) first."); return; }
+      if (!appFile) { log("Choose the new APP firmware .bin (first file input) first."); return; }
+      const blData  = new Uint8Array(await blFile.arrayBuffer());
+      const appData = new Uint8Array(await appFile.arrayBuffer());
+      const algorithm = $("crcAlg").value;
+      if (blData.length > BOOTLOADER_MAX_SIZE) throw new Error("Bootloader file exceeds 124 KB - are the two files swapped?");
+      if (appData.length <= BOOTLOADER_MAX_SIZE) log("Warning: the app image is under 124 KB - double-check the files are not swapped.");
+
+      // Migration must start from the running app firmware (SPP present);
+      // flashBootloader() would reject a DFU link anyway, fail early here.
+      try { await server.getPrimaryService(SPP_SERVICE_UUID); }
+      catch (_) { throw new Error("No SPP service - connect to the RUNNING firmware (not the DFU bootloader) to start the migration."); }
+
+      log("IMPORTANT: keep the device ON THE CHARGER for the whole migration. After phase 1 the freshly flashed app boots asleep within a second unless it is charging, and phase 2 needs to reconnect to it.");
+
+      log("=== Migration phase 1/2: app firmware (via the old DFU bootloader) ===");
+      lastOtaResult = null;
+      log("Sending CMD_OTA_START to reboot into the DFU bootloader…");
+      try { await writeChunk(buildCmd(OPC.CMD_OTA_START)); } catch (_) { /* races the reboot */ }
+      const dropped = await waitForDisconnect(8000);
+      if (!dropped) throw new Error("Device did not reboot into DFU - it may already run the new firmware; use the normal per-target updates instead of Migrate.");
+      await sleep(1500);
+      if (!(await reconnectGatt(40000))) throw new Error("Could not reconnect to the DFU bootloader - power-cycle and retry the migration.");
+
+      const pdu = await probeMaxPdu(240);
+      setProgress(1);
+      if (pdu >= 64) {
+        log(`DFU link accepts PDU ${pdu} - Extend protocol.`);
+        await writeChunk(buildStartExt(pdu, 0));
+        await sleep(100);
+        await streamData(pdu, appData, algorithm);
+      } else {
+        log("Small-MTU DFU link - Legacy protocol, PDU 16 (slow but works).");
+        await writeChunk(buildCmd(OPC.CMD_OTA_START));
+        await streamData(16, appData, algorithm);
+      }
+      let ev = await waitForResultOrReboot(30000);
+      if (ev.type === 'result' && ev.result !== 0) {
+        throw new Error(`App OTA failed (result ${ev.result}). The device is still in DFU - just run Migrate again.`);
+      }
+      if (ev.type === 'timeout') throw new Error("No OTA result after the app transfer - aborting; the device is still in DFU, run Migrate again.");
+      if (ev.type === 'result') {
+        log("App accepted - waiting for the device to reboot into it…");
+        await waitForDisconnect(15000);
+      } else {
+        log("Device rebooted right after the transfer - app accepted.");
+      }
+
+      log("=== Migration phase 2/2: bootloader (via the new app) ===");
+      log("Reconnecting to the new app - if this stalls, the device fell asleep: plug in the charger / press a button…");
+      await sleep(2500); // boot + advertising start
+      if (!(await reconnectGatt(60000))) throw new Error("Reconnect after the app update failed - wake the device (charger/button), reconnect and flash the Bootloader target to finish.");
+      try { await server.getPrimaryService(SPP_SERVICE_UUID); }
+      catch (_) { throw new Error("Reconnected to a DFU link instead of the app - power-cycle, then flash the App target and retry."); }
+
+      lastOtaResult = null;
+      await flashBootloader(blData, algorithm);
+      ev = await waitForResultOrReboot(30000);
+      if (ev.type === 'result' && ev.result !== 0) {
+        throw new Error(`Bootloader OTA failed (result ${ev.result}). DO NOT power the device off - flash the Bootloader target again now.`);
+      }
+      if (ev.type === 'timeout') throw new Error("No OTA result after the bootloader transfer. DO NOT power off - flash the Bootloader target again now.");
+      log("=== Migration complete - the device reboots into the new firmware. ===");
+      setState("Migrated");
+      setProgress(100);
+    } finally {
+      $("btnAbort").disabled = true;
+    }
+  }
+
+  $("btnConnect").addEventListener('click', connect);
+  $("btnFlash").addEventListener('click', () => flash().catch(e => { log("Flash error: " + e.message); setState("Error"); }));
+  $("btnMigrate").addEventListener('click', () => migrate().catch(e => { log("Migrate error: " + e.message); setState("Error"); }));
+  const btnAbort = $("btnAbort");
+  if (btnAbort) btnAbort.addEventListener('click', () => { aborting = true; setState("Aborting…"); });
+})();
+</script>
+</body>
+</html>
+
