@@ -43,6 +43,10 @@
           <span class="pill">B91_module.bin</span>
         </div>
         <div>
+          <label>Prod firmware</label>
+          <span class="pill">B91_module_PROD.bin</span>
+        </div>
+        <div>
           <label>Bootloader</label>
           <span class="pill">B91_bootloader.bin</span>
         </div>
@@ -86,6 +90,7 @@
       <div class="row" style="margin-top:12px">
         <button id="btnConnect" class="primary">Connect</button>
         <button id="btnFlash" class="success">Flash main</button>
+        <button id="btnFlashProd" class="success">Update B91 Prod</button>
         <button id="btnFlashBl" class="warn">Flash bootloader</button>
         <button id="btnAbort" class="warn" disabled>Abort</button>
       </div>
@@ -142,6 +147,7 @@
   // Fixed firmware images served next to this page.
   const FIRMWARE_FILES = {
     app:  "B91_module.bin",
+    prod: "B91_module_PROD.bin",
     bldr: "B91_bootloader.bin",
   };
 
@@ -680,13 +686,13 @@
     log("On success the device verifies the new bootloader and reboots itself (flag 0x5C keeps the app awake for reconnection).");
   }
 
-  async function flash() {
+  async function flash(fwKey = "app", fwName = "App firmware") {
     if (!otaChar) { log("Not connected."); return; }
     aborting = false;
     $("btnAbort").disabled = false;
 
     try {
-      const data = await fetchFirmware("app", "App firmware");
+      const data = await fetchFirmware(fwKey, fwName);
       const algorithm = $("crcAlg").value;
 
       // Make sure the firmware targets the APP region - a previously failed
@@ -780,6 +786,7 @@
 
   $("btnConnect").addEventListener('click', connect);
   $("btnFlash").addEventListener('click', () => flash().catch(e => { log("Flash error: " + e.message); setState("Error"); }));
+  $("btnFlashProd").addEventListener('click', () => flash("prod", "Prod firmware").catch(e => { log("Flash error: " + e.message); setState("Error"); }));
   $("btnFlashBl").addEventListener('click', () => flashBl().catch(e => { log("Bootloader flash error: " + e.message); setState("Error"); }));
   const btnAbort = $("btnAbort");
   if (btnAbort) btnAbort.addEventListener('click', () => { aborting = true; setState("Aborting…"); });

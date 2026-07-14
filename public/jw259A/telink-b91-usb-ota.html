@@ -44,6 +44,10 @@
           <span class="pill">B91_module.bin</span>
         </div>
         <div>
+          <label>B91 prod firmware</label>
+          <span class="pill">B91_module_PROD.bin</span>
+        </div>
+        <div>
           <label>B91 bootloader</label>
           <span class="pill">B91_bootloader.bin</span>
         </div>
@@ -60,6 +64,7 @@
       </div>
       <div class="row" style="margin-top:8px">
         <button id="btnApp" class="success" disabled>Update B91 App (DFU)</button>
+        <button id="btnProd" class="success" disabled>Update B91 Prod (DFU)</button>
         <button id="btnBl" class="success" disabled>Update Bootloader (via App)</button>
         <button id="btnEsp" class="success" disabled>Update ESP32 (DFU)</button>
         <button id="btnMigrate" class="warn" disabled>Migrate old device (BL → App)</button>
@@ -479,6 +484,7 @@
   // Fixed firmware images served next to this page.
   const FIRMWARE_FILES = {
     app:  "B91_module.bin",
+    prod: "B91_module_PROD.bin",
     bldr: "B91_bootloader.bin",
     esp:  "focus-v-firmware-wifi-esp-idf.bin",
   };
@@ -499,6 +505,7 @@
     $("btnReset").disabled = !on;
     $("btnReboot").disabled = !on;
     $("btnApp").disabled = !on;
+    $("btnProd").disabled = !on;
     $("btnBl").disabled = !on;
     $("btnEsp").disabled = !on;
     $("btnMigrate").disabled = !on;
@@ -543,6 +550,13 @@
     await resetToDfu();
     await sleep(1000);
     setState("Flashing app…");
+    await flashFirmware("b91", d);
+  }));
+  $("btnProd").addEventListener("click", run("prod", async () => {
+    const d = await fetchFirmware("prod", "B91 prod firmware");
+    await resetToDfu();
+    await sleep(1000);
+    setState("Flashing prod…");
     await flashFirmware("b91", d);
   }));
   $("btnBl").addEventListener("click", run("bldr", async () => {
