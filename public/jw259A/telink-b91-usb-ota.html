@@ -103,6 +103,9 @@
     bldr: { min: 8*1024,   max: 124*1024,  magic: "BLDR", name: "B91 bootloader (flash 0x0000, via running app)" },
     esp:  { min: 1024*1024,max: 1843*1024, magic: "ESP!", name: "ESP32-S2 (forwarded over B91 UART1, in DFU)" },
   };
+  // The DFU bootloader announces itself once a second while idle
+  // (cdc_ota_idle_tick: "Hello world v21"). The running app never sends it.
+  const DFU_HEARTBEAT = "Hello world";
 
   function adler32(data) {
     // zlib.adler32 equivalent; MOD 65521, chunked to keep sums in range.
@@ -119,15 +122,38 @@
   const u32le = (v) => new Uint8Array([v & 0xFF, (v>>>8)&0xFF, (v>>>16)&0xFF, (v>>>24)&0xFF]);
 
   // ------------------------- serial plumbing -------------------------
-  // One always-running read pump per open port: splits '\n' lines into a
-  // FIFO consumed by readLine(); every line is also echoed to the Device
-  // log when the monitor is on. The pump ends when the device reboots
-  // (read() fails/done) and flips the UI to disconnected.
-  let port = null, writer = null, readerAbort = null;
+  // One read pump per open port: splits '\n' lines into a FIFO consumed by
+  // readLine(); every line is also echoed to the Device log when the
+  // monitor is on.
+  //
+  // Lessons from the python tool (cdc_ota_tool.py), which never drops the
+  // link, versus this page, which used to "connect for a second and then
+  // disconnect" on the ESP32 path:
+  //  * pyserial ignores the OS's non-fatal line-error flags entirely. Web
+  //    Serial surfaces them as BufferOverrunError / FramingError /
+  //    BreakError / ParityError rejections of reader.read(); the port is
+  //    still open (port.readable is non-null) and the correct reaction is
+  //    to grab a new reader and carry on. The old pump treated ANY read
+  //    error as "device rebooted" and closed the port.
+  //  * the global navigator.serial "disconnect" event fires for EVERY
+  //    granted device. After "reset" the app-mode port goes away, and if
+  //    Windows delivers that removal AFTER we already reopened the new
+  //    bootloader port, a port-agnostic handler tore down the fresh link.
+  //    Now the event is only honoured for the port we currently hold.
+  //  * closing a port while its reader is still locked makes port.close()
+  //    reject (silently swallowed before), so the old port object stayed
+  //    open in Chrome. The teardown now cancels the reader, waits for the
+  //    pump to exit, and really closes the port.
+  //  * every disconnect path now logs WHICH path fired, the error name and
+  //    message, and the protocol stage, so a failure is self-diagnosing.
+  let port = null, writer = null, reader = null, pumpDone = null;
   let lineFifo = [], lineWaiter = null;
   let monitorOn = false;
   let connected = false;
   let busy = false;
+  let stage = "idle";            // protocol stage, for diagnostics
+  let lostReason = "";           // why the last port went away
+  const setStage = (s) => { stage = s; };
 
   function pushLine(line) {
     if (monitorOn) dlog(line.startsWith("LOG ") ? line.slice(4) : line);
@@ -135,34 +161,76 @@
     if (lineWaiter) { const w = lineWaiter; lineWaiter = null; w(); }
   }
 
-  async function readPump() {
+  async function readPump(p) {
     let buf = "";
-    const reader = port.readable.getReader();
-    readerAbort = () => reader.cancel().catch(()=>{});
+    let fatal = null;
+    let glitches = 0;
     try {
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let nl;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          pushLine(buf.slice(0, nl).replace(/\r$/, ""));
-          buf = buf.slice(nl + 1);
+      // Standard Web Serial loop: a non-fatal error errors the current
+      // ReadableStream but leaves port.readable available (a fresh stream),
+      // so re-acquire a reader and keep going. Only a null port.readable
+      // (device lost / port closed) ends the pump.
+      while (port === p && p.readable) {
+        const r = p.readable.getReader();
+        reader = r;
+        let closed = false;
+        try {
+          for (;;) {
+            const { value, done } = await r.read();
+            if (done) { closed = true; break; }
+            glitches = 0;
+            buf += dec.decode(value, { stream: true });
+            let nl;
+            while ((nl = buf.indexOf("\n")) >= 0) {
+              pushLine(buf.slice(0, nl).replace(/\r$/, ""));
+              buf = buf.slice(nl + 1);
+            }
+          }
+        } catch (e) {
+          if (port === p && p.readable && ++glitches <= 50) {
+            log(`Serial read glitch (${e.name}: ${e.message}) during '${stage}' - non-fatal, link kept.`);
+            await sleep(20);
+            continue;
+          }
+          fatal = e;
+        } finally {
+          try { r.releaseLock(); } catch (_) {}
+          if (reader === r) reader = null;
         }
+        if (closed || fatal) break;
       }
-    } catch (_) { /* device rebooted / unplugged */ }
-    finally {
-      try { reader.releaseLock(); } catch (_) {}
-      markDisconnected("Port closed (device rebooted or unplugged).");
+    } finally {
+      if (port === p) {
+        const why = fatal ? `read failed (${fatal.name}: ${fatal.message})` : "read stream closed";
+        await onPortLost(p, `Port lost during '${stage}': ${why}.`);
+      }
     }
   }
 
-  function markDisconnected(msg) {
-    if (!connected) return;
-    connected = false;
+  // Device-initiated loss (reboot / unplug / fatal read error). Idempotent
+  // and port-specific: a stale event for an older port object is ignored.
+  async function onPortLost(p, msg) {
+    if (port !== p) return;
+    port = null; connected = false; lostReason = msg;
     try { if (writer) writer.releaseLock(); } catch (_) {}
-    writer = null;
-    try { if (port) port.close().catch(()=>{}); } catch (_) {}
+    writer = null; reader = null;
+    try { await p.close(); } catch (_) { /* already gone */ }
+    if (msg) log(msg);
+    setState("Disconnected");
+    updateButtons();
+  }
+
+  // Host-initiated close: cancel the reader, let the pump exit, close.
+  async function closePort(msg) {
+    const p = port;
+    if (!p) return;
+    port = null; connected = false; lostReason = msg || "closed by host";
+    try { if (reader) await reader.cancel(); } catch (_) {}
+    try { if (writer) writer.releaseLock(); } catch (_) {}
+    writer = null; reader = null;
+    try { if (pumpDone) await pumpDone; } catch (_) {}
+    pumpDone = null;
+    try { await p.close(); } catch (e) { log(`(close note: ${e.name}: ${e.message})`); }
     if (msg) log(msg);
     setState("Disconnected");
     updateButtons();
@@ -174,8 +242,8 @@
     port = p;
     writer = p.writable.getWriter();
     lineFifo = []; lineWaiter = null;
-    connected = true;
-    readPump(); // runs until the port dies
+    connected = true; lostReason = "";
+    pumpDone = readPump(p); // runs until the port dies or we close it
     const info = p.getInfo();
     log(`Opened Telink CDC port (VID 0x${(info.usbVendorId||0).toString(16)} PID 0x${(info.usbProductId||0).toString(16)}).`);
     setState("Connected");
@@ -193,6 +261,19 @@
     }
   }
 
+  // Wait (up to maxMs) for the CURRENT port to go away after we told the
+  // device to reboot. Resolves true if it dropped, false if it is still
+  // there (e.g. the command was ignored because the device was already in
+  // the mode we asked for).
+  async function awaitDrop(maxMs) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < maxMs) {
+      if (!port) return true;
+      await sleep(100);
+    }
+    return false;
+  }
+
   // After a device-initiated reboot the device re-enumerates. Chrome only
   // auto-reopens ports the user has ALREADY granted, and the grant is keyed
   // on VID+PID+USB serial string. On old firmware the app reports serial
@@ -201,13 +282,24 @@
   // returns it. Phase 1 polls getPorts(); phase 2 falls back to a one-time
   // manual Connect click - Chrome remembers that grant, so every later
   // reboot in either direction reconnects automatically.
-  async function reconnect(maxMs = 12000) {
+  //
+  // `oldPort` is the port object we just lost: a re-enumerated device gets a
+  // NEW SerialPort object, and the old one can linger in getPorts() for a
+  // moment before Chrome processes the removal. Reopening THAT one would
+  // "connect" to a device that is about to vanish - exactly the
+  // connect-then-drop symptom - so it is skipped.
+  async function reconnect(maxMs = 12000, oldPort = null) {
     setState("Reconnecting…");
     let t0 = Date.now();
     while (Date.now() - t0 < maxMs) {
       if (connected) return true;   // user beat us to it via [Connect]
       const ports = await navigator.serial.getPorts();
       for (const p of ports) {
+        // Skip the old instance for the first 3s; if it is STILL the only
+        // one after that the device never re-enumerated (command ignored),
+        // so reopening it is the right thing to do.
+        if (p === oldPort && Date.now() - t0 < 3000) continue;
+        if (p.connected === false) continue;   // Chrome 117+: enumerated but not present
         const i = p.getInfo();
         if (i.usbVendorId === USB_VID && i.usbProductId === USB_PID) {
           try { await openPort(p); return true; } catch (_) { /* not up yet */ }
@@ -227,7 +319,7 @@
   }
 
   async function write(bytes) {
-    if (!writer) throw new Error("not connected");
+    if (!writer) throw new Error("not connected" + (lostReason ? ` (${lostReason})` : ""));
     await writer.write(bytes instanceof Uint8Array ? bytes : enc.encode(bytes));
   }
 
@@ -246,8 +338,9 @@
     for (;;) {
       const remaining = deadline - Date.now();
       if (remaining <= 0) throw new Error("timed out waiting for device response");
-      const line = await readLine(remaining);
-      if (line === null) throw new Error("timed out waiting for device response");
+      if (!connected) throw new Error("port dropped while waiting for device response" + (lostReason ? ` (${lostReason})` : ""));
+      const line = await readLine(Math.min(remaining, 500));
+      if (line === null) continue;
       if (line === "") continue;
       if (line.startsWith("LOG ")) { dlog(line.slice(4)); continue; }
       if (line === "OK") return true;
@@ -258,21 +351,35 @@
 
   // ------------------------- protocol actions -------------------------
 
-  async function heartbeatCheck() {
-    log("Listening for device heartbeat (1.5s)…");
-    let seen = false;
+  // Listen for `ms` and report whether the DFU bootloader heartbeat showed
+  // up. Returns { seen, dfu }: seen = any line at all, dfu = heartbeat.
+  async function listen(ms) {
+    let seen = false, dfu = false;
     const t0 = Date.now();
-    while (Date.now() - t0 < 1500) {
-      const line = await readLine(1500 - (Date.now() - t0));
+    while (Date.now() - t0 < ms) {
+      const line = await readLine(ms - (Date.now() - t0));
       if (line === null) break;
-      if (line) { dlog(line.startsWith("LOG ") ? line.slice(4) : line); seen = true; }
+      if (line) {
+        dlog(line.startsWith("LOG ") ? line.slice(4) : line);
+        seen = true;
+        if (line.includes(DFU_HEARTBEAT)) dfu = true;
+      }
     }
-    log(seen ? "Device heartbeat detected - link OK."
-             : "WARNING: no heartbeat. Is the device in the bootloader (DFU) with CDC-OTA? Trying anyway…");
+    return { seen, dfu };
+  }
+
+  async function heartbeatCheck() {
+    setStage("heartbeat");
+    log("Listening for device heartbeat (1.5s)…");
+    const r = await listen(1500);
+    log(r.dfu  ? "DFU bootloader heartbeat detected - link OK."
+      : r.seen ? "Device is talking, but no DFU heartbeat seen - continuing anyway…"
+      :          "WARNING: no heartbeat. Is the device in the bootloader (DFU) with CDC-OTA? Trying anyway…");
+    return r;
   }
 
   // START / DATA / VERIFY - the exact cdc_ota_tool.py sequence.
-  async function flashFirmware(target, data) {
+  async function flashFirmware(target, data, opts = {}) {
     const cfg = LIMITS[target];
     const size = data.length;
     if (size === 0) throw new Error("file is empty");
@@ -285,7 +392,8 @@
     if (target !== "esp") log(`Adler32   : 0x${checksum.toString(16).padStart(8, "0")}`);
 
     lineFifo = [];
-    await heartbeatCheck();
+    if (opts.dfuConfirmed) log("DFU bootloader heartbeat already confirmed - skipping the second probe.");
+    else await heartbeatCheck();
 
     // ---- START ----
     // The magic and the size MUST go out in ONE write/USB transfer: the
@@ -294,11 +402,14 @@
     // dropped as an unknown text command and the 8-byte frame never
     // completes (and its 4 leftover magic bytes then corrupt the NEXT
     // attempt's size field -> "ERR bad size").
+    setStage("START");
     log("-> START" + (target === "esp" ? " (ESP32 erases an OTA partition first, may take ~15s)" : ""));
     const startFrame = new Uint8Array(8);
     startFrame.set(enc.encode(cfg.magic), 0);
     startFrame.set(u32le(size), 4);
     await write(startFrame);
+    // The bootloader blocks in esp_ota_begin() for up to 15s (no USB
+    // servicing at all) before it answers; give it the full window.
     await readResponse(target === "esp" ? 20000 : 3000);
     log("<- OK (device ready)");
 
@@ -312,6 +423,7 @@
       const eta = spd > 0 ? ((size - offset) / 1024) / spd : 0;
       setProgress(Math.round(offset * 100 / size));
       setSpeed(`${spd.toFixed(1)} KB/s  ETA ${eta.toFixed(0)}s`);
+      setStage(`DATA ${Math.floor(offset*100/size)}%`);
       return spd;
     };
 
@@ -320,8 +432,9 @@
       // OS accepted the bytes, and the B91 NAKs its OUT endpoint while it
       // forwards to the ESP32 - natural flow control, same as the python
       // tool's blocking serial writes.
+      setStage("DATA 0%");
       while (offset < size) {
-        if (!connected) throw new Error("port dropped mid-transfer");
+        if (!connected) throw new Error("port dropped mid-transfer" + (lostReason ? ` (${lostReason})` : ""));
         const n = Math.min(PAGE_SIZE, size - offset);
         await write(data.subarray(offset, offset + n));
         offset += n; blockNo++;
@@ -332,8 +445,9 @@
       }
     } else {
       // Per-4KB-block ACK: the device erases+programs one sector per block.
+      setStage("DATA 0%");
       while (offset < size) {
-        if (!connected) throw new Error("port dropped mid-transfer");
+        if (!connected) throw new Error("port dropped mid-transfer" + (lostReason ? ` (${lostReason})` : ""));
         const n = Math.min(PAGE_SIZE, size - offset);
         await write(data.subarray(offset, offset + n));
         await readResponse(5000);
@@ -349,6 +463,7 @@
     // ---- FINISH / VERIFY ----
     // Both targets reboot the B91 on success, so a port drop right after
     // (or instead of) the OK means the update PASSED.
+    setStage(target === "esp" ? "FINISH" : "VERIFY");
     log(target === "esp" ? "-> FINISH (ESP32 commits + reboots; B91 reboots out of DFU)"
                          : "-> VERIFY (Adler-32 read-back on device, then reboot)");
     try {
@@ -370,15 +485,18 @@
         await sleep(2000);
       }
       await write(crcFrame);
+      // Firmware worst case for the ESP finish is esp_ota_finish(): one 10s
+      // wait plus four 3s retries = 22s, so 30s here avoids a spurious resend.
+      const finishTimeout = target === "esp" ? 30000 : 20000;
       try {
-        await readResponse(20000);
+        await readResponse(finishTimeout);
       } catch (e) {
-        if (target === "esp" && connected) {
+        if (target === "esp" && connected && /timed out/.test(e.message)) {
           // Belt-and-suspenders: if the frame still got swallowed the device
           // is parked in DONE waiting for a command - a clean resend works.
           log("No FINISH response - resending the finish frame once…");
           await write(crcFrame);
-          await readResponse(20000);
+          await readResponse(finishTimeout);
         } else {
           throw e;
         }
@@ -392,17 +510,20 @@
       }
     }
     setProgress(100);
+    setStage("done");
   }
 
   // "reset\n" to the RUNNING APP -> RESET-ACK -> reboots into the DFU
   // bootloader; then reopen the re-enumerated port.
   async function resetToDfu() {
     lineFifo = [];
+    setStage("reset");
+    const oldPort = port;
     log("-> 'reset' (app reboots into the DFU bootloader)…");
     await write("reset\n");
     const deadline = Date.now() + 1500;
     let acked = false;
-    while (Date.now() < deadline) {
+    while (Date.now() < deadline && connected) {
       const line = await readLine(deadline - Date.now());
       if (line === null) break;
       if (line.includes("RESET-ACK")) { acked = true; break; }
@@ -410,19 +531,67 @@
     }
     log(acked ? "<- RESET-ACK. Device is rebooting into the bootloader…"
               : "WARNING: no RESET-ACK (is the running app's CDC alive?). Watching for re-enumeration anyway…");
-    markDisconnected(null);
+    // Let the device drop the port itself (that is the proof it rebooted);
+    // only force-close if it is still here after 3s.
+    setStage("await drop");
+    const dropped = await awaitDrop(3000);
+    if (dropped) log("Old port is gone - waiting for the bootloader to enumerate…");
+    else {
+      log("Port did not drop by itself - the device did not reboot. Closing it and looking for the bootloader anyway…");
+      if (!acked) log("HINT: no RESET-ACK and no reboot. If an earlier attempt failed mid-transfer, the bootloader is stuck consuming every byte as image data (state RECV, heartbeat silent) - power-cycle the device and retry.");
+      await closePort(null);
+    }
     await sleep(1200);
-    if (!(await reconnect(12000))) throw new Error("device did not re-enumerate after reset");
+    setStage("reconnect");
+    if (!(await reconnect(12000, oldPort))) throw new Error("device did not re-enumerate after reset");
+    if (!dropped && port === oldPort) {
+      // Same USB instance came back = the device never rebooted, i.e. it was
+      // already the bootloader (one without a heartbeat) and our 6-byte
+      // "reset" + newline is now sitting in its 8-byte command buffer. Two
+      // filler newlines make the frame "complete" as unknown, which resets
+      // that buffer so the following START frame is parsed cleanly.
+      log("Same port reopened - device did not reboot (already in DFU?); resyncing its command buffer.");
+      await write(new Uint8Array([0x0A, 0x0A]));
+      await sleep(200);
+      lineFifo = [];
+      return;
+    }
     log("Reconnected to the bootloader CDC.");
+  }
+
+  // Make sure the DFU BOOTLOADER is on the port. The python tool's
+  // "Update ESP32" is always run against a device already sitting in DFU;
+  // mirror that: probe for the bootloader heartbeat first and only send
+  // "reset" when the running app is what answered. (Sending "reset\n" to
+  // the bootloader would leave 6 stray bytes in its command buffer and
+  // corrupt the following 8-byte START frame.)
+  async function ensureDfuMode() {
+    setStage("probe");
+    lineFifo = [];
+    log("Checking which firmware is on the port (1.5s)…");
+    const r = await listen(1500);
+    if (r.dfu) {
+      log("Device is already in the DFU bootloader - no reset needed.");
+      return true;
+    }
+    log(r.seen ? "Running app detected." : "No heartbeat - assuming the running app.");
+    await resetToDfu();
+    // Give the freshly enumerated bootloader a moment to settle before the
+    // first command (the python flow has a human-scale pause here).
+    setStage("settle");
+    await sleep(2000);
+    return false;
   }
 
   // "reboot" to the BOOTLOADER -> clears the OTA flag, reboots to the app.
   async function rebootToApp() {
+    setStage("reboot");
+    const oldPort = port;
     log("-> 'reboot' (bootloader clears its OTA flag and restarts)…");
     try { await write("reboot"); } catch (_) {}
-    markDisconnected(null);
+    if (!(await awaitDrop(3000))) await closePort(null);
     await sleep(1200);
-    if (await reconnect(12000)) log("Device is back (running the app).");
+    if (await reconnect(12000, oldPort)) log("Device is back (running the app).");
     else log("Device did not come back as a CDC port - it may be booting the app without CDC; check the device.");
   }
 
@@ -431,12 +600,14 @@
   // app - so after this we are in the app either way.
   async function ensureAppMode() {
     log("Making sure the device is running the app…");
+    setStage("ensure app");
     lineFifo = [];
+    const oldPort = port;
     try { await write("reboot"); } catch (_) {}
-    await sleep(2000);
-    if (!connected) {
+    if (await awaitDrop(2500)) {
       log("Device was sitting in the DFU bootloader - it is rebooting into the app…");
-      if (!(await reconnect(12000))) throw new Error("device did not come back after 'reboot'");
+      await sleep(1000);
+      if (!(await reconnect(12000, oldPort))) throw new Error("device did not come back after 'reboot'");
       await sleep(500);
     }
   }
@@ -458,22 +629,24 @@
 
     log("=== USB migration 1/2: bootloader (via the running app) ===");
     await ensureAppMode();
+    let oldPort = port;
     await flashFirmware("bldr", blData);
 
     log("Waiting for the device to reboot (new bootloader -> app)…");
-    markDisconnected(null);
+    if (!(await awaitDrop(5000))) await closePort(null);
     await sleep(1500);
-    if (!(await reconnect(15000))) throw new Error("device did not come back after the bootloader update - reconnect manually and use 'Update App firmware' to finish the migration.");
+    if (!(await reconnect(15000, oldPort))) throw new Error("device did not come back after the bootloader update - reconnect manually and use 'Update App firmware' to finish the migration.");
 
     log("=== USB migration 2/2: app firmware (via DFU) ===");
     await sleep(500);
-    await resetToDfu();
+    await ensureDfuMode();
+    oldPort = port;
     await flashFirmware("b91", appData);
 
     log("Waiting for the device to reboot into the new app…");
-    markDisconnected(null);
+    if (!(await awaitDrop(5000))) await closePort(null);
     await sleep(1500);
-    if (await reconnect(15000)) log("New app is up - migration verified.");
+    if (await reconnect(15000, oldPort)) log("New app is up - migration verified.");
     else log("Device did not reappear within 15s - power-cycle it and check; the flash itself verified OK.");
     log("=== Migration complete: new bootloader + new app. ===");
     setState("Migrated");
@@ -523,11 +696,11 @@
         setState("Done");
         log("==== DONE ====");
       } catch (e) {
-        log("ERROR: " + e.message);
+        log("ERROR: " + e.message + `  [stage: ${stage}]`);
         setState("Error");
         log("==== FAILED ====");
       } finally {
-        busy = false; updateButtons();
+        busy = false; setStage("idle"); updateButtons();
       }
     };
   }
@@ -547,17 +720,15 @@
   $("btnReboot").addEventListener("click", run("reboot", rebootToApp));
   $("btnApp").addEventListener("click", run("app", async () => {
     const d = await fetchFirmware("app", "B91 app firmware");
-    await resetToDfu();
-    await sleep(1000);
+    const dfuConfirmed = await ensureDfuMode();
     setState("Flashing app…");
-    await flashFirmware("b91", d);
+    await flashFirmware("b91", d, { dfuConfirmed });
   }));
   $("btnProd").addEventListener("click", run("prod", async () => {
     const d = await fetchFirmware("prod", "B91 prod firmware");
-    await resetToDfu();
-    await sleep(1000);
+    const dfuConfirmed = await ensureDfuMode();
     setState("Flashing prod…");
-    await flashFirmware("b91", d);
+    await flashFirmware("b91", d, { dfuConfirmed });
   }));
   $("btnBl").addEventListener("click", run("bldr", async () => {
     const d = await fetchFirmware("bldr", "B91 bootloader");
@@ -566,19 +737,25 @@
   }));
   $("btnEsp").addEventListener("click", run("esp", async () => {
     const d = await fetchFirmware("esp", "ESP32 firmware");
-    await resetToDfu();
-    await sleep(1000);
+    const dfuConfirmed = await ensureDfuMode();
     setState("Flashing ESP32…");
-    await flashFirmware("esp", d);
+    await flashFirmware("esp", d, { dfuConfirmed });
   }));
   $("btnMigrate").addEventListener("click", run("migrate", migrate));
 
   if ("serial" in navigator) {
-    navigator.serial.addEventListener("disconnect", () => markDisconnected("USB device disconnected."));
+    // Port-specific: the event bubbles up from the SerialPort that went
+    // away. A removal notice for an OLD port (delivered after we already
+    // reopened the re-enumerated device) must not kill the new link.
+    navigator.serial.addEventListener("disconnect", (e) => {
+      if (port && e.target === port) onPortLost(port, `USB device disconnected (event) during '${stage}'.`);
+      else log(`(disconnect event for a previous port instance during '${stage}' - ignored)`);
+    });
     // Auto-reopen a previously granted port on page load for convenience.
     (async () => {
       const ports = await navigator.serial.getPorts();
       for (const p of ports) {
+        if (p.connected === false) continue;
         const i = p.getInfo();
         if (i.usbVendorId === USB_VID && i.usbProductId === USB_PID) {
           try { await openPort(p); break; } catch (_) {}
